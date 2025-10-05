@@ -1,6 +1,7 @@
 :root {
   --espacio: 3px;
   --header-height: 70px;
+  --image-size: 80px;
 }
 
 * {
@@ -2595,7 +2596,7 @@ html, body {
 }
 
 .item-code-cell {
-  width: 107px;
+  width: 140px;
   padding: 8px;
   font-weight: 600;
   background: #f8f9fa !important;
@@ -2782,4 +2783,374 @@ html, body {
 
 .drop-zone:hover .add-icon {
   color: #007bff;
+}
+
+/* Estilos para columnas colapsables */
+.collapsible-header {
+  position: relative;
+  min-width: 80px;
+}
+
+.collapsible-header .header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+}
+
+.collapsible-header .header-title {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  min-width: 20px;
+}
+
+.expand-btn:hover {
+  background: rgba(0, 123, 255, 0.1);
+  transform: scale(1.1);
+}
+
+/* Layout de 4 secciones fijas con scroll sincronizado */
+.four-sections-layout {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px);
+  overflow: hidden;
+}
+
+.sections-headers {
+  display: flex;
+  background-color: #343a40;
+  border-bottom: 2px solid #495057;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.section-header {
+  padding: 12px 8px;
+  font-weight: bold;
+  color: white;
+  border-right: 1px solid #495057;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Headers de secciones con anchos específicos */
+.item-code-header {
+  width: 140px;
+  min-width: 140px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+}
+
+.cover-header {
+  width: calc(var(--image-size, 80px) + 20px);
+  min-width: calc(var(--image-size, 80px) + 20px);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.gallery-header {
+  flex: 1;
+  min-width: 200px;
+  background: linear-gradient(135deg, #007bff 0%, #6f42c1 100%);
+}
+
+.rest-header {
+  width: calc(var(--image-size, 80px) + 20px);
+  min-width: calc(var(--image-size, 80px) + 20px);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+  color: #212529;
+}
+
+.sections-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Secciones individuales */
+.section {
+  border-right: 2px solid #dee2e6;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.item-codes-section {
+  width: 140px;
+  min-width: 140px;
+  flex-shrink: 0;
+  background-color: #f8f9fa;
+}
+
+.item-codes-section .section-content {
+  overflow-x: hidden !important;
+}
+
+.cov-section {
+  width: calc(var(--image-size, 80px) + 20px);
+  min-width: calc(var(--image-size, 80px) + 20px);
+  flex-shrink: 0;
+  border-left: 3px solid #28a745;
+}
+
+.gallery-section {
+  flex: 1;
+  min-width: 200px;
+  border-left: 3px solid #007bff;
+}
+
+.rest-section {
+  width: calc(var(--image-size, 80px) + 20px);
+  min-width: calc(var(--image-size, 80px) + 20px);
+  flex-shrink: 0;
+  border-left: 3px solid #ffc107;
+}
+
+/* Contenido de secciones */
+.section-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Scroll horizontal para COV, GAL y REST */
+.horizontal-scroll-container {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #666 #f0f0f0;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Columnas de imágenes dentro del scroll */
+.image-column {
+  min-width: calc(var(--image-size, 80px) + 10px);
+  flex-shrink: 0;
+  border-right: 1px solid #dee2e6;
+  background-color: white;
+}
+
+/* Filas de Item Codes (sin scroll horizontal) */
+.item-row {
+  border-bottom: 1px solid #dee2e6;
+}
+
+.item-code-cell {
+  width: 140px;
+  padding: 4px 6px;
+  height: calc(var(--image-size, 80px) + 40px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.item-code-main {
+  font-weight: bold;
+  font-size: 11px;
+  margin-bottom: 1px;
+  color: #212529;
+}
+
+.item-code-meta {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 1px;
+}
+
+.item-importance,
+.item-brand {
+  font-size: 9px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.item-title {
+  font-size: 9px;
+  color: #6c757d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-height: 1.2;
+}
+
+/* Celdas de imágenes individuales */
+.image-cell {
+  height: calc(var(--image-size, 80px) + 40px);
+  border-bottom: 1px solid #dee2e6;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+.image-cell:hover {
+  background-color: #f8f9fa;
+}
+
+/* Contenedores de imágenes */
+.image-thumbnail-container {
+  position: relative;
+  width: 100%;
+  height: calc(var(--image-size, 80px) + 15px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.image-thumbnail {
+  max-width: var(--image-size, 80px);
+  max-height: var(--image-size, 80px);
+  object-fit: contain;
+  border-radius: 3px;
+  border: 1px solid #dee2e6;
+}
+
+.image-thumbnail:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+.image-controls {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: none;
+  gap: 2px;
+}
+
+.image-thumbnail-container:hover .image-controls {
+  display: flex;
+}
+
+.btn-copy,
+.btn-remove {
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 10px;
+  cursor: pointer;
+  color: white;
+}
+
+.btn-copy:hover {
+  background: rgba(0, 123, 255, 0.8);
+}
+
+.btn-remove:hover {
+  background: rgba(220, 53, 69, 0.8);
+}
+
+.image-name {
+  font-size: calc(var(--font-scale, 9px) * 0.9);
+  color: #6c757d;
+  text-align: center;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  max-width: var(--image-size, 80px);
+}
+
+/* Celdas vacías */
+.empty-image-cell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drop-zone {
+  width: 80%;
+  height: 80%;
+  border: 2px dashed #dee2e6;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.drop-zone:hover {
+  border-color: #007bff;
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.add-icon {
+  font-size: 16px;
+  color: #6c757d;
+}
+
+/* Sincronización de scroll vertical entre secciones */
+.sections-body .section-content {
+  scrollbar-width: thin;
+  scrollbar-color: #666 #f0f0f0;
+}
+
+.sections-body .section-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sections-body .section-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.sections-body .section-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.sections-body .section-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }

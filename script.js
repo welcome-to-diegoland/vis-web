@@ -378,15 +378,28 @@ function loadImageGridInBox4(itemGroupPath) {
   
   addContentToBox4(fullHtml);
   
-  // Configurar controles de zoom después de que se agregue al DOM
+  // Configurar controles de zoom y sincronización después de que se agregue al DOM
   // Usar un setTimeout más largo para asegurar que el DOM esté listo
   setTimeout(() => {
     setupZoomControls();
+    setupScrollSynchronization();
   }, 500);
+  
+  // Intentar de nuevo la sincronización después de un delay más largo
+  setTimeout(() => {
+    setupScrollSynchronization();
+  }, 1500);
 }
 
 // Función para crear la retícula HTML
 function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
+  // Agrupar columnas por tipo para manejo con scroll
+  const columnGroups = {
+    cover: imageColumns.filter(col => col.includes('Cover')),
+    gallery: imageColumns.filter(col => col.includes('Gallery')),
+    rest: imageColumns.filter(col => col.includes('Rst') || col.includes('Rest'))
+  };
+
   let html = `
     <div class="image-grid-container" id="imageGridContainer">
       <div class="image-grid-header">
@@ -411,97 +424,194 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
             </div>
           </div>
           <div class="item-codes-count">
-            <h4>Gestión de Imágenes - ${itemCodes.length} Item Codes</h4>
+            <span class="count-badge">${itemCodes.length} items</span>
           </div>
         </div>
       </div>
-      <div class="image-grid-wrapper">
-        <table class="image-grid-table">
-          <thead>
-            <tr>
-              <th class="sticky-col sticky-header">Item Code</th>`;
-
-  // Headers de las columnas de imágenes
-  imageColumns.forEach((col, index) => {
-    let shortName = '';
-    
-    if (col.includes('Cover')) {
-      const coverNum = col.match(/(\d+)/)?.[1] || (index + 1);
-      shortName = `Cov ${coverNum}`;
-    } else if (col.includes('Gallery')) {
-      const galleryNum = col.match(/(\d+)/)?.[1] || (index + 1);
-      shortName = `Gal ${galleryNum}`;
-    } else if (col.includes('Rst') || col.includes('Rest')) {
-      const rstNum = col.match(/(\d+)/)?.[1] || (index + 1);
-      shortName = `Rst ${rstNum}`;
-    } else {
-      // Para cualquier otro tipo de columna, usar las primeras 3 letras + número
-      const baseName = col.replace('WA_', '').replace('_Image', '').replace('_0', '_');
-      const firstWord = baseName.split('_')[0];
-      const num = col.match(/(\d+)/)?.[1] || (index + 1);
-      shortName = `${firstWord.substring(0, 3)} ${num}`;
-    }
-    
-    html += `<th class="image-col sticky-header">${shortName}</th>`;
-  });
-
-  html += `
-            </tr>
-          </thead>
-          <tbody>`;
-
-  // Filas de datos
-  itemCodes.forEach(itemCode => {
-    html += `
-      <tr data-item-code="${itemCode.Name}">
-        <td class="sticky-col item-code-cell">
-          <div class="item-code-main">${itemCode.Name}</div>
-          <div class="item-code-meta">
-            <span class="item-importance">${itemCode['WA Importancia'] || itemCode['Importancia'] || itemCode['Importance'] || ''}</span>
-            <span class="item-brand">${itemCode['Marca'] || itemCode['Brand'] || ''}</span>
+      
+      <!-- Layout de 4 secciones fijas con scroll sincronizado -->
+      <div class="four-sections-layout">
+        <div class="sections-headers">
+          <div class="section-header item-code-header">Item Code</div>
+          ${columnGroups.cover.length > 0 ? `<div class="section-header cover-header">COV (${columnGroups.cover.length})</div>` : ''}
+          <div class="section-header gallery-header">GAL (${columnGroups.gallery.length})</div>
+          ${columnGroups.rest.length > 0 ? `<div class="section-header rest-header">REST (${columnGroups.rest.length})</div>` : ''}
+        </div>
+        
+        <div class="sections-body" id="sectionsBody">
+          <!-- Sección 1: Item Codes (fija, sin scroll horizontal) -->
+          <div class="section item-codes-section">
+            <div class="section-content">
+              ${itemCodes.map(itemCode => `
+                <div class="item-row" data-item-code="${itemCode.Name}">
+                  <div class="item-code-cell">
+                    <div class="item-code-main">${itemCode.Name}</div>
+                    <div class="item-code-meta">
+                      <span class="item-importance">${itemCode['WA Importancia'] || itemCode['Importancia'] || itemCode['Importance'] || ''}</span>
+                      <span class="item-brand">${itemCode['Marca'] || itemCode['Brand'] || ''}</span>
+                    </div>
+                    <div class="item-title">${itemCode['Título'] || itemCode['Title'] || ''}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
           </div>
-          <div class="item-title">${itemCode['Título'] || itemCode['Title'] || ''}</div>
-        </td>`;
-
-    // Celdas de imágenes
-    imageColumns.forEach(col => {
-      const imageName = itemCode[col] || '';
-      html += `<td class="image-cell" data-column="${col}">`;
-      
-      if (imageName) {
-        const imageUrl = `https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}`;
-        html += `
-          <div class="image-thumbnail-container">
-            <img src="${imageUrl}" alt="${imageName}" class="image-thumbnail" 
-                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
-            <div class="image-controls">
-              <button class="btn-copy" title="Copiar imagen">📋</button>
-              <button class="btn-remove" title="Quitar imagen">🗑️</button>
+          
+          <!-- Sección 2: COV (ancho de 1 imagen, scroll horizontal interno) -->
+          ${columnGroups.cover.length > 0 ? `
+          <div class="section cov-section">
+            <div class="section-content">
+              <div class="horizontal-scroll-container">
+                ${columnGroups.cover.map(col => `
+                  <div class="image-column" data-column="${col}">
+                    ${itemCodes.map(itemCode => {
+                      const imageName = itemCode[col] || '';
+                      return `
+                        <div class="image-cell" data-item-code="${itemCode.Name}">
+                          ${imageName ? `
+                            <div class="image-thumbnail-container">
+                              <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
+                                   alt="${imageName}" class="image-thumbnail" 
+                                   onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
+                              <div class="image-controls">
+                                <button class="btn-copy" title="Copiar imagen">📋</button>
+                                <button class="btn-remove" title="Quitar imagen">🗑️</button>
+                              </div>
+                              <div class="image-name">${imageName}</div>
+                            </div>
+                          ` : `
+                            <div class="empty-image-cell">
+                              <div class="drop-zone" title="Arrastrar imagen aquí">
+                                <span class="add-icon">+</span>
+                              </div>
+                            </div>
+                          `}
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                `).join('')}
+              </div>
             </div>
-            <div class="image-name">${imageName}</div>
-          </div>`;
-      } else {
-        html += `
-          <div class="empty-image-cell">
-            <div class="drop-zone" title="Arrastrar imagen aquí">
-              <span class="add-icon">+</span>
+          </div>
+          ` : ''}
+          
+          <!-- Sección 3: GAL (espacio sobrante, scroll horizontal para ver todas las Gallery) -->
+          <div class="section gallery-section">
+            <div class="section-content">
+              <div class="horizontal-scroll-container">
+                ${columnGroups.gallery.map((col, index) => {
+                  const galleryNum = col.match(/(\d+)/)?.[1] || (index + 1);
+                  return `
+                    <div class="image-column" data-column="${col}">
+                      ${itemCodes.map(itemCode => {
+                        const imageName = itemCode[col] || '';
+                        return `
+                          <div class="image-cell" data-item-code="${itemCode.Name}">
+                            ${imageName ? `
+                              <div class="image-thumbnail-container">
+                                <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
+                                     alt="${imageName}" class="image-thumbnail" 
+                                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
+                                <div class="image-controls">
+                                  <button class="btn-copy" title="Copiar imagen">📋</button>
+                                  <button class="btn-remove" title="Quitar imagen">🗑️</button>
+                                </div>
+                                <div class="image-name">${imageName}</div>
+                              </div>
+                            ` : `
+                              <div class="empty-image-cell">
+                                <div class="drop-zone" title="Arrastrar imagen aquí">
+                                  <span class="add-icon">+</span>
+                                </div>
+                              </div>
+                            `}
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
             </div>
-          </div>`;
-      }
-      
-      html += `</td>`;
-    });
-
-    html += `</tr>`;
-  });
-
-  html += `
-          </tbody>
-        </table>
+          </div>
+          
+          <!-- Sección 4: REST (ancho de 1 imagen, scroll horizontal interno) -->
+          ${columnGroups.rest.length > 0 ? `
+          <div class="section rest-section">
+            <div class="section-content">
+              <div class="horizontal-scroll-container">
+                ${columnGroups.rest.map(col => `
+                  <div class="image-column" data-column="${col}">
+                    ${itemCodes.map(itemCode => {
+                      const imageName = itemCode[col] || '';
+                      return `
+                        <div class="image-cell" data-item-code="${itemCode.Name}">
+                          ${imageName ? `
+                            <div class="image-thumbnail-container">
+                              <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
+                                   alt="${imageName}" class="image-thumbnail" 
+                                   onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
+                              <div class="image-controls">
+                                <button class="btn-copy" title="Copiar imagen">📋</button>
+                                <button class="btn-remove" title="Quitar imagen">🗑️</button>
+                              </div>
+                              <div class="image-name">${imageName}</div>
+                            </div>
+                          ` : `
+                            <div class="empty-image-cell">
+                              <div class="drop-zone" title="Arrastrar imagen aquí">
+                                <span class="add-icon">+</span>
+                              </div>
+                            </div>
+                          `}
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          ` : ''}
+        </div>
       </div>
     </div>`;
 
   return html;
+
+  return html;
+}
+
+// Variables para mantener datos de la grilla actual (para regeneración)
+let currentItemCodes = [];
+let currentImageColumns = [];
+let currentItemGroup = null;
+
+// Función para regenerar la grilla de imágenes
+function regenerateImageGrid() {
+  if (!currentItemCodes.length || !currentImageColumns.length) {
+    console.log('No hay datos para regenerar la grilla');
+    return;
+  }
+  
+  const box4Content = document.getElementById('box4-content');
+  if (!box4Content) {
+    console.error('box4-content not found');
+    return;
+  }
+  
+  // Regenerar la grilla con los datos actuales
+  const newGridHtml = createImageGrid(currentItemCodes, currentImageColumns, currentItemGroup);
+  box4Content.innerHTML = newGridHtml;
+  
+  // Reconfigurar controles de zoom y sincronización
+  setTimeout(() => {
+    setupZoomControls();
+    setupScrollSynchronization();
+  }, 100);
+  
+  console.log('Grilla regenerada exitosamente');
 }
 
 // Función para configurar los controles de zoom
@@ -531,30 +641,30 @@ function setupZoomControls() {
   const scaleStep = 0.25;
   
   function updateScale() {
-    container.style.setProperty('--image-scale', currentScale);
+    const imageSize = Math.round(80 * currentScale);
+    container.style.setProperty('--image-size', imageSize + 'px');
     zoomInfo.textContent = Math.round(currentScale * 100) + '%';
     
-    // Calcular scale de hover para mantener tamaño fijo de 120px
-    // Si la imagen base es 60px * currentScale, necesitamos scale = 120 / (60 * currentScale) = 2 / currentScale
-    const hoverScale = 3 / currentScale;
+    // Calcular scale de hover para mantener proporción
+    const hoverScale = 1.1;
     container.style.setProperty('--hover-scale', hoverScale);
     
     // Calcular tamaño de fuente según rangos de zoom
     let fontSize;
     if (currentScale <= 0.5) {
-      fontSize = '6px';  // Muy pequeño (50%)
+      fontSize = '7px';  // Muy pequeño (50%)
     } else if (currentScale <= 0.75) {
-      fontSize = '7px';  // Pequeño (50-75%)
+      fontSize = '8px';  // Pequeño (50-75%)
     } else if (currentScale <= 1) {
-      fontSize = '8px';  // Normal (75-100%)
+      fontSize = '9px';  // Normal (75-100%)
     } else if (currentScale <= 1.5) {
-      fontSize = '9px';  // Mediano pequeño (100-150%)
+      fontSize = '10px'; // Mediano pequeño (100-150%)
     } else if (currentScale <= 2) {
-      fontSize = '10px'; // Mediano (150-200%)
+      fontSize = '11px'; // Mediano (150-200%)
     } else if (currentScale <= 2.5) {
-      fontSize = '11px'; // Grande (200-250%)
+      fontSize = '12px'; // Grande (200-250%)
     } else {
-      fontSize = '12px'; // Muy grande (250%+)
+      fontSize = '13px'; // Muy grande (250%+)
     }
     
     container.style.setProperty('--font-scale', fontSize);
@@ -562,6 +672,11 @@ function setupZoomControls() {
     // Actualizar estado de botones
     zoomOutBtn.disabled = currentScale <= minScale;
     zoomInBtn.disabled = currentScale >= maxScale;
+    
+    // Recalcular sincronización de scroll después del cambio de tamaño
+    setTimeout(() => {
+      setupScrollSynchronization();
+    }, 100);
   }
   
   zoomInBtn.addEventListener('click', () => {
@@ -758,10 +873,84 @@ function handleBox4Action() {
   alert('Acción ejecutada en Box 4');
 }
 
+// Función para sincronizar el scroll vertical entre todas las secciones
+function setupScrollSynchronization() {
+  const sectionContents = document.querySelectorAll('.section-content');
+  
+  if (sectionContents.length === 0) {
+    console.log('No se encontraron secciones para sincronizar');
+    return;
+  }
+
+  console.log(`Configurando sincronización para ${sectionContents.length} secciones`);
+  
+  // Remover todos los listeners previos
+  sectionContents.forEach(section => {
+    if (section._scrollHandler) {
+      section.removeEventListener('scroll', section._scrollHandler);
+    }
+  });
+
+  let isScrolling = false;
+  
+  // Calcular altura de una fila basándose en la primera celda
+  function getRowHeight() {
+    const firstCell = document.querySelector('.item-code-cell, .image-cell');
+    if (firstCell) {
+      const computedStyle = getComputedStyle(firstCell);
+      const height = firstCell.offsetHeight;
+      const marginBottom = parseInt(computedStyle.marginBottom) || 0;
+      return height + marginBottom + 10; // Incluir gap entre celdas
+    }
+    return 120; // Fallback basado en nuestras medidas actuales
+  }
+
+  function syncScrollByRow(sourceIndex, scrollTop) {
+    if (isScrolling) return;
+    
+    isScrolling = true;
+    const rowHeight = getRowHeight();
+    
+    // Calcular qué fila está visible (con un poco de tolerancia)
+    const currentRow = Math.floor((scrollTop + rowHeight/2) / rowHeight);
+    const targetScrollTop = currentRow * rowHeight;
+    
+    console.log(`Sincronizando fila ${currentRow}, altura fila: ${rowHeight}px, scroll objetivo: ${targetScrollTop}px`);
+    
+    sectionContents.forEach((section, index) => {
+      if (index !== sourceIndex) {
+        section.scrollTop = targetScrollTop;
+      }
+    });
+    
+    setTimeout(() => {
+      isScrolling = false;
+    }, 100);
+  }
+
+  // Agregar listeners a todas las secciones
+  sectionContents.forEach((section, index) => {
+    section._scrollHandler = function() {
+      if (!isScrolling) {
+        syncScrollByRow(index, this.scrollTop);
+      }
+    };
+    
+    section.addEventListener('scroll', section._scrollHandler, { passive: true });
+  });
+  
+  console.log('Sincronización por filas configurada exitosamente');
+}
+
 // Inicializar contenido de ejemplo al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
   // Intentar cargar datos desde localStorage al iniciar
   loadFromLocalStorage();
+  
+  // Configurar sincronización de scroll después de que se carge el contenido
+  setTimeout(() => {
+    setupScrollSynchronization();
+  }, 1000);
   
   // Opcionalmente puedes agregar contenido de ejemplo:
   // addSampleContent();
