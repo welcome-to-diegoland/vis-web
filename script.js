@@ -391,7 +391,7 @@ function loadImageGridInBox4(itemGroupPath) {
   }, 1500);
 }
 
-// Función para crear la retícula HTML
+// Función para crear la retícula HTML unificada
 function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
   // Agrupar columnas por tipo para manejo con scroll
   const columnGroups = {
@@ -399,6 +399,14 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
     gallery: imageColumns.filter(col => col.includes('Gallery')),
     rest: imageColumns.filter(col => col.includes('Rst') || col.includes('Rest'))
   };
+
+  // Crear una estructura de datos unificada donde cada fila tiene TODOS sus datos
+  const unifiedRows = itemCodes.map(itemCode => ({
+    itemCode: itemCode,
+    coverImages: columnGroups.cover.map(col => itemCode[col] || ''),
+    galleryImages: columnGroups.gallery.map(col => itemCode[col] || ''),
+    restImages: columnGroups.rest.map(col => itemCode[col] || '')
+  }));
 
   let html = `
     <div class="image-grid-container" id="imageGridContainer">
@@ -429,158 +437,145 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
         </div>
       </div>
       
-      <!-- Layout de 4 secciones fijas con scroll sincronizado -->
-      <div class="four-sections-layout">
-        <div class="sections-headers">
-          <div class="section-header item-code-header">Item Code</div>
-          ${columnGroups.cover.length > 0 ? `<div class="section-header cover-header">COV (${columnGroups.cover.length})</div>` : ''}
-          <div class="section-header gallery-header">GAL (${columnGroups.gallery.length})</div>
-          ${columnGroups.rest.length > 0 ? `<div class="section-header rest-header">REST (${columnGroups.rest.length})</div>` : ''}
+      <!-- Layout unificado de 4 secciones con scroll master -->
+      <div class="unified-grid-layout" id="unifiedGridLayout">
+        <!-- Headers fijos -->
+        <div class="grid-headers">
+          <div class="header-section item-code-header">Item Code</div>
+          ${columnGroups.cover.length > 0 ? `<div class="header-section cover-header">COV (${columnGroups.cover.length})</div>` : ''}
+          <div class="header-section gallery-header">GAL (${columnGroups.gallery.length})</div>
+          ${columnGroups.rest.length > 0 ? `<div class="header-section rest-header">REST (${columnGroups.rest.length})</div>` : ''}
         </div>
         
-        <div class="sections-body" id="sectionsBody">
-          <!-- Sección 1: Item Codes (fija, sin scroll horizontal) -->
-          <div class="section item-codes-section">
-            <div class="section-content">
-              ${itemCodes.map(itemCode => `
-                <div class="item-row" data-item-code="${itemCode.Name}">
-                  <div class="item-code-cell">
-                    <div class="item-code-main">${itemCode.Name}</div>
-                    <div class="item-code-meta">
-                      <span class="item-importance">${itemCode['WA Importancia'] || itemCode['Importancia'] || itemCode['Importance'] || ''}</span>
-                      <span class="item-brand">${itemCode['Marca'] || itemCode['Brand'] || ''}</span>
-                    </div>
-                    <div class="item-title">${itemCode['Título'] || itemCode['Title'] || ''}</div>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
+        <!-- Contenedor principal con scroll master único -->
+        <div class="master-scroll-container" id="masterScrollContainer">
+          <div class="unified-table-body" id="unifiedTableBody">
+            ${generateUnifiedTableRows(unifiedRows, columnGroups)}
           </div>
-          
-          <!-- Sección 2: COV (ancho de 1 imagen, scroll horizontal interno) -->
-          ${columnGroups.cover.length > 0 ? `
-          <div class="section cov-section">
-            <div class="section-content">
-              <div class="horizontal-scroll-container">
-                ${columnGroups.cover.map(col => `
-                  <div class="image-column" data-column="${col}">
-                    ${itemCodes.map(itemCode => {
-                      const imageName = itemCode[col] || '';
-                      return `
-                        <div class="image-cell" data-item-code="${itemCode.Name}">
-                          ${imageName ? `
-                            <div class="image-thumbnail-container">
-                              <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
-                                   alt="${imageName}" class="image-thumbnail" 
-                                   onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
-                              <div class="image-controls">
-                                <button class="btn-copy" title="Copiar imagen">📋</button>
-                                <button class="btn-remove" title="Quitar imagen">🗑️</button>
-                              </div>
-                              <div class="image-name">${imageName}</div>
-                            </div>
-                          ` : `
-                            <div class="empty-image-cell">
-                              <div class="drop-zone" title="Arrastrar imagen aquí">
-                                <span class="add-icon">+</span>
-                              </div>
-                            </div>
-                          `}
-                        </div>
-                      `;
-                    }).join('')}
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-          ` : ''}
-          
-          <!-- Sección 3: GAL (espacio sobrante, scroll horizontal para ver todas las Gallery) -->
-          <div class="section gallery-section">
-            <div class="section-content">
-              <div class="horizontal-scroll-container">
-                ${columnGroups.gallery.map((col, index) => {
-                  const galleryNum = col.match(/(\d+)/)?.[1] || (index + 1);
-                  return `
-                    <div class="image-column" data-column="${col}">
-                      ${itemCodes.map(itemCode => {
-                        const imageName = itemCode[col] || '';
-                        return `
-                          <div class="image-cell" data-item-code="${itemCode.Name}">
-                            ${imageName ? `
-                              <div class="image-thumbnail-container">
-                                <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
-                                     alt="${imageName}" class="image-thumbnail" 
-                                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
-                                <div class="image-controls">
-                                  <button class="btn-copy" title="Copiar imagen">📋</button>
-                                  <button class="btn-remove" title="Quitar imagen">🗑️</button>
-                                </div>
-                                <div class="image-name">${imageName}</div>
-                              </div>
-                            ` : `
-                              <div class="empty-image-cell">
-                                <div class="drop-zone" title="Arrastrar imagen aquí">
-                                  <span class="add-icon">+</span>
-                                </div>
-                              </div>
-                            `}
-                          </div>
-                        `;
-                      }).join('')}
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-          </div>
-          
-          <!-- Sección 4: REST (ancho de 1 imagen, scroll horizontal interno) -->
-          ${columnGroups.rest.length > 0 ? `
-          <div class="section rest-section">
-            <div class="section-content">
-              <div class="horizontal-scroll-container">
-                ${columnGroups.rest.map(col => `
-                  <div class="image-column" data-column="${col}">
-                    ${itemCodes.map(itemCode => {
-                      const imageName = itemCode[col] || '';
-                      return `
-                        <div class="image-cell" data-item-code="${itemCode.Name}">
-                          ${imageName ? `
-                            <div class="image-thumbnail-container">
-                              <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
-                                   alt="${imageName}" class="image-thumbnail" 
-                                   onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
-                              <div class="image-controls">
-                                <button class="btn-copy" title="Copiar imagen">📋</button>
-                                <button class="btn-remove" title="Quitar imagen">🗑️</button>
-                              </div>
-                              <div class="image-name">${imageName}</div>
-                            </div>
-                          ` : `
-                            <div class="empty-image-cell">
-                              <div class="drop-zone" title="Arrastrar imagen aquí">
-                                <span class="add-icon">+</span>
-                              </div>
-                            </div>
-                          `}
-                        </div>
-                      `;
-                    }).join('')}
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-          ` : ''}
         </div>
       </div>
     </div>`;
 
   return html;
+}
 
-  return html;
+// Función auxiliar para generar las filas de la tabla unificada
+function generateUnifiedTableRows(unifiedRows, columnGroups) {
+  // Estructura de tabla real: filas x columnas fijas
+  const rowCount = unifiedRows.length;
+  
+  return `
+    <div class="sections-container">
+      
+      <!-- Sección 1: Item Code (sin scroll horizontal) -->
+      <div class="section-wrapper item-code-wrapper">
+        <div class="section-scroll-container">
+          <div class="section-table">
+            ${unifiedRows.map((row, rowIndex) => `
+              <div class="table-row" data-row-index="${rowIndex}">
+                <div class="table-cell item-code-cell" data-item-code="${row.itemCode.Name}">
+                  <div class="item-code-main">${row.itemCode.Name}</div>
+                  <div class="item-code-meta">
+                    <span class="item-importance">${row.itemCode['WA Importancia'] || row.itemCode['Importancia'] || row.itemCode['Importance'] || ''}</span>
+                    <span class="item-brand">${row.itemCode['Marca'] || row.itemCode['Brand'] || ''}</span>
+                  </div>
+                  <div class="item-title">${row.itemCode['Título'] || row.itemCode['Title'] || ''}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Sección 2: COV (con scroll horizontal único) -->
+      ${columnGroups.cover.length > 0 ? `
+      <div class="section-wrapper cov-wrapper">
+        <div class="section-scroll-container horizontal-scrollable" data-section="cov">
+          <div class="section-table">
+            ${generateSectionTable(unifiedRows, 'coverImages', columnGroups.cover.length, 'cov')}
+          </div>
+        </div>
+      </div>
+      ` : ''}
+      
+      <!-- Sección 3: GAL (con scroll horizontal único) -->
+      <div class="section-wrapper gallery-wrapper">
+        <div class="section-scroll-container horizontal-scrollable" data-section="gallery">
+          <div class="section-table">
+            ${generateSectionTable(unifiedRows, 'galleryImages', columnGroups.gallery.length, 'gallery')}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Sección 4: REST (con scroll horizontal único) -->
+      ${columnGroups.rest.length > 0 ? `
+      <div class="section-wrapper rest-wrapper">
+        <div class="section-scroll-container horizontal-scrollable" data-section="rest">
+          <div class="section-table">
+            ${generateSectionTable(unifiedRows, 'restImages', columnGroups.rest.length, 'rest')}
+          </div>
+        </div>
+      </div>
+      ` : ''}
+      
+    </div>
+  `;
+}
+
+// Función auxiliar para generar tabla de una sección específica
+function generateSectionTable(unifiedRows, imageProperty, columnCount, sectionName) {
+  // Crear tabla real: una fila por Item Code, columnas fijas para todas las imágenes
+  return unifiedRows.map((row, rowIndex) => {
+    const images = row[imageProperty];
+    
+    // Crear TODAS las columnas para esta fila, en orden fijo
+    const cells = [];
+    for (let colIndex = 0; colIndex < columnCount; colIndex++) {
+      const imageName = images[colIndex] || '';
+      cells.push(`
+        <div class="table-cell image-cell" 
+             data-row-index="${rowIndex}" 
+             data-col-index="${colIndex}" 
+             data-section="${sectionName}"
+             data-item-code="${row.itemCode.Name}">
+          ${imageName ? generateImageCell(imageName, row.itemCode.Name) : generateEmptyImageCell()}
+        </div>
+      `);
+    }
+    
+    return `
+      <div class="table-row" data-row-index="${rowIndex}">
+        ${cells.join('')}
+      </div>
+    `;
+  }).join('');
+}
+
+// Función auxiliar para generar celda de imagen
+function generateImageCell(imageName, itemCode) {
+  return `
+    <div class="image-thumbnail-container">
+      <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
+           alt="${imageName}" class="image-thumbnail" 
+           onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
+      <div class="image-controls">
+        <button class="btn-copy" title="Copiar imagen">📋</button>
+        <button class="btn-remove" title="Quitar imagen">🗑️</button>
+      </div>
+      <div class="image-name">${imageName}</div>
+    </div>
+  `;
+}
+
+// Función auxiliar para generar celda vacía
+function generateEmptyImageCell() {
+  return `
+    <div class="empty-image-cell">
+      <div class="drop-zone" title="Arrastrar imagen aquí">
+        <span class="add-icon">+</span>
+      </div>
+    </div>
+  `;
 }
 
 // Variables para mantener datos de la grilla actual (para regeneración)
@@ -873,73 +868,47 @@ function handleBox4Action() {
   alert('Acción ejecutada en Box 4');
 }
 
-// Función para sincronizar el scroll vertical entre todas las secciones
+// Función para configurar el scroll master unificado
 function setupScrollSynchronization() {
-  const sectionContents = document.querySelectorAll('.section-content');
+  // En la nueva estructura, solo hay UN contenedor con scroll vertical
+  const masterScrollContainer = document.getElementById('masterScrollContainer');
   
-  if (sectionContents.length === 0) {
-    console.log('No se encontraron secciones para sincronizar');
+  if (!masterScrollContainer) {
+    console.log('No se encontró el contenedor master de scroll');
     return;
   }
 
-  console.log(`Configurando sincronización para ${sectionContents.length} secciones`);
+  console.log('Configurando scroll master unificado con sincronización horizontal');
   
-  // Remover todos los listeners previos
-  sectionContents.forEach(section => {
-    if (section._scrollHandler) {
-      section.removeEventListener('scroll', section._scrollHandler);
-    }
-  });
+  // El scroll vertical ya es naturalmente sincronizado porque todas las secciones
+  // están en el mismo contenedor
+  
+  // Ahora configuramos la sincronización horizontal por sección
+  setupHorizontalScrollSynchronization();
+  
+  console.log('Scroll master configurado exitosamente - estructura unificada');
+}
 
-  let isScrolling = false;
+// Función para sincronizar scroll horizontal por sección
+function setupHorizontalScrollSynchronization() {
+  // En la nueva estructura, cada sección tiene UN SOLO scroll horizontal
+  const horizontalScrollContainers = document.querySelectorAll('.horizontal-scrollable');
   
-  // Calcular altura de una fila basándose en la primera celda
-  function getRowHeight() {
-    const firstCell = document.querySelector('.item-code-cell, .image-cell');
-    if (firstCell) {
-      const computedStyle = getComputedStyle(firstCell);
-      const height = firstCell.offsetHeight;
-      const marginBottom = parseInt(computedStyle.marginBottom) || 0;
-      return height + marginBottom + 10; // Incluir gap entre celdas
-    }
-    return 120; // Fallback basado en nuestras medidas actuales
+  if (horizontalScrollContainers.length === 0) {
+    console.log('No se encontraron contenedores con scroll horizontal');
+    return;
   }
-
-  function syncScrollByRow(sourceIndex, scrollTop) {
-    if (isScrolling) return;
-    
-    isScrolling = true;
-    const rowHeight = getRowHeight();
-    
-    // Calcular qué fila está visible (con un poco de tolerancia)
-    const currentRow = Math.floor((scrollTop + rowHeight/2) / rowHeight);
-    const targetScrollTop = currentRow * rowHeight;
-    
-    console.log(`Sincronizando fila ${currentRow}, altura fila: ${rowHeight}px, scroll objetivo: ${targetScrollTop}px`);
-    
-    sectionContents.forEach((section, index) => {
-      if (index !== sourceIndex) {
-        section.scrollTop = targetScrollTop;
-      }
-    });
-    
-    setTimeout(() => {
-      isScrolling = false;
-    }, 100);
-  }
-
-  // Agregar listeners a todas las secciones
-  sectionContents.forEach((section, index) => {
-    section._scrollHandler = function() {
-      if (!isScrolling) {
-        syncScrollByRow(index, this.scrollTop);
-      }
-    };
-    
-    section.addEventListener('scroll', section._scrollHandler, { passive: true });
-  });
   
-  console.log('Sincronización por filas configurada exitosamente');
+  console.log(`Configurando scroll horizontal único para ${horizontalScrollContainers.length} secciones`);
+  
+  // Cada contenedor ya maneja su propio scroll horizontalmente
+  // No necesitamos sincronización adicional porque cada sección 
+  // tiene un solo scroll que mueve todo su contenido junto
+  
+  horizontalScrollContainers.forEach(container => {
+    const sectionName = container.getAttribute('data-section');
+    console.log(`Scroll horizontal configurado para sección: ${sectionName}`);
+  });
 }
 
 // Inicializar contenido de ejemplo al cargar la página
