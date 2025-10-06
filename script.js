@@ -439,18 +439,11 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
       
       <!-- Layout unificado de 4 secciones con scroll master -->
       <div class="unified-grid-layout" id="unifiedGridLayout">
-        <!-- Headers fijos -->
-        <div class="grid-headers">
-          <div class="header-section item-code-header">Item Code</div>
-          ${columnGroups.cover.length > 0 ? `<div class="header-section cover-header">COV (${columnGroups.cover.length})</div>` : ''}
-          <div class="header-section gallery-header">GAL (${columnGroups.gallery.length})</div>
-          ${columnGroups.rest.length > 0 ? `<div class="header-section rest-header">REST (${columnGroups.rest.length})</div>` : ''}
-        </div>
         
         <!-- Contenedor principal con scroll master único -->
         <div class="master-scroll-container" id="masterScrollContainer">
           <div class="unified-table-body" id="unifiedTableBody">
-            ${generateUnifiedTableRows(unifiedRows, columnGroups)}
+            ${generateUnifiedTableWithHeaders(unifiedRows, columnGroups)}
           </div>
         </div>
       </div>
@@ -459,16 +452,15 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
   return html;
 }
 
-// Función auxiliar para generar las filas de la tabla unificada
-function generateUnifiedTableRows(unifiedRows, columnGroups) {
-  // Estructura de tabla real: filas x columnas fijas
-  const rowCount = unifiedRows.length;
-  
+// Función auxiliar para generar la tabla unificada con headers por sección
+function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
+  // Estructura con headers dentro de cada sección que hacen scroll con su contenido
   return `
     <div class="sections-container">
       
-      <!-- Sección 1: Item Code (sin scroll horizontal) -->
+      <!-- Sección 1: Item Code (con header fijo) -->
       <div class="section-wrapper item-code-wrapper">
+        <div class="section-header item-code-header">Item Code</div>
         <div class="section-scroll-container">
           <div class="section-table">
             ${unifiedRows.map((row, rowIndex) => `
@@ -487,10 +479,18 @@ function generateUnifiedTableRows(unifiedRows, columnGroups) {
         </div>
       </div>
       
-      <!-- Sección 2: COV (con scroll horizontal único) -->
+      <!-- Sección 2: COV (con headers que hacen scroll) -->
       ${columnGroups.cover.length > 0 ? `
       <div class="section-wrapper cov-wrapper">
         <div class="section-scroll-container horizontal-scrollable" data-section="cov">
+          <!-- Headers COV que hacen scroll horizontal -->
+          <div class="section-headers">
+            ${columnGroups.cover.map((col, index) => {
+              const covNumber = (index + 1).toString().padStart(2, '0');
+              return `<div class="header-section cover-header">COV ${covNumber}</div>`;
+            }).join('')}
+          </div>
+          <!-- Tabla COV -->
           <div class="section-table">
             ${generateSectionTable(unifiedRows, 'coverImages', columnGroups.cover.length, 'cov')}
           </div>
@@ -498,19 +498,35 @@ function generateUnifiedTableRows(unifiedRows, columnGroups) {
       </div>
       ` : ''}
       
-      <!-- Sección 3: GAL (con scroll horizontal único) -->
+      <!-- Sección 3: GAL (con headers que hacen scroll) -->
       <div class="section-wrapper gallery-wrapper">
         <div class="section-scroll-container horizontal-scrollable" data-section="gallery">
+          <!-- Headers Gallery que hacen scroll horizontal -->
+          <div class="section-headers">
+            ${columnGroups.gallery.map((col, index) => {
+              const galNumber = (index + 1).toString().padStart(2, '0');
+              return `<div class="header-section gallery-header">GAL ${galNumber}</div>`;
+            }).join('')}
+          </div>
+          <!-- Tabla Gallery -->
           <div class="section-table">
             ${generateSectionTable(unifiedRows, 'galleryImages', columnGroups.gallery.length, 'gallery')}
           </div>
         </div>
       </div>
       
-      <!-- Sección 4: REST (con scroll horizontal único) -->
+      <!-- Sección 4: REST (con headers que hacen scroll) -->
       ${columnGroups.rest.length > 0 ? `
       <div class="section-wrapper rest-wrapper">
         <div class="section-scroll-container horizontal-scrollable" data-section="rest">
+          <!-- Headers REST que hacen scroll horizontal -->
+          <div class="section-headers">
+            ${columnGroups.rest.map((col, index) => {
+              const restNumber = (index + 1).toString().padStart(2, '0');
+              return `<div class="header-section rest-header">RST ${restNumber}</div>`;
+            }).join('')}
+          </div>
+          <!-- Tabla REST -->
           <div class="section-table">
             ${generateSectionTable(unifiedRows, 'restImages', columnGroups.rest.length, 'rest')}
           </div>
@@ -520,6 +536,12 @@ function generateUnifiedTableRows(unifiedRows, columnGroups) {
       
     </div>
   `;
+}
+
+// Función auxiliar para generar las filas de la tabla unificada (legacy - mantenida para compatibilidad)
+function generateUnifiedTableRows(unifiedRows, columnGroups) {
+  // Redirigir a la nueva función
+  return generateUnifiedTableWithHeaders(unifiedRows, columnGroups);
 }
 
 // Función auxiliar para generar tabla de una sección específica
@@ -576,6 +598,35 @@ function generateEmptyImageCell() {
       </div>
     </div>
   `;
+}
+
+// Función auxiliar para generar headers individuales por columna
+function generateIndividualHeaders(columnGroups) {
+  let headers = '';
+  
+  // Headers para COV
+  if (columnGroups.cover.length > 0) {
+    columnGroups.cover.forEach((col, index) => {
+      const covNumber = (index + 1).toString().padStart(2, '0');
+      headers += `<div class="header-section cover-header">COV ${covNumber}</div>`;
+    });
+  }
+  
+  // Headers para Gallery
+  columnGroups.gallery.forEach((col, index) => {
+    const galNumber = (index + 1).toString().padStart(2, '0');
+    headers += `<div class="header-section gallery-header">GAL ${galNumber}</div>`;
+  });
+  
+  // Headers para REST
+  if (columnGroups.rest.length > 0) {
+    columnGroups.rest.forEach((col, index) => {
+      const restNumber = (index + 1).toString().padStart(2, '0');
+      headers += `<div class="header-section rest-header">RST ${restNumber}</div>`;
+    });
+  }
+  
+  return headers;
 }
 
 // Variables para mantener datos de la grilla actual (para regeneración)

@@ -3171,20 +3171,21 @@ html, body {
 }
 
 .cover-header {
-  width: calc(var(--image-size, 80px) + 10px); /* Mismo ancho que celdas COV */
+  width: calc(var(--image-size, 80px) + 10px); /* Ancho de cada columna COV individual */
   min-width: calc(var(--image-size, 80px) + 10px);
   flex-shrink: 0;
   background: #38a169; /* Color sólido verde profesional */
 }
 
 .gallery-header {
-  flex: 1;
-  min-width: 200px;
+  width: calc(var(--image-size, 80px) + 10px); /* Ancho de cada columna GAL individual */
+  min-width: calc(var(--image-size, 80px) + 10px);
+  flex-shrink: 0;
   background: #3182ce; /* Color sólido azul profesional */
 }
 
 .rest-header {
-  width: calc(var(--image-size, 80px) + 10px); /* Mismo ancho que celdas REST */
+  width: calc(var(--image-size, 80px) + 10px); /* Ancho de cada columna REST individual */
   min-width: calc(var(--image-size, 80px) + 10px);
   flex-shrink: 0;
   background: #d69e2e; /* Color sólido naranja profesional */
@@ -3213,6 +3214,33 @@ html, body {
   border-right: 2px solid #dee2e6;
   display: flex;
   flex-direction: column;
+}
+
+/* Headers de sección individuales (Item Code fijo) */
+.section-wrapper > .section-header {
+  padding: 8px 6px;
+  font-weight: 600;
+  color: white;
+  text-align: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Headers dentro de secciones con scroll (COV, GAL, REST) */
+.section-headers {
+  display: flex;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+.section-headers .header-section {
+  padding: 8px 6px;
+  font-weight: 600;
+  color: white;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
 /* Sección Item Code */
