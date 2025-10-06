@@ -2826,69 +2826,6 @@ html, body {
 
 /* Headers de secciones con anchos específicos */
 
-/* ESTRUCTURA HÍBRIDA DE HEADERS STICKY */
-/* Item Code: header fijo sin scroll horizontal */
-.section-wrapper > .section-header.item-code-header {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100 !important;
-  background: #4a5568 !important;  /* Color gris específico del Item Code */
-  color: white !important;
-  border-bottom: 1px solid #ddd !important;
-  height: 40px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: bold !important;
-  font-size: 14px !important;
-}
-
-/* COV/GAL/REST: headers sticky CON scroll horizontal sincronizado */
-.section-wrapper > .section-headers.scrollable-headers {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100 !important;
-  background: white !important;
-  border-bottom: 1px solid #ddd !important;
-  display: flex !important;
-  height: 40px !important;
-  overflow-x: auto !important;  /* Scroll horizontal independiente */
-  overflow-y: visible !important;
-}
-
-/* Headers individuales dentro del contenedor scrollable */
-.scrollable-headers .header-section {
-  flex: 0 0 calc(var(--image-size) + 10px) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: bold !important;
-  font-size: 12px !important;
-  border-right: 1px solid #ddd !important;
-  height: 100% !important;
-}
-
-/* Colores específicos por tipo de header */
-.item-code-header {
-  background: #4a5568 !important;
-  color: white !important;
-}
-
-.cover-header {
-  background: #38a169 !important;
-  color: white !important;
-}
-
-.gallery-header {
-  background: #3182ce !important;
-  color: white !important;
-}
-
-.rest-header {
-  background: #d69e2e !important;
-  color: white !important;
-}
-
 .sections-body {
   display: flex;
   flex: 1;
@@ -3165,18 +3102,19 @@ html, body {
 
 /* ===== ESTRUCTURA UNIFICADA DE HEADERS STICKY ===== */
 
-/* REGLA UNIVERSAL: headers dentro de section-scroll-container son sticky */
-.section-scroll-container > .section-headers,
-.section-wrapper > .section-header {
+/* REGLA UNIVERSAL: TODOS los headers directos de section-wrapper son sticky */
+.section-wrapper > .section-header,
+.section-wrapper > .section-headers {
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
   background: white !important;
   border-bottom: 1px solid #ddd !important;
-  /* DEBUG REMOVIDO: outline rojo eliminado */
+  /* DEBUG: outline rojo para verificar aplicación */
+  outline: 2px solid red !important;
 }
 
-/* Header individual (Item Code) - sigue siendo directo */
+/* Header individual (Item Code) */
 .section-wrapper > .section-header {
   height: 40px !important;
   display: flex !important;
@@ -3186,11 +3124,11 @@ html, body {
   font-size: 14px !important;
 }
 
-/* Contenedor de headers múltiples (COV, GAL, REST) - ahora dentro de scroll-container */
-.section-scroll-container > .section-headers {
+/* Contenedor de headers múltiples (COV, GAL, REST) - ahora hermanos directos */
+.section-wrapper > .section-headers {
   display: flex !important;
   height: 40px !important;
-  overflow-x: visible !important;  /* No scroll propio, se mueve con el contenedor */
+  overflow-x: visible !important;  
   overflow-y: visible !important;
 }
 

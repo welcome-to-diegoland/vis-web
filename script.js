@@ -454,11 +454,11 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
 
 // Función auxiliar para generar la tabla unificada con headers por sección
 function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
-  // Estructura con headers dentro de cada sección que hacen scroll con su contenido
+  // SOLUCIÓN HÍBRIDA: Item Code fijo, otros headers sticky pero con scroll horizontal
   return `
     <div class="sections-container">
       
-      <!-- Sección 1: Item Code (con header fijo) -->
+      <!-- Sección 1: Item Code (header fijo directo - NO scroll horizontal) -->
       <div class="section-wrapper item-code-wrapper">
         <div class="section-header item-code-header">Item Code</div>
         <div class="section-scroll-container">
@@ -479,18 +479,18 @@ function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
         </div>
       </div>
       
-      <!-- Sección 2: COV (con headers que hacen scroll) -->
+      <!-- Sección 2: COV (headers hermanos directos - CON scroll horizontal sincronizado) -->
       ${columnGroups.cover.length > 0 ? `
       <div class="section-wrapper cov-wrapper">
+        <!-- Headers COV como hermanos directos (sticky + scroll horizontal) -->
+        <div class="section-headers scrollable-headers" data-section="cov">
+          ${columnGroups.cover.map((col, index) => {
+            const covNumber = (index + 1).toString().padStart(2, '0');
+            return `<div class="header-section cover-header">COV ${covNumber}</div>`;
+          }).join('')}
+        </div>
+        <!-- Contenido COV con scroll sincronizado -->
         <div class="section-scroll-container horizontal-scrollable" data-section="cov">
-          <!-- Headers COV que hacen scroll horizontal -->
-          <div class="section-headers">
-            ${columnGroups.cover.map((col, index) => {
-              const covNumber = (index + 1).toString().padStart(2, '0');
-              return `<div class="header-section cover-header">COV ${covNumber}</div>`;
-            }).join('')}
-          </div>
-          <!-- Tabla COV -->
           <div class="section-table">
             ${generateSectionTable(unifiedRows, 'coverImages', columnGroups.cover.length, 'cov')}
           </div>
@@ -498,35 +498,35 @@ function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
       </div>
       ` : ''}
       
-      <!-- Sección 3: GAL (con headers que hacen scroll) -->
+      <!-- Sección 3: GAL (headers hermanos directos - CON scroll horizontal sincronizado) -->
       <div class="section-wrapper gallery-wrapper">
+        <!-- Headers Gallery como hermanos directos (sticky + scroll horizontal) -->
+        <div class="section-headers scrollable-headers" data-section="gallery">
+          ${columnGroups.gallery.map((col, index) => {
+            const galNumber = (index + 1).toString().padStart(2, '0');
+            return `<div class="header-section gallery-header">GAL ${galNumber}</div>`;
+          }).join('')}
+        </div>
+        <!-- Contenido Gallery con scroll sincronizado -->
         <div class="section-scroll-container horizontal-scrollable" data-section="gallery">
-          <!-- Headers Gallery que hacen scroll horizontal -->
-          <div class="section-headers">
-            ${columnGroups.gallery.map((col, index) => {
-              const galNumber = (index + 1).toString().padStart(2, '0');
-              return `<div class="header-section gallery-header">GAL ${galNumber}</div>`;
-            }).join('')}
-          </div>
-          <!-- Tabla Gallery -->
           <div class="section-table">
             ${generateSectionTable(unifiedRows, 'galleryImages', columnGroups.gallery.length, 'gallery')}
           </div>
         </div>
       </div>
       
-      <!-- Sección 4: REST (con headers que hacen scroll) -->
+      <!-- Sección 4: REST (headers hermanos directos - CON scroll horizontal sincronizado) -->
       ${columnGroups.rest.length > 0 ? `
       <div class="section-wrapper rest-wrapper">
+        <!-- Headers REST como hermanos directos (sticky + scroll horizontal) -->
+        <div class="section-headers scrollable-headers" data-section="rest">
+          ${columnGroups.rest.map((col, index) => {
+            const restNumber = (index + 1).toString().padStart(2, '0');
+            return `<div class="header-section rest-header">RST ${restNumber}</div>`;
+          }).join('')}
+        </div>
+        <!-- Contenido REST con scroll sincronizado -->
         <div class="section-scroll-container horizontal-scrollable" data-section="rest">
-          <!-- Headers REST que hacen scroll horizontal -->
-          <div class="section-headers">
-            ${columnGroups.rest.map((col, index) => {
-              const restNumber = (index + 1).toString().padStart(2, '0');
-              return `<div class="header-section rest-header">RST ${restNumber}</div>`;
-            }).join('')}
-          </div>
-          <!-- Tabla REST -->
           <div class="section-table">
             ${generateSectionTable(unifiedRows, 'restImages', columnGroups.rest.length, 'rest')}
           </div>
@@ -942,23 +942,30 @@ function setupScrollSynchronization() {
 
 // Función para sincronizar scroll horizontal por sección
 function setupHorizontalScrollSynchronization() {
-  // En la nueva estructura, cada sección tiene UN SOLO scroll horizontal
-  const horizontalScrollContainers = document.querySelectorAll('.horizontal-scrollable');
+  // NUEVA SINCRONIZACIÓN: headers scrollable-headers con contenido horizontal-scrollable
+  const sections = ['cov', 'gallery', 'rest'];
   
-  if (horizontalScrollContainers.length === 0) {
-    console.log('No se encontraron contenedores con scroll horizontal');
-    return;
-  }
-  
-  console.log(`Configurando scroll horizontal único para ${horizontalScrollContainers.length} secciones`);
-  
-  // Cada contenedor ya maneja su propio scroll horizontalmente
-  // No necesitamos sincronización adicional porque cada sección 
-  // tiene un solo scroll que mueve todo su contenido junto
-  
-  horizontalScrollContainers.forEach(container => {
-    const sectionName = container.getAttribute('data-section');
-    console.log(`Scroll horizontal configurado para sección: ${sectionName}`);
+  sections.forEach(sectionName => {
+    const contentContainer = document.querySelector(`.horizontal-scrollable[data-section="${sectionName}"]`);
+    const headerContainer = document.querySelector(`.scrollable-headers[data-section="${sectionName}"]`);
+    
+    if (contentContainer && headerContainer) {
+      console.log(`Configurando sincronización scroll para sección: ${sectionName}`);
+      
+      // Cuando el contenido hace scroll horizontal, mover el header
+      contentContainer.addEventListener('scroll', () => {
+        headerContainer.scrollLeft = contentContainer.scrollLeft;
+      });
+      
+      // Cuando el header hace scroll horizontal, mover el contenido  
+      headerContainer.addEventListener('scroll', () => {
+        contentContainer.scrollLeft = headerContainer.scrollLeft;
+      });
+      
+      console.log(`Scroll horizontal sincronizado para sección: ${sectionName}`);
+    } else {
+      console.log(`No se encontraron contenedores para sección: ${sectionName}`);
+    }
   });
 }
 
