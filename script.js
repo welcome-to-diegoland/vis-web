@@ -865,6 +865,13 @@ function setupImageSystemEventListeners() {
   container.addEventListener('click', function(event) {
     const imageCell = event.target.closest('.image-cell');
     const imageThumbnail = event.target.closest('.image-thumbnail');
+    const removeButton = event.target.closest('.btn-remove');
+    
+    // Click en botón de basura: Eliminar todas las imágenes con mismo nombre
+    if (removeButton) {
+      handleBulkImageRemoval(event, imageCell);
+      return;
+    }
     
     // Shift+Click: Seleccionar imagen de trabajo
     if (event.shiftKey && !event.metaKey) {
@@ -991,6 +998,85 @@ function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIn
   insertImageInGrid(workingImage.imageName, targetRowIndex, targetColIndex, targetSection);
   
   console.log('Imagen asignada exitosamente');
+}
+
+// Función para manejar eliminación masiva de imágenes (botón basura)
+function handleBulkImageRemoval(event, imageCell) {
+  event.preventDefault();
+  
+  if (!imageCell) return;
+  
+  const imageThumbnail = imageCell.querySelector('.image-thumbnail');
+  if (!imageThumbnail || imageThumbnail.src.includes('data:image/svg+xml')) {
+    console.log('No hay imagen para quitar masivamente');
+    return;
+  }
+  
+  const imageName = imageThumbnail.alt;
+  const sourceItemCode = imageCell.getAttribute('data-item-code');
+  
+  // Confirmación del usuario
+  const confirmMessage = `¿Quieres quitar la imagen '${imageName}' de todos los Item Codes del Item Group?`;
+  if (!confirm(confirmMessage)) {
+    console.log('Eliminación masiva cancelada por el usuario');
+    return;
+  }
+  
+  console.log('=== ELIMINACIÓN MASIVA ===');
+  console.log('Imagen a eliminar:', imageName);
+  console.log('Item Code origen:', sourceItemCode);
+  
+  // Buscar TODAS las imágenes con el mismo nombre en TODO el Item Group
+  const allImageCells = document.querySelectorAll('.image-cell .image-thumbnail');
+  const imagesToRemove = [];
+  
+  allImageCells.forEach(img => {
+    if (img.alt === imageName && !img.src.includes('data:image/svg+xml')) {
+      const cell = img.closest('.image-cell');
+      const itemCode = cell.getAttribute('data-item-code');
+      const section = cell.getAttribute('data-section');
+      const rowIndex = parseInt(cell.getAttribute('data-row-index'));
+      const colIndex = parseInt(cell.getAttribute('data-col-index'));
+      
+      imagesToRemove.push({
+        cell: cell,
+        itemCode: itemCode,
+        section: section,
+        rowIndex: rowIndex,
+        colIndex: colIndex,
+        imageName: imageName
+      });
+    }
+  });
+  
+  console.log('Imágenes encontradas para eliminar:', imagesToRemove.length);
+  
+  // Procesar cada imagen encontrada
+  imagesToRemove.forEach(imageInfo => {
+    const imageItemCode = extractItemCodeFromImageName(imageInfo.imageName);
+    
+    console.log(`Procesando: ${imageInfo.imageName} en ${imageInfo.itemCode} ${imageInfo.section}`);
+    
+    // Si pertenece al mismo Item Code que donde se originó la eliminación, mover a REST
+    if (imageItemCode === imageInfo.itemCode) {
+      console.log('→ Moviendo a REST (mismo Item Code)');
+      // Solo mover a REST si no está ya en REST
+      if (imageInfo.section !== 'rest') {
+        moveImageToRest(imageInfo.imageName, imageInfo.itemCode, imageInfo.rowIndex, imageInfo.colIndex, imageInfo.section);
+      } else {
+        console.log('→ Ya está en REST, eliminando directamente');
+        removeImageFromGrid(imageInfo.rowIndex, imageInfo.colIndex, imageInfo.section);
+      }
+    } else {
+      console.log('→ Eliminando directamente (diferente Item Code)');
+      removeImageFromGrid(imageInfo.rowIndex, imageInfo.colIndex, imageInfo.section);
+    }
+    
+    // Recorrer hacia la izquierda
+    shiftImagesLeft(imageInfo.rowIndex, imageInfo.colIndex, imageInfo.section);
+  });
+  
+  console.log('Eliminación masiva completada');
 }
 
 // Función para encontrar una imagen en un Item Code específico
