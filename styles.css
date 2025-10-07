@@ -3354,6 +3354,35 @@ html, body {
   position: relative;  /* CLAVE para sticky */
 }
 
+/* Headers clickeables para asignación masiva */
+.header-section {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.header-section:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.header-section:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Estados visuales para headers */
+.header-section.bulk-assign-mode {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
 /* ===== NUEVA ESTRUCTURA DE TABLA REAL ===== */
 
 /* Contenedor principal de secciones */

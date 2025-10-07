@@ -883,6 +883,15 @@ function setupImageSystemEventListeners() {
       handleImageAssignment(event, imageCell);
     }
   });
+
+  // Event listener adicional para headers clickeables (asignación masiva por columna)
+  container.addEventListener('click', function(event) {
+    const headerSection = event.target.closest('.header-section');
+    
+    if (headerSection) {
+      handleColumnBulkAssignment(event, headerSection);
+    }
+  });
 }
 
 // Función para manejar la selección de imagen (Shift+Click)
@@ -1077,6 +1086,105 @@ function handleBulkImageRemoval(event, imageCell) {
   });
   
   console.log('Eliminación masiva completada');
+}
+
+// Función para manejar asignación masiva por columna (click en headers)
+function handleColumnBulkAssignment(event, headerSection) {
+  event.preventDefault();
+  
+  // Determinar la sección y columna del header clickeado
+  const headerText = headerSection.textContent.trim();
+  const sectionContainer = headerSection.closest('.section-wrapper');
+  let section = 'unknown';
+  
+  if (sectionContainer.classList.contains('cov-wrapper')) {
+    section = 'cov';
+  } else if (sectionContainer.classList.contains('gallery-wrapper')) {
+    section = 'gallery';
+  } else if (sectionContainer.classList.contains('rest-wrapper')) {
+    section = 'rest';
+  }
+  
+  // Extraer número de columna del texto del header (ej: "GAL 03" -> 2 (índice 0-based))
+  const columnMatch = headerText.match(/\d+/);
+  if (!columnMatch) {
+    console.error('No se pudo extraer número de columna del header:', headerText);
+    return;
+  }
+  const columnNumber = parseInt(columnMatch[0]) - 1; // Convertir a índice 0-based
+  
+  console.log('=== ASIGNACIÓN MASIVA POR COLUMNA ===');
+  console.log('Header clickeado:', headerText);
+  console.log('Sección:', section);
+  console.log('Columna (0-based):', columnNumber);
+  console.log('Imagen de trabajo:', workingImage);
+  
+  // Obtener todas las celdas de esta columna específica
+  const columnCells = document.querySelectorAll(`[data-section="${section}"][data-col-index="${columnNumber}"].image-cell`);
+  console.log('Celdas encontradas en la columna:', columnCells.length);
+  
+  if (workingImage) {
+    // CASO 1: Hay imagen de trabajo - asignar a toda la columna
+    handleBulkAssignToColumn(columnCells, section, columnNumber);
+  } else {
+    // CASO 2: No hay imagen de trabajo - eliminar toda la columna
+    handleBulkRemoveFromColumn(columnCells, section, columnNumber);
+  }
+}
+
+// Función para asignar imagen de trabajo a toda una columna
+function handleBulkAssignToColumn(columnCells, section, columnNumber) {
+  console.log('Asignando imagen de trabajo a toda la columna...');
+  
+  columnCells.forEach(cell => {
+    const itemCode = cell.getAttribute('data-item-code');
+    const rowIndex = parseInt(cell.getAttribute('data-row-index'));
+    
+    console.log(`Asignando a ${itemCode} en fila ${rowIndex}`);
+    
+    // Verificar duplicados en esta fila antes de insertar
+    const existingPosition = findImageInItemCode(workingImage.imageName, itemCode);
+    if (existingPosition) {
+      console.log('→ Quitando duplicado existente');
+      removeImageFromGrid(existingPosition.row, existingPosition.col, existingPosition.section);
+      shiftImagesLeft(existingPosition.row, existingPosition.col, existingPosition.section);
+    }
+    
+    // Insertar en la posición específica de la columna
+    insertImageInGrid(workingImage.imageName, rowIndex, columnNumber, section);
+  });
+}
+
+// Función para eliminar todas las imágenes de una columna
+function handleBulkRemoveFromColumn(columnCells, section, columnNumber) {
+  console.log('Eliminando todas las imágenes de la columna...');
+  
+  columnCells.forEach(cell => {
+    const existingImage = cell.querySelector('.image-thumbnail');
+    
+    if (!existingImage || existingImage.src.includes('data:image/svg+xml')) {
+      return; // No hay imagen para quitar
+    }
+    
+    const imageName = existingImage.alt;
+    const itemCode = cell.getAttribute('data-item-code');
+    const rowIndex = parseInt(cell.getAttribute('data-row-index'));
+    const imageItemCode = extractItemCodeFromImageName(imageName);
+    
+    console.log(`Quitando ${imageName} de ${itemCode}`);
+    
+    // Aplicar reglas de REST
+    if (section !== 'rest' && imageItemCode === itemCode) {
+      console.log('→ Moviendo a REST (mismo Item Code)');
+      moveImageToRest(imageName, itemCode, rowIndex, columnNumber, section);
+    } else {
+      console.log('→ Eliminando directamente');
+      removeImageFromGrid(rowIndex, columnNumber, section);
+    }
+    
+    // Recorrer hacia la izquierda
+    shiftImagesLeft(rowIndex, columnNumber, section);
+  });
 }
 
 // Función para encontrar una imagen en un Item Code específico
