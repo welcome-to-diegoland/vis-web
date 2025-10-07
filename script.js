@@ -15,6 +15,10 @@ let currentColumnsOrder = []; // Para mantener el orden original de las columnas
 // Variable global para mantener el zoom persistente
 let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 
+// Variables globales para el sistema de selección y asignación de imágenes
+let workingImage = null; // {imageName: string, itemCode: string, section: string, originalPosition: {row, col}}
+let imageGridData = {}; // Cache de datos del grid actual para operaciones rápidas
+
 // Event Listeners (sección limpia)
 document.addEventListener('DOMContentLoaded', function() {
   setupDragAndDrop();
@@ -413,6 +417,7 @@ function loadImageGridInBox4(itemGroupPath) {
   setTimeout(() => {
     setupZoomControls();
     setupScrollSynchronization();
+    setupImageSystemEventListeners(); // Agregar sistema de imágenes
   }, 500);
   
   // Intentar de nuevo la sincronización después de un delay más largo
@@ -794,6 +799,367 @@ function setupZoomControls() {
   
   // Inicializar
   updateScale();
+}
+
+// ===== SISTEMA DE SELECCIÓN Y ASIGNACIÓN DE IMÁGENES =====
+
+// Función para actualizar la imagen de trabajo en el placeholder
+function updateWorkingImagePlaceholder() {
+  const placeholder = document.querySelector('.selected-image-container');
+  if (!placeholder) return;
+
+  if (workingImage) {
+    placeholder.innerHTML = `
+      <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${workingImage.imageName}" 
+           alt="${workingImage.imageName}" 
+           class="working-image-preview"
+           onerror="this.style.display='none';">
+      <div class="working-image-info">
+        <div class="working-image-name">${workingImage.imageName}</div>
+        <div class="working-image-meta">${workingImage.itemCode} - ${workingImage.section.toUpperCase()}</div>
+      </div>
+    `;
+  } else {
+    placeholder.innerHTML = '<div class="no-image-selected">🖼️</div>';
+  }
+}
+
+// Función para extraer el Item Code del nombre de imagen
+function extractItemCodeFromImageName(imageName) {
+  console.log('=== DEBUG EXTRACT ITEM CODE ===');
+  console.log('Input imageName:', imageName);
+  
+  if (!imageName) {
+    console.log('imageName is null/undefined');
+    return null;
+  }
+  
+  // Método 1: Buscar patrón con guión bajo (ej: 71-352-401_wg1.jpg)
+  const matchWithUnderscore = imageName.match(/^([^_]+)_/);
+  if (matchWithUnderscore) {
+    const result = matchWithUnderscore[1];
+    console.log('Found with underscore pattern:', result);
+    console.log('===============================');
+    return result;
+  }
+  
+  // Método 2: Si no hay guión bajo, tomar los primeros 10 caracteres (ej: 71-352-401.jpg)
+  const withoutExtension = imageName.replace(/\.[^.]+$/, ''); // Quitar extensión
+  if (withoutExtension.length >= 10) {
+    const result = withoutExtension.substring(0, 10);
+    console.log('Using first 10 characters:', result);
+    console.log('===============================');
+    return result;
+  }
+  
+  console.log('No valid pattern found');
+  console.log('===============================');
+  return null;
+}
+
+// Función para configurar event listeners del sistema de imágenes
+function setupImageSystemEventListeners() {
+  const container = document.getElementById('imageGridContainer');
+  if (!container) return;
+
+  container.addEventListener('click', function(event) {
+    const imageCell = event.target.closest('.image-cell');
+    const imageThumbnail = event.target.closest('.image-thumbnail');
+    
+    // Shift+Click: Seleccionar imagen de trabajo
+    if (event.shiftKey && !event.metaKey) {
+      handleImageSelection(event, imageCell, imageThumbnail);
+    }
+    
+    // Cmd+Click (Mac) / Ctrl+Click (Windows): Asignar imagen de trabajo
+    else if ((event.metaKey || event.ctrlKey) && !event.shiftKey) {
+      handleImageAssignment(event, imageCell);
+    }
+  });
+}
+
+// Función para manejar la selección de imagen (Shift+Click)
+function handleImageSelection(event, imageCell, imageThumbnail) {
+  event.preventDefault();
+  
+  if (!imageCell) return;
+  
+  // Si hay imagen en la celda, seleccionarla
+  if (imageThumbnail && imageThumbnail.src && !imageThumbnail.src.includes('data:image/svg+xml')) {
+    const imageName = imageThumbnail.alt;
+    const itemCode = imageCell.getAttribute('data-item-code');
+    const section = imageCell.getAttribute('data-section');
+    const rowIndex = parseInt(imageCell.getAttribute('data-row-index'));
+    const colIndex = parseInt(imageCell.getAttribute('data-col-index'));
+    
+    workingImage = {
+      imageName: imageName,
+      itemCode: itemCode,
+      section: section,
+      originalPosition: { row: rowIndex, col: colIndex }
+    };
+    
+    console.log('Imagen seleccionada:', workingImage);
+  } else {
+    // Si es espacio vacío, limpiar imagen de trabajo
+    workingImage = null;
+    console.log('Imagen de trabajo limpiada');
+  }
+  
+  updateWorkingImagePlaceholder();
+}
+
+// Función para manejar la asignación de imagen (Cmd+Click en Mac / Ctrl+Click en Windows)
+function handleImageAssignment(event, imageCell) {
+  event.preventDefault();
+  
+  if (!imageCell) return;
+  
+  const targetItemCode = imageCell.getAttribute('data-item-code');
+  const targetSection = imageCell.getAttribute('data-section');
+  const targetRowIndex = parseInt(imageCell.getAttribute('data-row-index'));
+  const targetColIndex = parseInt(imageCell.getAttribute('data-col-index'));
+  
+  console.log('Cmd+Click en celda:', {targetItemCode, targetSection, targetRowIndex, targetColIndex});
+  console.log('Imagen de trabajo actual:', workingImage);
+  
+  // CASO 1: No hay imagen de trabajo - quitar imagen existente
+  if (!workingImage) {
+    handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIndex, targetColIndex);
+    return;
+  }
+  
+  // CASO 2: Hay imagen de trabajo - asignar imagen
+  handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIndex, targetColIndex);
+}
+
+// Función para quitar una imagen existente
+function handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIndex, targetColIndex) {
+  const existingImage = imageCell.querySelector('.image-thumbnail');
+  
+  if (!existingImage || existingImage.src.includes('data:image/svg+xml')) {
+    console.log('No hay imagen para quitar');
+    return;
+  }
+  
+  const imageName = existingImage.alt;
+  const imageItemCode = extractItemCodeFromImageName(imageName);
+  
+  // LOGS DETALLADOS PARA DEBUG
+  console.log('=== DEBUG REMOVE IMAGE ===');
+  console.log('Item Code de la fila (targetItemCode):', targetItemCode);
+  console.log('Nombre de la imagen (alt):', imageName);
+  console.log('Item Code extraído del nombre:', imageItemCode);
+  console.log('Sección:', targetSection);
+  console.log('Imagen src:', existingImage.src);
+  console.log('==========================');
+  
+  // Si es REST, no se quita
+  if (targetSection === 'rest') {
+    console.log('Las imágenes de REST no se pueden quitar');
+    alert('Las imágenes de REST no se pueden quitar');
+    return;
+  }
+  
+  // Si pertenece al mismo Item Code, mover a REST
+  if (imageItemCode === targetItemCode) {
+    console.log('Moviendo imagen a REST del mismo Item Code');
+    moveImageToRest(imageName, targetItemCode, targetRowIndex, targetColIndex, targetSection);
+  } else {
+    // Si es de diferente Item Code, solo quitar
+    console.log('Quitando imagen de diferente Item Code');
+    removeImageFromGrid(targetRowIndex, targetColIndex, targetSection);
+  }
+  
+  // Recorrer imágenes hacia la izquierda para llenar el espacio vacío
+  shiftImagesLeft(targetRowIndex, targetColIndex, targetSection);
+}
+
+// Función para asignar la imagen de trabajo
+function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIndex, targetColIndex) {
+  // SIEMPRE verificar si la imagen ya existe en este Item Code (misma fila)
+  // No importa si el nombre tiene el mismo Item Code, importa que no haya duplicados en la fila
+  const existingPosition = findImageInItemCode(workingImage.imageName, targetItemCode);
+  if (existingPosition) {
+    console.log('Imagen duplicada encontrada, quitando de posición original...');
+    // Quitar de posición original y recorrer hacia la izquierda
+    removeImageFromGrid(existingPosition.row, existingPosition.col, existingPosition.section);
+    shiftImagesLeft(existingPosition.row, existingPosition.col, existingPosition.section);
+  }
+  
+  // Insertar imagen en la nueva posición
+  insertImageInGrid(workingImage.imageName, targetRowIndex, targetColIndex, targetSection);
+  
+  console.log('Imagen asignada exitosamente');
+}
+
+// Función para encontrar una imagen en un Item Code específico
+function findImageInItemCode(imageName, itemCode) {
+  const itemRows = document.querySelectorAll(`[data-item-code="${itemCode}"].image-cell`);
+  
+  for (let cell of itemRows) {
+    const img = cell.querySelector('.image-thumbnail');
+    if (img && img.alt === imageName && !img.src.includes('data:image/svg+xml')) {
+      return {
+        row: parseInt(cell.getAttribute('data-row-index')),
+        col: parseInt(cell.getAttribute('data-col-index')),
+        section: cell.getAttribute('data-section')
+      };
+    }
+  }
+  return null;
+}
+
+// Función para mover una imagen a REST
+function moveImageToRest(imageName, itemCode, sourceRow, sourceCol, sourceSection) {
+  // Buscar el primer espacio vacío en REST para este Item Code
+  const restCells = document.querySelectorAll(`[data-item-code="${itemCode}"][data-section="rest"].image-cell`);
+  
+  let targetCell = null;
+  for (let cell of restCells) {
+    const img = cell.querySelector('.image-thumbnail');
+    if (!img || img.src.includes('data:image/svg+xml')) {
+      targetCell = cell;
+      break;
+    }
+  }
+  
+  if (!targetCell) {
+    alert('No hay espacio disponible en REST para esta imagen');
+    return false;
+  }
+  
+  // Quitar de posición original
+  removeImageFromGrid(sourceRow, sourceCol, sourceSection);
+  
+  // Agregar en REST
+  const targetRow = parseInt(targetCell.getAttribute('data-row-index'));
+  const targetCol = parseInt(targetCell.getAttribute('data-col-index'));
+  insertImageInGrid(imageName, targetRow, targetCol, 'rest');
+  
+  return true;
+}
+
+// Función para quitar una imagen del grid
+function removeImageFromGrid(rowIndex, colIndex, section) {
+  const cell = document.querySelector(`[data-row-index="${rowIndex}"][data-col-index="${colIndex}"][data-section="${section}"].image-cell`);
+  if (!cell) return;
+  
+  // Reemplazar con celda vacía
+  cell.innerHTML = `
+    <div class="empty-image-cell">
+      <div class="drop-zone" title="Arrastrar imagen aquí">
+        <span class="add-icon">+</span>
+      </div>
+    </div>
+  `;
+}
+
+// Función para insertar una imagen en el grid
+function insertImageInGrid(imageName, rowIndex, colIndex, section) {
+  const targetCell = document.querySelector(`[data-row-index="${rowIndex}"][data-col-index="${colIndex}"][data-section="${section}"].image-cell`);
+  if (!targetCell) return;
+  
+  const itemCode = targetCell.getAttribute('data-item-code');
+  
+  // Verificar si necesitamos hacer recorrimiento
+  const existingImg = targetCell.querySelector('.image-thumbnail');
+  const hasExistingImage = existingImg && !existingImg.src.includes('data:image/svg+xml');
+  
+  if (hasExistingImage) {
+    // Hacer recorrimiento hacia la derecha
+    if (!shiftImagesRight(rowIndex, colIndex, section)) {
+      alert(`No hay espacio suficiente en la sección ${section.toUpperCase()}. Quita una imagen primero.`);
+      return;
+    }
+  }
+  
+  // Insertar la nueva imagen
+  targetCell.innerHTML = generateImageCell(imageName, itemCode);
+}
+
+// Función para recorrer imágenes hacia la derecha
+function shiftImagesRight(fromRow, fromCol, section) {
+  // Obtener todas las celdas de esta fila y sección
+  const rowCells = document.querySelectorAll(`[data-row-index="${fromRow}"][data-section="${section}"].image-cell`);
+  const sortedCells = Array.from(rowCells).sort((a, b) => 
+    parseInt(a.getAttribute('data-col-index')) - parseInt(b.getAttribute('data-col-index'))
+  );
+  
+  // Encontrar primera celda vacía desde la posición de inserción
+  let firstEmptyIndex = -1;
+  for (let i = fromCol; i < sortedCells.length; i++) {
+    const cell = sortedCells.find(c => parseInt(c.getAttribute('data-col-index')) === i);
+    if (cell) {
+      const img = cell.querySelector('.image-thumbnail');
+      if (!img || img.src.includes('data:image/svg+xml')) {
+        firstEmptyIndex = i;
+        break;
+      }
+    }
+  }
+  
+  if (firstEmptyIndex === -1) {
+    return false; // No hay espacio
+  }
+  
+  // Recorrer imágenes hacia la derecha
+  for (let i = firstEmptyIndex; i > fromCol; i--) {
+    const sourceCell = sortedCells.find(c => parseInt(c.getAttribute('data-col-index')) === i - 1);
+    const targetCell = sortedCells.find(c => parseInt(c.getAttribute('data-col-index')) === i);
+    
+    if (sourceCell && targetCell) {
+      const sourceImg = sourceCell.querySelector('.image-thumbnail');
+      if (sourceImg && !sourceImg.src.includes('data:image/svg+xml')) {
+        // Copiar contenido
+        targetCell.innerHTML = sourceCell.innerHTML;
+        // Limpiar origen
+        sourceCell.innerHTML = `
+          <div class="empty-image-cell">
+            <div class="drop-zone" title="Arrastrar imagen aquí">
+              <span class="add-icon">+</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+  }
+  
+  return true;
+}
+
+// Función para recorrer imágenes hacia la izquierda (llenar espacios vacíos)
+function shiftImagesLeft(fromRow, fromCol, section) {
+  // Obtener todas las celdas de esta fila y sección
+  const rowCells = document.querySelectorAll(`[data-row-index="${fromRow}"][data-section="${section}"].image-cell`);
+  const sortedCells = Array.from(rowCells).sort((a, b) => 
+    parseInt(a.getAttribute('data-col-index')) - parseInt(b.getAttribute('data-col-index'))
+  );
+  
+  // Recorrer desde la posición que se quitó hacia la derecha
+  for (let i = fromCol; i < sortedCells.length - 1; i++) {
+    const currentCell = sortedCells.find(c => parseInt(c.getAttribute('data-col-index')) === i);
+    const nextCell = sortedCells.find(c => parseInt(c.getAttribute('data-col-index')) === i + 1);
+    
+    if (currentCell && nextCell) {
+      const nextImg = nextCell.querySelector('.image-thumbnail');
+      if (nextImg && !nextImg.src.includes('data:image/svg+xml')) {
+        // Mover imagen de la siguiente posición a la actual
+        currentCell.innerHTML = nextCell.innerHTML;
+        // Limpiar la siguiente posición
+        nextCell.innerHTML = `
+          <div class="empty-image-cell">
+            <div class="drop-zone" title="Arrastrar imagen aquí">
+              <span class="add-icon">+</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // Si la siguiente está vacía, parar el recorrimiento
+        break;
+      }
+    }
+  }
 }
 
 // Función para guardar en localStorage
