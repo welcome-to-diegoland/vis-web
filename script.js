@@ -475,7 +475,7 @@ function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
                 <div class="table-cell item-code-cell" data-item-code="${row.itemCode.Name}">
                   <div class="item-code-main">${row.itemCode.Name}</div>
                   <div class="item-code-meta">
-                    <span class="item-importance">${row.itemCode['WA Importancia'] || row.itemCode['Importancia'] || row.itemCode['Importance'] || ''}</span>
+                    <span class="item-importance" data-value="${row.itemCode['WA Importancia'] || row.itemCode['Importancia'] || row.itemCode['Importance'] || ''}">${row.itemCode['WA Importancia'] || row.itemCode['Importancia'] || row.itemCode['Importance'] || ''}</span>
                     <span class="item-brand">${row.itemCode['Marca'] || row.itemCode['Brand'] || ''}</span>
                   </div>
                   <div class="item-title">${row.itemCode['Título'] || row.itemCode['Title'] || ''}</div>

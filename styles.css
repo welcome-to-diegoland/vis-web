@@ -2629,14 +2629,41 @@ html, body {
 
 .item-importance, .item-brand {
   font-size: calc(var(--font-scale, 8px) * 1.125);
-  padding: 1px 3px;
+  padding: 4px 12px; /* Cuádruple del original: 1px→4px vertical, 3px→12px horizontal */
   border-radius: 3px;
-  font-weight: 500;
+  font-weight: bold; /* Bold para mayor prominencia */
   line-height: 1.1;
   transition: font-size 0.2s ease;
 }
 
 .item-importance {
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+}
+
+/* Colores para valores de importancia */
+/* Verde para valores importantes: A, T, Z, P, H, R */
+.item-importance[data-value="A"],
+.item-importance[data-value="T"], 
+.item-importance[data-value="Z"],
+.item-importance[data-value="P"],
+.item-importance[data-value="H"],
+.item-importance[data-value="R"] {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+/* Rojo/Warning para cualquier otro valor */
+.item-importance:not([data-value=""]):not([data-value="A"]):not([data-value="T"]):not([data-value="Z"]):not([data-value="P"]):not([data-value="H"]):not([data-value="R"]) {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Valores vacíos mantienen el color original */
+.item-importance[data-value=""] {
   background: #e3f2fd;
   color: #1976d2;
   border: 1px solid #bbdefb;
@@ -3021,10 +3048,11 @@ html, body {
 .item-importance,
 .item-brand {
   font-size: 9px;
-  padding: 1px 3px;
+  padding: 4px 12px; /* Cuádruple del original: 1px→4px vertical, 3px→12px horizontal */
   border-radius: 2px;
   background-color: #e9ecef;
   color: #495057;
+  font-weight: bold; /* Bold para mayor prominencia */
 }
 
 .item-title {
