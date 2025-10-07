@@ -377,6 +377,9 @@ function loadImageGridInBox4(itemGroupPath) {
             <span class="zoom-info" id="zoomInfo">100%</span>
             <button class="zoom-button" id="zoomIn" title="Aumentar tamaño">🔍+</button>
           </div>
+          <button class="cleanup-button" id="cleanupGalButton" title="Limpiar GAL: Elimina imágenes que no pertenecen a su Item Code">
+            Limpiar GAL
+          </button>
         </div>
       </div>
       ${gridHtml}
@@ -799,6 +802,14 @@ function setupZoomControls() {
   
   // Inicializar
   updateScale();
+  
+  // Event listener para el botón de limpieza
+  const cleanupBtn = document.getElementById('cleanupGalButton');
+  if (cleanupBtn) {
+    cleanupBtn.addEventListener('click', () => {
+      handleGalCleanup();
+    });
+  }
 }
 
 // ===== SISTEMA DE SELECCIÓN Y ASIGNACIÓN DE IMÁGENES =====
@@ -1551,6 +1562,99 @@ function setupScrollSynchronization() {
   setupHorizontalScrollSynchronization();
   
   console.log('Scroll master configurado exitosamente - estructura unificada');
+}
+
+// ===== FUNCIÓN DE LIMPIEZA INTELIGENTE GAL =====
+
+// Función para limpiar la sección GAL de imágenes que no pertenecen
+function handleGalCleanup() {
+  console.log('=== INICIANDO LIMPIEZA INTELIGENTE GAL ===');
+  
+  // Obtener todas las celdas de la sección GAL que tienen imágenes
+  const galCells = document.querySelectorAll('[data-section="gallery"].image-cell');
+  const imagesToRemove = [];
+  let totalImages = 0;
+  
+  galCells.forEach(cell => {
+    const imageThumbnail = cell.querySelector('.image-thumbnail');
+    
+    // Solo procesar celdas que tienen imagen real (no placeholder)
+    if (imageThumbnail && !imageThumbnail.src.includes('data:image/svg+xml')) {
+      totalImages++;
+      
+      const imageName = imageThumbnail.alt;
+      const cellItemCode = cell.getAttribute('data-item-code');
+      const rowIndex = parseInt(cell.getAttribute('data-row-index'));
+      const colIndex = parseInt(cell.getAttribute('data-col-index'));
+      
+      // Extraer Item Code de la imagen
+      const imageItemCode = extractItemCodeFromImageName(imageName);
+      
+      // Si el Item Code de la imagen NO coincide con el Item Code de la celda
+      if (imageItemCode !== cellItemCode) {
+        imagesToRemove.push({
+          cell: cell,
+          imageName: imageName,
+          cellItemCode: cellItemCode,
+          imageItemCode: imageItemCode,
+          rowIndex: rowIndex,
+          colIndex: colIndex
+        });
+      }
+    }
+  });
+  
+  if (imagesToRemove.length === 0) {
+    alert('¡Perfecto! GAL está limpio, no hay imágenes fuera de lugar.');
+    return;
+  }
+  
+  // Confirmación única
+  if (!confirm(`Se encontraron ${imagesToRemove.length} imágenes fuera de lugar en GAL. ¿Limpiar ahora?`)) {
+    return;
+  }
+  
+  // PASO 1: ELIMINAR TODAS las imágenes marcadas de una vez (sin recorrimiento individual)
+  imagesToRemove.forEach(imageInfo => {
+    // Solo quitar la imagen, SIN hacer recorrimiento todavía
+    imageInfo.cell.innerHTML = generateEmptyImageCell();
+  });
+  
+  // PASO 2: DESPUÉS de eliminar todas, hacer recorrimiento completo de TODAS las filas afectadas
+  const affectedRows = [...new Set(imagesToRemove.map(img => img.rowIndex))];
+  
+  affectedRows.forEach(rowIndex => {
+    compactGalleryRow(rowIndex);
+  });
+  
+  console.log(`=== LIMPIEZA COMPLETADA: ${imagesToRemove.length} imágenes eliminadas ===`);
+}
+
+// Función auxiliar para compactar una fila completa de GAL
+function compactGalleryRow(rowIndex) {
+  const galleryCells = document.querySelectorAll(`[data-section="gallery"][data-row-index="${rowIndex}"]`);
+  const images = [];
+  
+  // Recopilar todas las imágenes existentes
+  galleryCells.forEach(cell => {
+    const imageThumbnail = cell.querySelector('.image-thumbnail');
+    if (imageThumbnail && !imageThumbnail.src.includes('data:image/svg+xml')) {
+      images.push({
+        src: imageThumbnail.src,
+        alt: imageThumbnail.alt
+      });
+    }
+    // Limpiar la celda
+    cell.innerHTML = generateEmptyImageCell();
+  });
+  
+  // Redistribuir las imágenes desde la izquierda
+  images.forEach((image, index) => {
+    if (index < galleryCells.length) {
+      const cell = galleryCells[index];
+      cell.innerHTML = generateImageCell(image.alt, cell.getAttribute('data-item-code'));
+    }
+  });
 }
 
 // Función para sincronizar scroll horizontal por sección
