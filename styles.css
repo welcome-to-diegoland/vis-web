@@ -2206,7 +2206,9 @@ html, body {
 .item-group-info {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px; /* Reducir gap de 15px a 12px */
+  flex: 1; /* Permitir que se expanda */
+  min-width: 0; /* Permitir contracción */
 }
 
 .item-group-image {
@@ -2238,6 +2240,8 @@ html, body {
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  flex: 1; /* Expandir para usar espacio disponible */
+  max-width: 600px; /* Límite máximo para no ocupar todo */
 }
 
 .group-title {
@@ -2253,20 +2257,22 @@ html, body {
 
 .group-meta {
   display: flex;
-  gap: 15px;
+  gap: 10px; /* Reducir gap de 15px a 10px */
   font-size: 14px;
   color: #6c757d;
   flex-wrap: wrap;
 }
 
-.group-brand, .group-page, .group-id, .group-cms {
+.group-brand, .group-page, .group-id, .group-cms, .group-items {
   display: flex;
   align-items: center;
   gap: 4px;
   background: #f8f9fa;
-  padding: 2px 6px;
+  padding: 3px 8px; /* Ligeramente más padding */
   border-radius: 4px;
   border: 1px solid #e9ecef;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .group-brand::before {
@@ -2302,10 +2308,11 @@ html, body {
 }
 
 .image-grid-header {
-  padding: 15px;
+  padding: 10px 15px;
   background: #fff;
   border-bottom: 1px solid #dee2e6;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 0; /* Eliminar cualquier margen inferior */
 }
 
 .header-main-info {
@@ -2313,6 +2320,30 @@ html, body {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  gap: 15px; /* Reducir gap de 20px a 15px */
+}
+
+/* Espacio para imagen seleccionada (igual al de la izquierda) */
+.selected-image-placeholder {
+  flex-shrink: 0;
+}
+
+.selected-image-container {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8f9fa;
+  border: 2px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed; /* Diferenciarlo como placeholder */
+}
+
+.no-image-selected {
+  font-size: 24px;
+  color: #6c757d;
 }
 
 .item-codes-count {
@@ -3215,6 +3246,7 @@ html, body {
   overflow-y: auto;   /* SCROLL PRINCIPAL AQUÍ */
   overflow-x: hidden;
   position: relative; /* CLAVE para sticky */
+  margin-top: 0; /* Sin margen superior */
 }
 
 /* ===== ESTRUCTURA UNIFICADA DE HEADERS STICKY ===== */

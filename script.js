@@ -458,11 +458,14 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
                 <span class="group-page">${itemGroup ? (itemGroup['Página de Catálogo'] || itemGroup['Catalog Page'] || 'Sin página') : ''}</span>
                 <span class="group-id">${itemGroup ? (itemGroup['Id'] || itemGroup['ID'] || 'Sin ID') : ''}</span>
                 <span class="group-cms">${itemGroup ? (itemGroup['CMS'] || 'Sin CMS') : ''}</span>
+                <span class="group-items">${itemCodes.length} items</span>
               </div>
             </div>
           </div>
-          <div class="item-codes-count">
-            <span class="count-badge">${itemCodes.length} items</span>
+          <div class="selected-image-placeholder">
+            <div class="selected-image-container">
+              <div class="no-image-selected">🖼️</div>
+            </div>
           </div>
         </div>
       </div>
@@ -694,7 +697,7 @@ function regenerateImageGrid() {
 function setupZoomControls() {
   console.log('Intentando configurar controles de zoom...');
   
-  const container = document.getElementById('imageGridContainer');
+  const container = document.getElementById('imageGridContainer'); // Usar el ID correcto
   const zoomInBtn = document.getElementById('zoomIn');
   const zoomOutBtn = document.getElementById('zoomOut');
   const zoomInfo = document.getElementById('zoomInfo');
@@ -787,7 +790,9 @@ function setupZoomControls() {
         container.classList.remove('zoom-active');
       }, 300);
     }
-  });  // Inicializar
+  });
+  
+  // Inicializar
   updateScale();
 }
 
