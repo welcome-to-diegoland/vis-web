@@ -12,6 +12,9 @@ let originalExcelSheets = {}; // Para guardar las hojas del Excel
 let currentWorkingData = []; // Para guardar los datos que se están trabajando
 let currentColumnsOrder = []; // Para mantener el orden original de las columnas
 
+// Variable global para mantener el zoom persistente
+let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
+
 // Event Listeners (sección limpia)
 document.addEventListener('DOMContentLoaded', function() {
   setupDragAndDrop();
@@ -381,8 +384,28 @@ function loadImageGridInBox4(itemGroupPath) {
   // INICIALIZAR VARIABLES CSS INMEDIATAMENTE para evitar glitch visual
   const container = document.querySelector('.main-container');
   if (container) {
-    container.style.setProperty('--font-scale', '8px');   // Valor inicial igual que CSS
-    container.style.setProperty('--image-size', '80px');  // Valor inicial
+    // Calcular valores usando el zoom persistente global
+    const imageSize = Math.round(80 * globalZoomScale);
+    container.style.setProperty('--image-size', imageSize + 'px');  // Usar zoom persistente
+    
+    // Calcular font-scale usando el mismo algoritmo que setupZoomControls
+    let fontScale;
+    if (globalZoomScale <= 0.5) {
+      fontScale = '7px';
+    } else if (globalZoomScale <= 0.75) {
+      fontScale = '8px';
+    } else if (globalZoomScale <= 1) {
+      fontScale = '8px';
+    } else if (globalZoomScale <= 1.5) {
+      fontScale = '9px';
+    } else if (globalZoomScale <= 2) {
+      fontScale = '10px';
+    } else if (globalZoomScale <= 2.5) {
+      fontScale = '11px';
+    } else {
+      fontScale = '12px';
+    }
+    container.style.setProperty('--font-scale', fontScale);  // Usar zoom persistente
   }
   
   // Configurar controles de zoom y sincronización después de que se agregue al DOM
@@ -688,7 +711,8 @@ function setupZoomControls() {
     return;
   }
   
-  let currentScale = 1;
+  // Usar la variable global persistente en lugar de local
+  let currentScale = globalZoomScale; // Mantener zoom anterior
   const minScale = 0.5;
   const maxScale = 3;
   const scaleStep = 0.25;
@@ -739,6 +763,7 @@ function setupZoomControls() {
       container.classList.add('zoom-active');
       
       currentScale = Math.min(maxScale, currentScale + scaleStep);
+      globalZoomScale = currentScale; // Actualizar variable global
       updateScale();
       
       // Remover clase después de la transición
@@ -754,6 +779,7 @@ function setupZoomControls() {
       container.classList.add('zoom-active');
       
       currentScale = Math.max(minScale, currentScale - scaleStep);
+      globalZoomScale = currentScale; // Actualizar variable global
       updateScale();
       
       // Remover clase después de la transición
