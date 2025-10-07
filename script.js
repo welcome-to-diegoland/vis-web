@@ -378,6 +378,13 @@ function loadImageGridInBox4(itemGroupPath) {
   
   addContentToBox4(fullHtml);
   
+  // INICIALIZAR VARIABLES CSS INMEDIATAMENTE para evitar glitch visual
+  const container = document.querySelector('.main-container');
+  if (container) {
+    container.style.setProperty('--font-scale', '8px');   // Valor inicial igual que CSS
+    container.style.setProperty('--image-size', '80px');  // Valor inicial
+  }
+  
   // Configurar controles de zoom y sincronización después de que se agregue al DOM
   // Usar un setTimeout más largo para asegurar que el DOM esté listo
   setTimeout(() => {
@@ -696,24 +703,25 @@ function setupZoomControls() {
     container.style.setProperty('--hover-scale', hoverScale);
     
     // Calcular tamaño de fuente según rangos de zoom
-    let fontSize;
+    // Base: 8px (igual que CSS) para evitar glitch visual
+    let fontScale;
     if (currentScale <= 0.5) {
-      fontSize = '7px';  // Muy pequeño (50%)
+      fontScale = '7px';  // Muy pequeño (50%)
     } else if (currentScale <= 0.75) {
-      fontSize = '8px';  // Pequeño (50-75%)
+      fontScale = '8px';  // Pequeño (50-75%) - IGUAL QUE CSS INICIAL
     } else if (currentScale <= 1) {
-      fontSize = '9px';  // Normal (75-100%)
+      fontScale = '8px';  // Normal (75-100%) - IGUAL QUE CSS INICIAL 
     } else if (currentScale <= 1.5) {
-      fontSize = '10px'; // Mediano pequeño (100-150%)
+      fontScale = '9px';  // Mediano pequeño (100-150%)
     } else if (currentScale <= 2) {
-      fontSize = '11px'; // Mediano (150-200%)
+      fontScale = '10px'; // Mediano (150-200%)
     } else if (currentScale <= 2.5) {
-      fontSize = '12px'; // Grande (200-250%)
+      fontScale = '11px'; // Grande (200-250%)
     } else {
-      fontSize = '13px'; // Muy grande (250%+)
+      fontScale = '12px'; // Muy grande (250%+)
     }
     
-    container.style.setProperty('--font-scale', fontSize);
+    container.style.setProperty('--font-scale', fontScale);
     
     // Actualizar estado de botones
     zoomOutBtn.disabled = currentScale <= minScale;
@@ -727,19 +735,33 @@ function setupZoomControls() {
   
   zoomInBtn.addEventListener('click', () => {
     if (currentScale < maxScale) {
+      // Agregar clase para transiciones de zoom
+      container.classList.add('zoom-active');
+      
       currentScale = Math.min(maxScale, currentScale + scaleStep);
       updateScale();
+      
+      // Remover clase después de la transición
+      setTimeout(() => {
+        container.classList.remove('zoom-active');
+      }, 300);
     }
   });
-  
+
   zoomOutBtn.addEventListener('click', () => {
     if (currentScale > minScale) {
+      // Agregar clase para transiciones de zoom
+      container.classList.add('zoom-active');
+      
       currentScale = Math.max(minScale, currentScale - scaleStep);
       updateScale();
+      
+      // Remover clase después de la transición
+      setTimeout(() => {
+        container.classList.remove('zoom-active');
+      }, 300);
     }
-  });
-  
-  // Inicializar
+  });  // Inicializar
   updateScale();
 }
 
