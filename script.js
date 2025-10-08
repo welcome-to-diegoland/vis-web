@@ -150,7 +150,7 @@ function handleCombinedExcel(event) {
 
       // SOLO columnas que quieres leer
       const columnsToRead = [
-        "NamePath", "Name", "IdPath", "Id", "Object Type", "CMS", "Marca", "Página de Catálogo", "Título", "WA Importancia", "WA_VIS_Comment",
+        "NamePath", "Name", "IdPath", "Id", "Object Type", "CMS", "Marca", "Página de Catálogo", "Título", "WA Importancia", "WA_VIS_Comment", "WA_VIS_Approved",
         "WA_Cover_Image_01", "WA_Cover_Image_02", "WA_Cover_Image_03", "WA_Cover_Image_04", "WA_Cover_Image_05",
         ...Array.from({length: 22}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
         ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
@@ -232,7 +232,25 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
   // --- Renderiza el árbol en el DOM ---
   treeDiv.innerHTML = '';
 
-  // Header sticky con el botón
+  // Barra de controles superior
+  const controlsHeader = document.createElement('div');
+  controlsHeader.className = 'category-tree-header';
+  treeDiv.appendChild(controlsHeader);
+
+  // Toggle para vista de aprobación
+  const approvalToggleContainer = document.createElement('div');
+  approvalToggleContainer.className = 'approval-toggle-container';
+  approvalToggleContainer.innerHTML = `
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="approvalViewToggle">
+      <label class="form-check-label" for="approvalViewToggle">
+        Vista de Aprobación
+      </label>
+    </div>
+  `;
+  controlsHeader.appendChild(approvalToggleContainer);
+
+  // Header sticky con el botón de cargar
   const header = document.createElement('div');
   header.className = 'category-tree-header';
   treeDiv.appendChild(header);
@@ -382,6 +400,20 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
     
     // Cargar la retícula de imágenes en box4
     loadImageGridInBox4(infoPath);
+  });
+
+  // Toggle para vista de aprobación
+  const approvalToggle = document.getElementById('approvalViewToggle');
+  approvalToggle.addEventListener('change', function() {
+    if (this.checked) {
+      // Activar vista de aprobación
+      treeDiv.classList.add('approval-view-active');
+      applyApprovalColors(treeList);
+    } else {
+      // Desactivar vista de aprobación
+      treeDiv.classList.remove('approval-view-active');
+      removeApprovalColors(treeList);
+    }
   });
 }
 
@@ -1731,6 +1763,140 @@ function setupHorizontalScrollSynchronization() {
     } else {
       console.log(`No se encontraron contenedores para sección: ${sectionName}`);
     }
+  });
+}
+
+// Funciones para vista de aprobación
+function applyApprovalColors(treeContainer) {
+  console.log('Aplicando vista de aprobación...');
+  
+  if (!currentWorkingData || currentWorkingData.length === 0) {
+    console.log('No hay datos disponibles para evaluar aprobación');
+    return;
+  }
+  
+  // Debug: verificar si existe la columna WA_VIS_Approved
+  const sampleItem = currentWorkingData.find(item => item['WA_VIS_Approved'] !== undefined);
+  if (sampleItem) {
+    console.log('Columna WA_VIS_Approved encontrada. Ejemplo:', sampleItem['WA_VIS_Approved']);
+  } else {
+    console.log('Columna WA_VIS_Approved NO encontrada en los datos');
+    console.log('Columnas disponibles:', Object.keys(currentWorkingData[0] || {}));
+  }
+  
+  // Evaluar cada elemento en el árbol
+  const allLiElements = treeContainer.querySelectorAll('.category-tree-li');
+  console.log(`Evaluando ${allLiElements.length} elementos del árbol`);
+  
+  allLiElements.forEach(li => {
+    const label = li.querySelector('.category-tree-label');
+    if (!label) return;
+    
+    const dataPath = label.getAttribute('data-path');
+    if (!dataPath) return;
+    
+    // Encontrar el elemento en los datos
+    const dataItem = currentWorkingData.find(item => item.NamePath === dataPath);
+    if (!dataItem) return;
+    
+    const content = li.querySelector('.category-tree-li-content');
+    if (!content) return;
+    
+    // Aplicar coloración según el tipo de objeto
+    const approvalStatus = evaluateApprovalStatus(dataItem, dataPath);
+    
+    content.classList.remove('approval-green', 'approval-orange');
+    content.classList.add('approval-mode');
+    
+    if (approvalStatus === 'green') {
+      content.classList.add('approval-green');
+    } else if (approvalStatus === 'orange') {
+      content.classList.add('approval-orange');
+    }
+    
+    // Debug para algunos elementos
+    if (dataItem['Object Type'] === 'Item Code' || dataItem['Object Type'] === 'Item Group') {
+      console.log(`${dataItem['Object Type']}: ${dataItem.Name} - WA_VIS_Approved: ${dataItem['WA_VIS_Approved']} - Status: ${approvalStatus}`);
+    }
+  });
+  
+  console.log('Vista de aprobación aplicada');
+}
+
+function evaluateApprovalStatus(dataItem, dataPath) {
+  const objectType = dataItem['Object Type'];
+  
+  if (objectType === 'Item Code') {
+    // Item Code: verificar su propia columna WA_VIS_Approved
+    const approved = dataItem['WA_VIS_Approved'];
+    return (approved === 1 || approved === '1') ? 'green' : 'orange';
+  }
+  
+  if (objectType === 'Item Group') {
+    // Item Group: verificar su propia columna Y todos sus Item Codes
+    const approved = dataItem['WA_VIS_Approved'];
+    const selfStatus = (approved === 1 || approved === '1') ? 'green' : 'orange';
+    
+    // Si el Item Group mismo está en 0 o vacío, es naranja
+    if (selfStatus === 'orange') {
+      return 'orange';
+    }
+    
+    // Verificar todos los Item Codes hijos
+    const itemCodes = currentWorkingData.filter(item => 
+      item['Object Type'] === 'Item Code' && 
+      item.NamePath.startsWith(dataPath + '/')
+    );
+    
+    // Si algún Item Code es naranja, el Item Group es naranja
+    for (const itemCode of itemCodes) {
+      const itemApproved = itemCode['WA_VIS_Approved'];
+      if (!(itemApproved === 1 || itemApproved === '1')) {
+        return 'orange';
+      }
+    }
+    
+    return 'green';
+  }
+  
+  // Categorías superiores: verificar todos los hijos
+  return evaluateChildrenStatus(dataPath);
+}
+
+function evaluateChildrenStatus(parentPath) {
+  // Encontrar todos los hijos directos
+  const children = currentWorkingData.filter(item => {
+    const itemPath = item.NamePath || '';
+    const pathParts = itemPath.split('/');
+    const parentParts = parentPath.split('/');
+    
+    // Verificar que sea hijo directo (un nivel más)
+    return pathParts.length === parentParts.length + 1 && 
+           itemPath.startsWith(parentPath + '/');
+  });
+  
+  if (children.length === 0) {
+    return 'green'; // Sin hijos, consideramos verde
+  }
+  
+  // Evaluar cada hijo recursivamente
+  for (const child of children) {
+    const childStatus = evaluateApprovalStatus(child, child.NamePath);
+    if (childStatus === 'orange') {
+      return 'orange'; // Si cualquier hijo es naranja, el padre es naranja
+    }
+  }
+  
+  return 'green'; // Todos los hijos son verdes
+}
+
+function removeApprovalColors(treeContainer) {
+  console.log('Removiendo vista de aprobación...');
+  
+  // Remover todas las clases de coloración
+  const allElements = treeContainer.querySelectorAll('.category-tree-li-content');
+  allElements.forEach(element => {
+    element.classList.remove('approval-mode', 'approval-green', 'approval-orange');
   });
 }
 
