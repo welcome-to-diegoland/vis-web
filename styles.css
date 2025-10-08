@@ -1802,48 +1802,123 @@ html, body {
   overflow-x: auto;     /* Habilita el scroll horizontal si es necesario */
   width: 100%;
   max-width: 100%;
-  white-space: nowrap;  /* ¡Clave para evitar saltos de línea! */
+  min-width: 400px;     /* Asegurar ancho mínimo */
   padding-left: 0;
   margin-left: 0;
   position: relative; 
 }
 
-/* ul del árbol debe ser inline-block para respetar el nowrap del contenedor */
+/* ul del árbol debe ser una lista vertical normal */
 .category-tree-ul {
   padding-top: 0px !important;
-  display: inline-block;
-  vertical-align: top;
+  display: block;
   list-style: none;
-  margin-left: -5px;
+  margin-left: 0;
   padding-left: 0;
-  white-space: nowrap;
+  width: 100%;
+  min-width: max-content;  /* Permitir que crezca según el contenido */
+  line-height: 1;
+}
 
+.category-tree-li {
+  display: block;
+  width: 100%;
+  min-width: max-content;  /* Permitir crecimiento según contenido */
+  margin: 0;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.category-tree-li .category-tree-li-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: max-content;  /* No permitir compresión */
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;         /* Evitar que se encoja */
+}
+
+.category-tree-li .category-tree-li-content:hover {
+  background-color: rgba(0, 123, 255, 0.1);
 }
 
 
 
-.category-tree-label.selected {
+.category-tree-li > .category-tree-li-content:has(.category-tree-label.selected) {
   background: #ffe0b2;
+}
+
+.category-tree-label.selected {
+  background: transparent;
   border-radius: 4px;
 }
 
 .category-tree-expand-btn {
   font-weight: bold;
   cursor: pointer;
-  margin-right: -5px !important;
-  display: inline-block;
-  width: 1.1em;  /* o el ancho que quede bien */
+  margin-right: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
   text-align: center;
+  transition: none;
+  font-size: 10px;
 }
+
+.category-tree-expand-btn:hover {
+  background-color: transparent;
+}
+
 .category-tree-expand-btn.empty {
   cursor: default;
 }
 
 .category-tree-label {
-  padding: 2px 6px;
-  white-space: nowrap;  /* Evita saltos en label */
+  padding: 1px 2px;
+  white-space: nowrap;
   cursor: pointer;
-  user-select: text;    /* Permite seleccionar el texto */
+  user-select: text;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: none;
+  margin-right: 2px;
+  flex: 1;
+  min-width: 0;           /* Permitir que se contraiga si es necesario */
+  overflow: hidden;       /* Ocultar overflow */
+  text-overflow: ellipsis; /* Puntos suspensivos si es muy largo */
+}
+
+.category-tree-label:hover {
+  background-color: transparent;
+}
+
+.category-tree-label.selectable:hover {
+  background-color: transparent;
+}
+
+.category-cms-label {
+  color: #6c757d;
+  font-size: 0.85em;
+  margin-right: 2px;
+  font-weight: 500;
+  white-space: nowrap;    /* No permitir wrap en el CMS */
+  flex-shrink: 0;         /* No permitir que se encoja */
+}
+
+/* Indentación para niveles anidados */
+.category-tree-ul .category-tree-ul {
+  margin-left: 10px;
+  padding-left: 0;
+}
+
+/* Mejorar el espaciado entre elementos */
+.category-tree-li + .category-tree-li {
+  margin-top: 0px;
 }
 
 /* Estilo para el botón de cargar categoría */

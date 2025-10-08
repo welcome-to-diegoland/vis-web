@@ -272,20 +272,15 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
       label.setAttribute('data-path', info.path || key);
       label.textContent = info.Name || key;
 
-      // Activa la selección solo en Item Group
-      if (info['Object Type'] === 'Item Group') {
-        label.classList.add('selectable');
-        label.addEventListener('click', function(e) {
-          e.stopPropagation();
-          treeList.querySelectorAll('.category-tree-label.selected').forEach(el => el.classList.remove('selected'));
-          label.classList.add('selected');
-          cargarBtn.disabled = false;
-        });
-      }
+      // Crear contenedor para el contenido del li (flex horizontal)
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'category-tree-li-content';
 
-      // Estructura visual
-      li.appendChild(cmsSpan);
-      li.appendChild(label);
+      // Estructura visual en el contenedor
+      contentDiv.appendChild(cmsSpan);
+      contentDiv.appendChild(label);
+      
+      li.appendChild(contentDiv);
 
       // Triángulo colapsable si hay hijos
       const childrenKeys = Object.keys(node.__children).filter(k => k !== '__children' && k !== '__info');
@@ -294,17 +289,47 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
         expandBtn.textContent = '⏵';
         expandBtn.className = 'category-tree-expand-btn';
         expandBtn.setAttribute('aria-expanded', 'false');
-        li.insertBefore(expandBtn, cmsSpan);
+        contentDiv.insertBefore(expandBtn, cmsSpan);
 
         const childrenUl = createTreeHTML(node.__children);
         childrenUl.style.display = 'none';
-        expandBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
+        
+        // Función para expandir/colapsar
+        function toggleExpansion() {
           const expanded = expandBtn.getAttribute('aria-expanded') === 'true';
+          
+          // Auto-colapsar hermanos del mismo nivel si se está expandiendo
+          if (!expanded) {
+            const parentUl = li.parentElement;
+            if (parentUl) {
+              // Colapsar todos los hermanos expandidos
+              parentUl.querySelectorAll(':scope > li .category-tree-li-content .category-tree-expand-btn[aria-expanded="true"]').forEach(siblingBtn => {
+                if (siblingBtn !== expandBtn) {
+                  siblingBtn.setAttribute('aria-expanded', 'false');
+                  siblingBtn.textContent = '⏵';
+                  const siblingLi = siblingBtn.closest('.category-tree-li');
+                  const siblingUl = siblingLi.querySelector('.category-tree-ul');
+                  if (siblingUl) siblingUl.style.display = 'none';
+                }
+              });
+            }
+          }
+          
+          // Toggle actual
           expandBtn.setAttribute('aria-expanded', !expanded);
           childrenUl.style.display = expanded ? 'none' : 'block';
           expandBtn.textContent = expanded ? '⏵' : '⏷';
+        }
+        
+        // Event listeners
+        expandBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          toggleExpansion();
         });
+        
+        // Guardar la función para usar después
+        li.toggleExpansion = toggleExpansion;
+        
         li.appendChild(childrenUl);
       } else {
         // Sin hijos: espacio invisible para alinear
@@ -312,7 +337,30 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
         emptySpan.className = 'category-tree-expand-btn empty';
         emptySpan.textContent = '⏷';
         emptySpan.style.visibility = 'hidden';
-        li.insertBefore(emptySpan, cmsSpan);
+        contentDiv.insertBefore(emptySpan, cmsSpan);
+      }
+
+      // Configurar click en el contenido del renglón para TODOS los elementos
+      contentDiv.style.cursor = 'pointer';
+      contentDiv.addEventListener('click', function(e) {
+        e.stopPropagation();
+        
+        // Expandir/colapsar si tiene la función
+        if (li.toggleExpansion) {
+          li.toggleExpansion();
+        }
+        
+        // Seleccionar si es Item Group
+        if (info['Object Type'] === 'Item Group') {
+          treeList.querySelectorAll('.category-tree-label.selected').forEach(el => el.classList.remove('selected'));
+          label.classList.add('selected');
+          cargarBtn.disabled = false;
+        }
+      });
+
+      // Marcar como seleccionable si es Item Group
+      if (info['Object Type'] === 'Item Group') {
+        label.classList.add('selectable');
       }
       ul.appendChild(li);
     });
