@@ -177,9 +177,10 @@ function handleCombinedExcel(event) {
       let assetCommentsData = [];
       if (assetCommentsSheet) {
         const assetCommentsRows = XLSX.utils.sheet_to_json(assetCommentsSheet, { defval: "" });
-        // Crear un mapa de nombre de imagen -> comentario
-        assetCommentsData = assetCommentsRows.filter(row => row.Name && row.WA_VIS_Comment);
-        console.log("Comentarios de assets cargados:", assetCommentsData.length);
+        // Guardar TODOS los registros de VIS_AG_Asset_Structure, no solo los que tienen comentarios
+        assetCommentsData = assetCommentsRows;
+        console.log("Datos de VIS_AG_Asset_Structure cargados:", assetCommentsData.length);
+        console.log("📋 Registros con comentarios:", assetCommentsRows.filter(row => row.Name && row.WA_VIS_Comment).length);
       } else {
         console.warn("No se encontró la hoja VIS_AG_Asset_Structure para comentarios de imágenes.");
       }
@@ -240,7 +241,7 @@ function reinitializeBoxContents() {
   // Limpiar Box 4
   const box4Content = document.getElementById('box4-content');
   if (box4Content) {
-    box4Content.innerHTML = '<p>Box 4 - Contenido limpio. Aquí puedes agregar tu nueva lógica.</p>';
+    box4Content.innerHTML = '';
   }
 }
 
@@ -3061,17 +3062,22 @@ function initializeGallerySystem() {
   header.className = 'category-tree-header';
   box3Content.appendChild(header);
 
-  // Dropdown de galerías en el header
-  const galleryDropdown = document.createElement('div');
-  galleryDropdown.className = 'approval-toggle-container';
-  galleryDropdown.innerHTML = `
-    <div class="form-group">
-      <select class="form-select" id="gallerySelect">
+  // Crear el contenedor con recuadro que incluye galería y búsqueda
+  const galleryContainer = document.createElement('div');
+  galleryContainer.className = 'approval-toggle-container';
+  galleryContainer.style.marginBottom = '10px';
+  galleryContainer.innerHTML = `
+    <div class="gallery-row">
+      <select class="form-select gallery-select" id="gallerySelect">
         <option value="">Galerías...</option>
       </select>
     </div>
+    <div class="search-row">
+      <input type="text" class="search-input" id="imageSearchInput" placeholder="Buscar imágenes...">
+      <button class="search-button" id="imageSearchButton">Buscar</button>
+    </div>
   `;
-  header.appendChild(galleryDropdown);
+  header.appendChild(galleryContainer);
 
   // Contenedor para el grid (hace scroll, igual que category-tree-list)
   const galleryList = document.createElement('div');
@@ -3086,14 +3092,6 @@ function initializeGallerySystem() {
   galleryGrid.innerHTML = `
     <div class="gallery-placeholder">
       Selecciona una galería para ver las imágenes
-      <br><br>
-      CONTENIDO DE PRUEBA PARA SCROLL<br>
-      Línea 1<br>Línea 2<br>Línea 3<br>Línea 4<br>Línea 5<br>
-      Línea 6<br>Línea 7<br>Línea 8<br>Línea 9<br>Línea 10<br>
-      Línea 11<br>Línea 12<br>Línea 13<br>Línea 14<br>Línea 15<br>
-      Línea 16<br>Línea 17<br>Línea 18<br>Línea 19<br>Línea 20<br>
-      Línea 21<br>Línea 22<br>Línea 23<br>Línea 24<br>Línea 25<br>
-      FIN DEL CONTENIDO DE PRUEBA
     </div>
   `;
   galleryList.appendChild(galleryGrid);
@@ -3108,11 +3106,90 @@ function initializeGallerySystem() {
   gallerySelect.addEventListener('change', function() {
     const selectedGallery = this.value;
     if (selectedGallery) {
+      // Limpiar búsqueda cuando se selecciona una galería
+      const searchInput = document.getElementById('imageSearchInput');
+      if (searchInput) searchInput.value = '';
+      
       loadGalleryImages(selectedGallery);
     } else {
       clearGalleryGrid();
     }
   });
+
+  // Event listeners para la búsqueda
+  const searchInput = document.getElementById('imageSearchInput');
+  const searchButton = document.getElementById('imageSearchButton');
+  
+  if (searchButton) {
+    searchButton.addEventListener('click', performImageSearch);
+  }
+  
+  if (searchInput) {
+    searchInput.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        performImageSearch();
+      }
+    });
+  }
+}
+
+// Función para realizar búsqueda de imágenes
+function performImageSearch() {
+  const searchInput = document.getElementById('imageSearchInput');
+  const gallerySelect = document.getElementById('gallerySelect');
+  
+  if (!searchInput) return;
+  
+  const searchTerm = searchInput.value.trim();
+  
+  if (!searchTerm) {
+    clearGalleryGrid();
+    return;
+  }
+  
+  // Limpiar selección de galería cuando se busca
+  if (gallerySelect) {
+    gallerySelect.value = '';
+  }
+  
+  // Buscar en currentAssetComments (VIS_AG_Asset_Structure completo)
+  if (!currentAssetComments || currentAssetComments.length === 0) {
+    console.log('❌ No hay datos de VIS_AG_Asset_Structure cargados para buscar');
+    showSearchResults([]);
+    return;
+  }
+  
+  console.log('🔍 Buscando:', searchTerm, 'en', currentAssetComments.length, 'registros de VIS_AG_Asset_Structure');
+  
+  // Filtrar imágenes que contengan el término de búsqueda en el nombre
+  const searchResults = currentAssetComments.filter(asset => {
+    const imageName = asset.Name || '';
+    return imageName.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+  
+  console.log('📸 Resultados de búsqueda:', searchResults.length, 'imágenes encontradas');
+  
+  // Mostrar resultados
+  showSearchResults(searchResults);
+}
+
+// Función para mostrar resultados de búsqueda
+function showSearchResults(results) {
+  const galleryGrid = document.getElementById('galleryGrid');
+  if (!galleryGrid) return;
+  
+  if (results.length === 0) {
+    galleryGrid.innerHTML = '<div class="gallery-placeholder">No se encontraron imágenes</div>';
+    return;
+  }
+  
+  // Convertir formato para usar la función existente de renderizado
+  const formattedResults = results.map(asset => ({
+    Imagen: asset.Name
+  }));
+  
+  console.log('🎨 Renderizando', formattedResults.length, 'resultados de búsqueda');
+  renderGalleryGrid(formattedResults);
 }
 
 // Función para poblar el dropdown con las galerías
