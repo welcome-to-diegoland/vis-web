@@ -3053,23 +3053,50 @@ function initializeGallerySystem() {
   const box3Content = document.getElementById('box3-content');
   if (!box3Content) return;
 
-  // Crear la estructura HTML del sistema de galerías
-  box3Content.innerHTML = `
-    <div class="gallery-system">
-      <div class="gallery-dropdown-container">
-        <select class="gallery-select" id="gallerySelect">
-          <option value="">Galerías...</option>
-        </select>
-      </div>
-      <div class="gallery-grid-container">
-        <div class="gallery-grid" id="galleryGrid">
-          <div class="gallery-placeholder">
-            Selecciona una galería para ver las imágenes
-          </div>
-        </div>
-      </div>
+  // Limpiar contenido existente
+  box3Content.innerHTML = '';
+
+  // Crear header sticky (igual que el árbol)
+  const header = document.createElement('div');
+  header.className = 'category-tree-header';
+  box3Content.appendChild(header);
+
+  // Dropdown de galerías en el header
+  const galleryDropdown = document.createElement('div');
+  galleryDropdown.className = 'approval-toggle-container';
+  galleryDropdown.innerHTML = `
+    <div class="form-group">
+      <select class="form-select" id="gallerySelect">
+        <option value="">Galerías...</option>
+      </select>
     </div>
   `;
+  header.appendChild(galleryDropdown);
+
+  // Contenedor para el grid (hace scroll, igual que category-tree-list)
+  const galleryList = document.createElement('div');
+  galleryList.className = 'category-tree-list'; // Usar la misma clase que funciona
+  galleryList.id = 'galleryGridContainer';
+  box3Content.appendChild(galleryList);
+
+  // Grid de imágenes dentro del contenedor con scroll
+  const galleryGrid = document.createElement('div');
+  galleryGrid.className = 'gallery-grid';
+  galleryGrid.id = 'galleryGrid';
+  galleryGrid.innerHTML = `
+    <div class="gallery-placeholder">
+      Selecciona una galería para ver las imágenes
+      <br><br>
+      CONTENIDO DE PRUEBA PARA SCROLL<br>
+      Línea 1<br>Línea 2<br>Línea 3<br>Línea 4<br>Línea 5<br>
+      Línea 6<br>Línea 7<br>Línea 8<br>Línea 9<br>Línea 10<br>
+      Línea 11<br>Línea 12<br>Línea 13<br>Línea 14<br>Línea 15<br>
+      Línea 16<br>Línea 17<br>Línea 18<br>Línea 19<br>Línea 20<br>
+      Línea 21<br>Línea 22<br>Línea 23<br>Línea 24<br>Línea 25<br>
+      FIN DEL CONTENIDO DE PRUEBA
+    </div>
+  `;
+  galleryList.appendChild(galleryGrid);
 
   // Si ya hay datos de galerías cargados, poblar el dropdown
   if (currentAssetGroups && currentAssetGroups.length > 0) {

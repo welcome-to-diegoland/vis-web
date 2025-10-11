@@ -699,21 +699,6 @@ input[type="file"] {
   padding-bottom: 5px;
 }
 
-#box3 .box-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden; /* Cambiado para que el scroll lo maneje el gallery-system */
-  height: 100%;
-  flex: 1;
-}
-
-/* Asegurar que el sistema de galerías ocupe toda la altura disponible en Box 3 */
-#box3 .gallery-system {
-  height: 100%;
-  flex: 1;
-}
-
 .checkbox-column {
   width: 40px;
   text-align: center;
@@ -1860,68 +1845,14 @@ html, body {
 /* SISTEMA DE GALERÍAS - BOX 3 */
 /* ================================ */
 
-.gallery-system {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  min-height: 0; /* Permite que el flex container se encoja */
-}
-
-.gallery-dropdown-container {
-  position: sticky;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  z-index: 10;
-  flex-shrink: 0;
-  padding: 12px;
-  border-bottom: 1px solid #dee2e6;
-  width: 100%;
-}
-
-.gallery-select {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  background: white;
-  color: #495057;
-  outline: none;
-  transition: all 0.2s ease;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%23495057' d='M6 9L1.5 4.5h9z'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 12px;
-  cursor: pointer;
-}
-
-.gallery-select:hover {
-  border-color: #9ca3af;
-}
-
-.gallery-select:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.gallery-grid-container {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  padding: 12px;
-  max-height: 100%;
-  overflow-y: auto;
-}
-
+/* Estilos específicos para el grid de galerías (dentro de category-tree-list) */
 .gallery-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   width: 100%;
+  padding: 12px;
+  min-height: 1000px; /* Altura mínima para forzar scroll mientras probamos */
 }
 
 .gallery-placeholder {
@@ -2019,7 +1950,7 @@ html, body {
   padding: 0;
 }
 
-#tree, .category-tree-list {
+#tree, .category-tree-list, #box3-content {
   max-height: 100%;
   overflow-y: auto;
 }
