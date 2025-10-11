@@ -11,6 +11,8 @@ let startX, startLeftWidth;
 let originalExcelSheets = {}; // Para guardar las hojas del Excel
 let currentWorkingData = []; // Para guardar los datos que se están trabajando
 let currentColumnsOrder = []; // Para mantener el orden original de las columnas
+let currentAssetComments = []; // Para guardar los comentarios de las imágenes
+let currentAssetGroups = []; // Para guardar los datos de galerías
 
 // Variable global para mantener el zoom persistente
 let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
@@ -19,9 +21,15 @@ let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 let workingImage = null; // {imageName: string, itemCode: string, section: string, originalPosition: {row, col}}
 let imageGridData = {}; // Cache de datos del grid actual para operaciones rápidas
 
+// Variable global para el Item Group actual
+let currentItemGroup = null; // Para mantener referencia al Item Group cargado
+
 // Event Listeners (sección limpia)
 document.addEventListener('DOMContentLoaded', function() {
   setupDragAndDrop();
+  
+  // Inicializar Box 3 con el sistema de galerías
+  initializeGallerySystem();
   
   // Event listener para cargar archivo Excel
   combinedFileInput.addEventListener('change', handleCombinedExcel);
@@ -150,7 +158,7 @@ function handleCombinedExcel(event) {
 
       // SOLO columnas que quieres leer
       const columnsToRead = [
-        "NamePath", "Name", "IdPath", "Id", "Object Type", "CMS", "Marca", "Página de Catálogo", "Título", "WA Importancia", "WA_VIS_Comment", "WA_VIS_Approved",
+        "NamePath", "Name", "IdPath", "Id", "Object Type", "CMS", "Marca", "Página de Catálogo", "Título", "WA Importancia", "WA_VIS_Comment", "WA_VIS_Approved", "Vis_color", "filtro_color",
         "WA_Cover_Image_01", "WA_Cover_Image_02", "WA_Cover_Image_03", "WA_Cover_Image_04", "WA_Cover_Image_05",
         ...Array.from({length: 22}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
         ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
@@ -164,6 +172,32 @@ function handleCombinedExcel(event) {
       }
       const allRows = XLSX.utils.sheet_to_json(assetSheet, { defval: "" });
 
+      // Lee la hoja de comentarios de assets
+      const assetCommentsSheet = workbook.Sheets["VIS_AG_Asset_Structure"];
+      let assetCommentsData = [];
+      if (assetCommentsSheet) {
+        const assetCommentsRows = XLSX.utils.sheet_to_json(assetCommentsSheet, { defval: "" });
+        // Crear un mapa de nombre de imagen -> comentario
+        assetCommentsData = assetCommentsRows.filter(row => row.Name && row.WA_VIS_Comment);
+        console.log("Comentarios de assets cargados:", assetCommentsData.length);
+      } else {
+        console.warn("No se encontró la hoja VIS_AG_Asset_Structure para comentarios de imágenes.");
+      }
+
+      // Leer la hoja asset_groups del mismo archivo
+      const assetGroupsSheet = workbook.Sheets["asset_groups"];
+      let assetGroupsData = [];
+      if (assetGroupsSheet) {
+        assetGroupsData = XLSX.utils.sheet_to_json(assetGroupsSheet, { defval: "" });
+        console.log("📊 Datos de galerías cargados:", assetGroupsData.length, "registros");
+        console.log("🔍 Primer registro de galerías:", assetGroupsData[0]);
+        
+        // Guardar los datos globalmente
+        currentAssetGroups = assetGroupsData;
+      } else {
+        console.warn("No se encontró la hoja asset_groups para las galerías.");
+      }
+
       // Filtra SOLO los campos necesarios
       const assetRows = allRows.map(row => {
         const filtered = {};
@@ -173,15 +207,16 @@ function handleCombinedExcel(event) {
         return filtered;
       });
 
-      // Guarda los datos para trabajar y el orden de las columnas
+      // Guarda los datos para trabajar, el orden de las columnas y los comentarios de assets
       currentWorkingData = [...assetRows];
+      currentAssetComments = [...assetCommentsData];
       currentColumnsOrder = [...columnsToRead];
 
       // Renderiza el árbol usando solo las columnas filtradas
       renderAssetLibraryTree(assetRows, document.getElementById('tree'));
       
-      // Limpiar el contenido de box3 y box4
-      clearBoxContents();
+      // Reinicializar Box 3 con el sistema de galerías y limpiar Box 4
+      reinitializeBoxContents();
     } catch (error) {
       console.error("Error procesando archivo combinado:", error);
       alert("Ocurrió un error procesando el archivo combinado: " + error.message);
@@ -190,15 +225,20 @@ function handleCombinedExcel(event) {
   reader.readAsArrayBuffer(file);
 }
 
-// Función para limpiar el contenido de box3 y box4
-function clearBoxContents() {
-  const box3Content = document.getElementById('box3-content');
-  const box4Content = document.getElementById('box4-content');
+// Función para reinicializar el contenido de los boxes después de cargar Excel
+function reinitializeBoxContents() {
+  // Reinicializar Box 3 con el sistema de galerías
+  initializeGallerySystem();
   
-  if (box3Content) {
-    box3Content.innerHTML = '<p>Box 3 - Contenido limpio. Aquí puedes agregar tu nueva lógica.</p>';
+  // Si hay datos de galerías, poblar el dropdown
+  if (currentAssetGroups && currentAssetGroups.length > 0) {
+    setTimeout(() => {
+      populateGalleryDropdown(currentAssetGroups);
+    }, 100);
   }
   
+  // Limpiar Box 4
+  const box4Content = document.getElementById('box4-content');
   if (box4Content) {
     box4Content.innerHTML = '<p>Box 4 - Contenido limpio. Aquí puedes agregar tu nueva lógica.</p>';
   }
@@ -237,15 +277,16 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
   controlsHeader.className = 'category-tree-header';
   treeDiv.appendChild(controlsHeader);
 
-  // Toggle para vista de aprobación
+  // Toggle para vista de aprobación (3 estados)
   const approvalToggleContainer = document.createElement('div');
   approvalToggleContainer.className = 'approval-toggle-container';
   approvalToggleContainer.innerHTML = `
-    <div class="form-check form-switch">
-      <input class="form-check-input" type="checkbox" id="approvalViewToggle">
-      <label class="form-check-label" for="approvalViewToggle">
-        Vista de Aprobación
-      </label>
+    <div class="form-group">
+      <select class="form-select" id="approvalViewSelect">
+        <option value="normal">Normal</option>
+        <option value="approval-full">Aprobación Completa</option>
+        <option value="approval-filtered">Aprobación Filtrada</option>
+      </select>
     </div>
   `;
   controlsHeader.appendChild(approvalToggleContainer);
@@ -293,6 +334,8 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
       // Crear contenedor para el contenido del li (flex horizontal)
       const contentDiv = document.createElement('div');
       contentDiv.className = 'category-tree-li-content';
+      // OPTIMIZACIÓN: Agregar data-path al contenedor para selector más eficiente
+      contentDiv.setAttribute('data-path', info.path || key);
 
       // Estructura visual en el contenedor
       contentDiv.appendChild(cmsSpan);
@@ -402,17 +445,39 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
     loadImageGridInBox4(infoPath);
   });
 
-  // Toggle para vista de aprobación
-  const approvalToggle = document.getElementById('approvalViewToggle');
-  approvalToggle.addEventListener('change', function() {
-    if (this.checked) {
-      // Activar vista de aprobación
-      treeDiv.classList.add('approval-view-active');
-      applyApprovalColors(treeList);
-    } else {
-      // Desactivar vista de aprobación
-      treeDiv.classList.remove('approval-view-active');
-      removeApprovalColors(treeList);
+  // Select para vista de aprobación (3 estados)
+  const approvalSelect = document.getElementById('approvalViewSelect');
+  approvalSelect.addEventListener('change', function() {
+    const selectedView = this.value;
+    
+    // Obtener contenedores para aplicar cambios
+    const box4 = document.getElementById('box4');
+    
+    // Remover todas las clases previas del árbol y del grid
+    treeDiv.classList.remove('approval-view-active', 'approval-filtered-active');
+    if (box4) box4.classList.remove('approval-view-active', 'approval-filtered-active');
+    
+    removeApprovalColors(treeList);
+    showAllElements(treeList);
+    
+    switch (selectedView) {
+      case 'normal':
+        // Vista normal: sin colores, todo visible
+        break;
+        
+      case 'approval-full':
+        // Vista aprobación completa: colores, todo visible
+        treeDiv.classList.add('approval-view-active');
+        if (box4) box4.classList.add('approval-view-active');
+        applyApprovalColors(treeList);
+        break;
+        
+      case 'approval-filtered':
+        // Vista aprobación filtrada: colores + filtro
+        treeDiv.classList.add('approval-view-active', 'approval-filtered-active');
+        if (box4) box4.classList.add('approval-view-active', 'approval-filtered-active');
+        applyFilterAndColors(treeList);
+        break;
     }
   });
 }
@@ -423,6 +488,9 @@ function loadImageGridInBox4(itemGroupPath) {
   const itemGroup = currentWorkingData.find(item => {
     return item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath;
   });
+
+  // IMPORTANTE: Guardar el Item Group actual globalmente para otras funciones
+  currentItemGroup = itemGroup;
 
   // Buscar todos los Item Codes que pertenecen a este Item Group
   const itemCodes = currentWorkingData.filter(item => {
@@ -440,6 +508,10 @@ function loadImageGridInBox4(itemGroupPath) {
     ...Array.from({length: 25}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
     ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
   ];
+
+  // Guardar datos actuales para regeneración
+  currentItemCodes = [...itemCodes];
+  currentImageColumns = [...imageColumns];
 
   // Crear la retícula
   const gridHtml = createImageGrid(itemCodes, imageColumns, itemGroup);
@@ -467,6 +539,26 @@ function loadImageGridInBox4(itemGroupPath) {
   `;
   
   addContentToBox4(fullHtml);
+  
+  // Debug: verificar los indicadores de aprobación en el grid
+  setTimeout(() => {
+    const indicators = document.querySelectorAll('.approval-indicator');
+    const box4 = document.getElementById('box4');
+    console.log('Indicadores de aprobación encontrados:', indicators.length);
+    console.log('Box4 tiene clase approval-view-active:', box4 ? box4.classList.contains('approval-view-active') : 'Box4 no encontrado');
+    
+    indicators.forEach((indicator, index) => {
+      if (index < 5) { // Solo mostrar los primeros 5
+        const visColor = indicator.getAttribute('data-vis-color');
+        const cell = indicator.closest('.item-code-cell');
+        const itemCode = cell ? cell.getAttribute('data-item-code') : 'N/A';
+        const computedStyle = window.getComputedStyle(indicator);
+        const backgroundColor = computedStyle.backgroundColor;
+        const opacity = computedStyle.opacity;
+        console.log(`Indicador ${index}: ItemCode="${itemCode}", vis_color="${visColor}", background="${backgroundColor}", opacity="${opacity}"`);
+      }
+    });
+  }, 100);
   
   // INICIALIZAR VARIABLES CSS INMEDIATAMENTE para evitar glitch visual
   const container = document.querySelector('.main-container');
@@ -509,6 +601,29 @@ function loadImageGridInBox4(itemGroupPath) {
   }, 1500);
 }
 
+// Función para normalizar valores de vis_color del Excel
+function normalizeVisColor(value) {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+  
+  // Convertir a string y limpiar
+  const stringValue = String(value).trim();
+  
+  // Si es 1, 1.0, o variaciones
+  if (stringValue === '1' || stringValue === '1.0' || stringValue === '1.00') {
+    return '1';
+  }
+  
+  // Si es 0, 0.0, o variaciones
+  if (stringValue === '0' || stringValue === '0.0' || stringValue === '0.00') {
+    return '0';
+  }
+  
+  // Para cualquier otro valor, devolver vacío
+  return '';
+}
+
 // Función para crear la retícula HTML unificada
 function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
   // Agrupar columnas por tipo para manejo con scroll
@@ -538,9 +653,15 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
                      onerror="this.style.display='none';">` : 
                 '<div class="no-image">📷</div>'
               }
+              ${itemGroup && itemGroup['WA_VIS_Comment'] && itemGroup['WA_VIS_Comment'].trim() ? 
+                `<div class="comment-indicator group-comment" data-comment="${itemGroup['WA_VIS_Comment']}">💬</div>` : 
+                ''
+              }
             </div>
             <div class="item-group-details">
-              <div class="group-title">${itemGroup ? (itemGroup['Título'] || itemGroup['Title'] || 'Sin título') : 'Información no disponible'}</div>
+              <div class="group-title">
+                ${itemGroup ? (itemGroup['Título'] || itemGroup['Title'] || 'Sin título') : 'Información no disponible'}
+              </div>
               <div class="group-meta">
                 <span class="group-brand">${itemGroup ? (itemGroup['Marca'] || 'Sin marca') : ''}</span>
                 <span class="group-page">${itemGroup ? (itemGroup['Página de Catálogo'] || itemGroup['Catalog Page'] || 'Sin página') : ''}</span>
@@ -586,7 +707,12 @@ function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
           <div class="section-table">
             ${unifiedRows.map((row, rowIndex) => `
               <div class="table-row" data-row-index="${rowIndex}">
-                <div class="table-cell item-code-cell" data-item-code="${row.itemCode.Name}">
+                <div class="table-cell item-code-cell" data-item-code="${row.itemCode.Name}" data-name-path="${row.itemCode.NamePath}">
+                  <div class="approval-indicator" data-vis-color="${normalizeVisColor(row.itemCode['Vis_color'])}"></div>
+                  ${row.itemCode['WA_VIS_Comment'] && row.itemCode['WA_VIS_Comment'].trim() ? 
+                    `<div class="comment-indicator" data-comment="${row.itemCode['WA_VIS_Comment']}">💬</div>` : 
+                    ''
+                  }
                   <div class="item-code-main">${row.itemCode.Name}</div>
                   <div class="item-code-meta">
                     <span class="item-importance" data-value="${row.itemCode['WA Importancia'] || row.itemCode['Importancia'] || row.itemCode['Importance'] || ''}">${row.itemCode['WA Importancia'] || row.itemCode['Importancia'] || row.itemCode['Importance'] || ''}</span>
@@ -696,6 +822,8 @@ function generateSectionTable(unifiedRows, imageProperty, columnCount, sectionNa
 
 // Función auxiliar para generar celda de imagen
 function generateImageCell(imageName, itemCode) {
+  const hasComments = hasImageComments(imageName);
+  
   return `
     <div class="image-thumbnail-container">
       <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
@@ -705,6 +833,7 @@ function generateImageCell(imageName, itemCode) {
         <button class="btn-copy" title="Copiar imagen">📋</button>
         <button class="btn-remove" title="Quitar imagen">🗑️</button>
       </div>
+      ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}" onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios">💬</div>` : ''}
       <div class="image-name">${imageName}</div>
     </div>
   `;
@@ -753,7 +882,6 @@ function generateIndividualHeaders(columnGroups) {
 // Variables para mantener datos de la grilla actual (para regeneración)
 let currentItemCodes = [];
 let currentImageColumns = [];
-let currentItemGroup = null;
 
 // Función para regenerar la grilla de imágenes
 function regenerateImageGrid() {
@@ -953,10 +1081,88 @@ function setupImageSystemEventListeners() {
   const container = document.getElementById('imageGridContainer');
   if (!container) return;
 
+  // Event listener para detectar teclas presionadas (modo visual)
+  document.addEventListener('keydown', function(event) {
+    // Cerrar modal con tecla Escape
+    if (event.key === 'Escape') {
+      const modal = document.getElementById('commentModal');
+      if (modal && modal.classList.contains('show')) {
+        closeCommentModal();
+      }
+    }
+    
+    if (event.metaKey && event.altKey && event.shiftKey) {
+      container.classList.add('itemgroup-assignment-mode');
+    }
+  });
+
+  document.addEventListener('keyup', function(event) {
+    // Remover modo visual cuando se suelta cualquier tecla
+    container.classList.remove('itemgroup-assignment-mode');
+  });
+
+  // Event listener para Command + Alt + Click para abrir comentarios
+  document.addEventListener('click', function(event) {
+    // Verificar si se presionaron Command + Alt pero NO Shift
+    if (event.metaKey && event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Determinar qué tipo de elemento se clickeó
+      const imageCell = event.target.closest('.image-cell');
+      const itemCodeCell = event.target.closest('.item-code-cell');
+      const itemGroupImage = event.target.closest('.item-group-image');
+      const imageThumbnail = event.target.closest('.image-thumbnail');
+      const emptyImageCell = event.target.closest('.empty-image-cell');
+      
+      if (imageThumbnail && imageCell) {
+        // Click en imagen del grid
+        const imageName = imageThumbnail.alt;
+        const commentText = getImageComments(imageName);
+        openCommentModal('Comentario de la Imagen', imageName, commentText || '', 'image', imageName);
+      } else if ((emptyImageCell || imageCell) && !imageThumbnail) {
+        // Click en celda de imagen vacía - buscar item code desde la celda
+        const cell = imageCell || emptyImageCell.closest('.image-cell');
+        if (cell) {
+          const itemCode = cell.getAttribute('data-item-code');
+          if (itemCode) {
+            const itemCodeData = currentWorkingData.find(item => 
+              item['Object Type'] === 'Item Code' && item.Name === itemCode
+            );
+            const commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
+            openCommentModal('Comentario del Item Code', itemCode, commentText);
+          }
+        }
+      } else if (itemCodeCell) {
+        // Click en celda de item code
+        const itemCode = itemCodeCell.getAttribute('data-item-code');
+        const itemCodeData = currentWorkingData.find(item => 
+          item['Object Type'] === 'Item Code' && item.Name === itemCode
+        );
+        const commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
+        openCommentModal('Comentario del Item Code', itemCode, commentText);
+      } else if (itemGroupImage && currentItemGroup) {
+        // Click en imagen/espacio del item group
+        const commentText = currentItemGroup['WA_VIS_Comment'] || '';
+        const contextInfo = currentItemGroup['Name'] || 'Item Group';
+        openCommentModal('Comentario del Item Group', contextInfo, commentText);
+      }
+      
+      return false;
+    }
+  });
+
   container.addEventListener('click', function(event) {
     const imageCell = event.target.closest('.image-cell');
     const imageThumbnail = event.target.closest('.image-thumbnail');
     const removeButton = event.target.closest('.btn-remove');
+    const commentIndicator = event.target.closest('.comment-indicator');
+    
+    // Click en burbuja de comentario: Abrir ventana modal con comentario
+    if (commentIndicator) {
+      handleCommentClick(event, commentIndicator);
+      return;
+    }
     
     // Click en botón de basura: Eliminar todas las imágenes con mismo nombre
     if (removeButton) {
@@ -964,13 +1170,18 @@ function setupImageSystemEventListeners() {
       return;
     }
     
+    // Cmd+Alt+Shift+Click: Asignar como imagen principal del Item Group
+    if (event.metaKey && event.altKey && event.shiftKey) {
+      handleItemGroupImageAssignment(event, imageCell, imageThumbnail);
+    }
+    
     // Shift+Click: Seleccionar imagen de trabajo
-    if (event.shiftKey && !event.metaKey) {
+    else if (event.shiftKey && !event.metaKey && !event.altKey) {
       handleImageSelection(event, imageCell, imageThumbnail);
     }
     
     // Cmd+Click (Mac) / Ctrl+Click (Windows): Asignar imagen de trabajo
-    else if ((event.metaKey || event.ctrlKey) && !event.shiftKey) {
+    else if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
       handleImageAssignment(event, imageCell);
     }
   });
@@ -983,6 +1194,785 @@ function setupImageSystemEventListeners() {
       handleColumnBulkAssignment(event, headerSection);
     }
   });
+}
+
+// Función para manejar clicks en indicadores de comentarios
+function handleCommentClick(event, commentIndicator) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  const commentText = commentIndicator.getAttribute('data-comment');
+  const isGroupComment = commentIndicator.classList.contains('group-comment');
+  
+  // Determinar el título y contexto
+  let modalTitle = '';
+  let contextInfo = '';
+  
+  if (isGroupComment) {
+    modalTitle = 'Comentario del Item Group';
+    contextInfo = currentItemGroup ? (currentItemGroup['Name'] || 'Item Group') : 'Item Group';
+  } else {
+    modalTitle = 'Comentario del Item Code';
+    const itemCodeCell = commentIndicator.closest('.item-code-cell');
+    contextInfo = itemCodeCell ? itemCodeCell.getAttribute('data-item-code') : 'Item Code';
+  }
+  
+  // Crear y mostrar la ventana modal
+  openCommentModal(modalTitle, contextInfo, commentText);
+}
+
+// Función para manejar click en comentarios de imágenes
+function handleImageCommentClick(event, imageName) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  const commentText = getImageComments(imageName);
+  if (!commentText) {
+    console.log('No hay comentarios para esta imagen');
+    return;
+  }
+  
+  const modalTitle = 'Comentario de la Imagen';
+  const contextInfo = imageName;
+  
+  // Crear y mostrar la ventana modal
+  openCommentModal(modalTitle, contextInfo, commentText, 'image', imageName);
+}
+
+// Función para parsear comentarios del formato Excel
+function parseCommentsFromExcel(commentString) {
+  if (!commentString || !commentString.trim()) {
+    return [];
+  }
+  
+  // Separar por ¶ para obtener comentarios individuales
+  const individualComments = commentString.split('¶');
+  const parsedComments = [];
+  
+  individualComments.forEach(comment => {
+    if (!comment.trim()) return;
+    
+    // Separar por ¦ para obtener los campos
+    const fields = comment.split('¦');
+    
+    if (fields.length >= 5) {
+      // Formato completo con todos los campos
+      parsedComments.push({
+        usuario: fields[0]?.trim() || 'Usuario',
+        fechaHora: fields[1]?.trim() || '-',
+        tipoComentario: fields[2]?.trim() || '',
+        textoComentario: fields[3]?.trim() || '',
+        status: fields[4]?.trim() || ''
+      });
+    } else {
+      // Comentario que no sigue el formato estándar
+      // Lo ponemos como un comentario simple con valores por defecto
+      parsedComments.push({
+        usuario: 'Usuario',
+        fechaHora: '-',
+        tipoComentario: '',
+        textoComentario: comment.trim(),
+        status: ''
+      });
+    }
+  });
+  
+  // Ordenar por fecha (más antiguo primero, para que el último elemento sea el más reciente)
+  parsedComments.sort((a, b) => {
+    if (a.fechaHora === '-' && b.fechaHora === '-') return 0;
+    if (a.fechaHora === '-') return -1;
+    if (b.fechaHora === '-') return 1;
+    
+    const dateA = new Date(a.fechaHora);
+    const dateB = new Date(b.fechaHora);
+    return dateA - dateB; // Cambié a dateA - dateB para ordenar del más antiguo al más reciente
+  });
+  
+  return parsedComments;
+}
+
+// Función para verificar si una imagen tiene comentarios
+function hasImageComments(imageName) {
+  if (!currentAssetComments || !imageName) return false;
+  
+  return currentAssetComments.some(asset => 
+    asset.Name === imageName && asset.WA_VIS_Comment && asset.WA_VIS_Comment.trim()
+  );
+}
+
+// Función para obtener los comentarios de una imagen
+function getImageComments(imageName) {
+  if (!currentAssetComments || !imageName) return '';
+  
+  const asset = currentAssetComments.find(asset => asset.Name === imageName);
+  return asset ? asset.WA_VIS_Comment : '';
+}
+
+// Función para formatear fecha para mostrar
+function formatDisplayDate(dateString) {
+  // Si es un guión o vacío, no mostrar nada
+  if (!dateString || dateString.trim() === '-' || dateString.trim() === '') {
+    return '';
+  }
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Verificar si la fecha es válida
+    if (isNaN(date.getTime())) {
+      return '';
+    }
+    
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
+      return 'Ayer ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays < 7) {
+      return diffDays + ' días - ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    } else {
+      return date.toLocaleDateString('es-ES') + ' ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    }
+  } catch (error) {
+    return '';
+  }
+}
+
+// Función para obtener el color del tipo de comentario
+function getCommentTypeColor(tipo) {
+  const colors = {
+    'Revisión': '#e74c3c',
+    'Aprobado': '#27ae60',
+    'Pendiente': '#f39c12',
+    'Rechazado': '#e74c3c',
+    'Información': '#3498db',
+    'Pregunta': '#9b59b6',
+    'General': '#95a5a6'
+  };
+  return colors[tipo] || '#95a5a6';
+}
+
+// Función para obtener el color del status
+function getStatusColor(status) {
+  const colors = {
+    'Completado': '#27ae60',
+    'Pendiente': '#f39c12',
+    'En proceso': '#3498db',
+    'Cancelado': '#e74c3c',
+    'Sin status': '#95a5a6'
+  };
+  return colors[status] || '#95a5a6';
+}
+
+// Función para crear y mostrar la ventana modal de comentarios
+function openCommentModal(title, context, commentText, type = 'item', imageName = null) {
+  // Verificar si ya existe una modal y cerrarla
+  const existingModal = document.getElementById('commentModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Parsear los comentarios del formato Excel
+  const parsedComments = parseCommentsFromExcel(commentText);
+  
+  // Crear la ventana modal
+  const modal = document.createElement('div');
+  modal.id = 'commentModal';
+  modal.className = 'comment-modal';
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title-container">
+          <h3 class="modal-title">${title}</h3>
+          <div class="modal-context">${context}</div>
+        </div>
+        <button class="modal-close-btn" title="Cerrar">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="comments-section">
+          <h4 class="section-title">Comentarios Existentes</h4>
+          <div class="comments-container">
+            ${parsedComments.length > 0 ? generateCommentsHTML(parsedComments) : '<div class="no-comments">No hay comentarios existentes</div>'}
+          </div>
+        </div>
+        <div class="comments-divider"></div>
+        <div class="new-comment-section">
+          <h4 class="section-title">Agregar Nuevo Comentario</h4>
+          <div class="new-comment-form">
+            <div class="form-row">
+              <div class="form-group form-group-half">
+                <select class="form-select comment-type-select" id="commentTypeSelect">
+                  <option value="">Tipo...</option>
+                  <option value="Guardar IMGs de galería en página web">Guardar IMGs galería web</option>
+                  <option value="Borrar, imagen no coincide con item code">Borrar imagen incorrecta</option>
+                  <option value="Crear cover image">Crear cover image</option>
+                  <option value="Agregar IMG adicional">Agregar IMG adicional</option>
+                  <option value="Tomar foto">Tomar foto</option>
+                  <option value="Renombrar y mover">Renombrar y mover</option>
+                  <option value="Editar color a que corresponda con el producto">Editar color producto</option>
+                  <option value="Mejora de Imagen">Mejora de Imagen</option>
+                  <option value="Imagen en blanco">Imagen en blanco</option>
+                  <option value="Corte de imagen">Corte de imagen</option>
+                  <option value="Voltear Imagen">Voltear Imagen</option>
+                  <option value="Montar producto en aplicación">Montar en aplicación</option>
+                  <option value="Bodegón">Bodegón</option>
+                  <option value="Retícula">Retícula</option>
+                </select>
+              </div>
+              <div class="form-group form-group-half">
+                <select class="form-select status-select" id="statusSelect">
+                  <option value="">Status...</option>
+                  <option value="Diseño">Diseño</option>
+                  <option value="Analista">Analista</option>
+                  <option value="Revision">Revision</option>
+                  <option value="Cambios">Cambios</option>
+                  <option value="Completado">Completado</option>
+                  <option value="Cancelado">Cancelado</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="textarea-actions-row">
+                <textarea class="form-textarea comment-text-input" id="commentTextInput" placeholder="Escribir comentario..."></textarea>
+                <div class="form-actions-vertical">
+                  <button class="btn btn-comment-submit btn-textarea-height" id="addCommentBtn">✓</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Agregar al DOM
+  document.body.appendChild(modal);
+  
+  // Configurar funcionalidad de la modal
+  setupModalFunctionality(modal);
+  
+  // Configurar funcionalidad del formulario
+  setupNewCommentForm(modal, context, type, imageName, commentText);
+  
+  // Mostrar modal con animación
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 10);
+}
+
+// Función para configurar el formulario de nuevo comentario
+function setupNewCommentForm(modal, context, type = 'item', imageName = null, commentText = '') {
+  const addCommentBtn = modal.querySelector('#addCommentBtn');
+  const commentTypeSelect = modal.querySelector('#commentTypeSelect');
+  const commentTextInput = modal.querySelector('#commentTextInput');
+  const statusSelect = modal.querySelector('#statusSelect');
+  
+  // Verificar si existen comentarios previos
+  const parsedComments = parseCommentsFromExcel(commentText);
+  const hasExistingComments = parsedComments.length > 0;
+  
+  // Si hay comentarios existentes, preseleccionar valores del último comentario
+  if (hasExistingComments) {
+    const lastComment = parsedComments[parsedComments.length - 1];
+    
+    // Preseleccionar tipo y status del último comentario
+    if (lastComment.tipoComentario) {
+      commentTypeSelect.value = lastComment.tipoComentario;
+    }
+    if (lastComment.status) {
+      statusSelect.value = lastComment.status;
+    }
+  }
+  
+  // Función para limpiar el formulario
+  function clearForm() {
+    commentTypeSelect.value = '';
+    commentTextInput.value = '';
+    statusSelect.value = '';
+  }
+  
+  // Función para validar el formulario
+  function validateForm() {
+    const errors = [];
+    
+    // Verificar si existen comentarios previos
+    const parsedComments = parseCommentsFromExcel(commentText);
+    const hasExistingComments = parsedComments.length > 0;
+    
+    // El texto del comentario siempre es obligatorio
+    if (!commentTextInput.value.trim()) {
+      errors.push('Debe escribir un comentario');
+    }
+    
+    // Si NO hay comentarios previos, tipo y status son obligatorios
+    if (!hasExistingComments) {
+      if (!commentTypeSelect.value.trim()) {
+        errors.push('Debe seleccionar un tipo de comentario');
+      }
+      
+      if (!statusSelect.value.trim()) {
+        errors.push('Debe seleccionar un status');
+      }
+    }
+    
+    return errors;
+  }
+  
+  // Event listener para el botón Aceptar
+  addCommentBtn.addEventListener('click', function() {
+    const errors = validateForm();
+    
+    if (errors.length > 0) {
+      // Poner el botón rojo en lugar de mostrar alert
+      addCommentBtn.style.backgroundColor = '#ff4444';
+      addCommentBtn.style.color = 'white';
+      addCommentBtn.textContent = 'Campos faltantes';
+      
+      setTimeout(() => {
+        addCommentBtn.style.backgroundColor = '';
+        addCommentBtn.style.color = '';
+        addCommentBtn.textContent = '✓';
+      }, 2000);
+      return;
+    }
+    
+    // Verificar si existen comentarios previos para usar sus valores
+    const parsedComments = parseCommentsFromExcel(commentText);
+    const hasExistingComments = parsedComments.length > 0;
+    let finalTipoComentario = commentTypeSelect.value.trim();
+    let finalStatus = statusSelect.value.trim();
+    
+    console.log('Valores originales:', {
+      tipoSeleccionado: finalTipoComentario,
+      statusSeleccionado: finalStatus,
+      hasExistingComments
+    });
+    
+    // Si hay comentarios previos y no se seleccionó tipo/status, usar los del último comentario
+    if (hasExistingComments) {
+      const lastComment = parsedComments[parsedComments.length - 1];
+      
+      if (!finalTipoComentario && lastComment.tipoComentario) {
+        finalTipoComentario = lastComment.tipoComentario;
+      }
+      
+      if (!finalStatus && lastComment.status) {
+        finalStatus = lastComment.status;
+      }
+    }
+    
+    console.log('Valores finales:', {
+      finalTipoComentario,
+      finalStatus
+    });
+    
+    // Crear el nuevo comentario
+    const newComment = {
+      usuario: 'Usuario Actual', // Por ahora estático como solicitaste
+      fechaHora: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      tipoComentario: finalTipoComentario,
+      textoComentario: commentTextInput.value.trim(),
+      status: finalStatus
+    };
+    
+    // Agregar el comentario a los datos
+    addNewCommentToData(context, newComment, type, imageName);
+    
+    // Actualizar la vista de comentarios
+    updateCommentsDisplay(modal);
+    
+    // Limpiar el formulario
+    clearForm();
+    
+    // Feedback visual
+    addCommentBtn.textContent = 'Agregado!';
+    addCommentBtn.disabled = true;
+    setTimeout(() => {
+      addCommentBtn.textContent = '✓';
+      addCommentBtn.disabled = false;
+    }, 1500);
+  });
+}
+
+// Función para agregar un nuevo comentario a los datos
+function addNewCommentToData(context, newComment, type = 'item', imageName = null) {
+  // Crear el string del nuevo comentario en formato Excel
+  const newCommentString = `${newComment.usuario}¦${newComment.fechaHora}¦${newComment.tipoComentario}¦${newComment.textoComentario}¦${newComment.status}`;
+  
+  if (type === 'image' && imageName) {
+    // Es un comentario de imagen
+    let assetData = currentAssetComments.find(asset => asset.Name === imageName);
+    
+    if (assetData) {
+      // Ya existe el asset, agregar al comentario existente
+      const existingComments = assetData.WA_VIS_Comment || '';
+      assetData.WA_VIS_Comment = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+    } else {
+      // No existe, crear nuevo registro
+      const newAssetComment = {
+        Name: imageName,
+        WA_VIS_Comment: newCommentString
+      };
+      currentAssetComments.push(newAssetComment);
+    }
+    
+    console.log('Nuevo comentario de imagen agregado:', newComment, 'para:', imageName);
+    
+    // Actualizar burbujas visualmente para imágenes
+    updateCommentBubbles('image', context, imageName);
+    return;
+  }
+  
+  // Encontrar el elemento correspondiente en los datos
+  // Esto depende del contexto (Item Code o Item Group)
+  const modal = document.getElementById('commentModal');
+  const isGroupComment = modal.querySelector('.modal-title').textContent.includes('Item Group');
+  
+  if (isGroupComment && currentItemGroup) {
+    // Es un comentario de Item Group
+    const existingComments = currentItemGroup['WA_VIS_Comment'] || '';
+    currentItemGroup['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+    
+    // Actualizar también en currentWorkingData
+    const itemGroupIndex = currentWorkingData.findIndex(item => 
+      item['Object Type'] === 'Item Group' && 
+      item.NamePath === currentItemGroup.NamePath
+    );
+    
+    if (itemGroupIndex !== -1) {
+      currentWorkingData[itemGroupIndex]['WA_VIS_Comment'] = currentItemGroup['WA_VIS_Comment'];
+    }
+  } else {
+    // Es un comentario de Item Code
+    const itemCodeData = currentWorkingData.find(item => 
+      item['Object Type'] === 'Item Code' && 
+      item.Name === context
+    );
+    
+    if (itemCodeData) {
+      const existingComments = itemCodeData['WA_VIS_Comment'] || '';
+      itemCodeData['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+    }
+  }
+  
+  console.log('Nuevo comentario agregado:', newComment);
+  
+  // Actualizar burbujas visualmente después de agregar comentario
+  if (isGroupComment) {
+    updateCommentBubbles('group', context, imageName);
+  } else {
+    updateCommentBubbles('item', context, imageName);
+  }
+}
+
+// Función para actualizar las burbujas después de agregar un comentario
+function updateCommentBubbles(type, context, imageName = null) {
+  console.log('updateCommentBubbles llamada con:', { type, context, imageName });
+  
+  if (type === 'image' && imageName) {
+    // Buscar la imagen en el grid y actualizar/agregar burbuja
+    const imageThumbnails = document.querySelectorAll('.image-thumbnail');
+    imageThumbnails.forEach(img => {
+      if (img.alt === imageName) {
+        const container = img.closest('.image-thumbnail-container');
+        if (container) {
+          let bubble = container.querySelector('.comment-bubble.image-comment');
+          if (bubble) {
+            // Ya tenía burbuja, ponerla verde
+            bubble.classList.add('new-comment');
+          } else {
+            // No tenía burbuja, crear nueva verde
+            const newBubble = document.createElement('div');
+            newBubble.className = 'comment-bubble image-comment new-comment';
+            newBubble.setAttribute('data-image', imageName);
+            newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${imageName}')`);
+            newBubble.setAttribute('title', 'Ver comentarios');
+            newBubble.textContent = '💬';
+            container.appendChild(newBubble);
+          }
+        }
+      }
+    });
+  } else {
+    // Para Item Codes e Item Groups
+    if (type === 'group') {
+      // Actualizar burbuja del Item Group
+      console.log('Actualizando burbuja de Item Group');
+      const groupBubble = document.querySelector('.comment-indicator.group-comment');
+      if (groupBubble) {
+        console.log('Burbuja de grupo encontrada, agregando clase verde');
+        groupBubble.classList.add('new-comment');
+        // Actualizar el atributo data-comment
+        groupBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
+      } else {
+        // Crear nueva burbuja para Item Group si no existía
+        console.log('Creando nueva burbuja para Item Group');
+        const itemGroupImage = document.querySelector('.item-group-image');
+        if (itemGroupImage && currentItemGroup) {
+          const newBubble = document.createElement('div');
+          newBubble.className = 'comment-indicator group-comment new-comment';
+          newBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
+          newBubble.textContent = '💬';
+          newBubble.addEventListener('click', function(event) {
+            handleCommentClick(event, this);
+          });
+          itemGroupImage.appendChild(newBubble);
+        }
+      }
+      
+    } else if (type === 'item') {
+      // Actualizar burbuja del Item Code
+      console.log('Actualizando burbuja de Item Code para:', context);
+      const itemCodeCells = document.querySelectorAll('.item-code-cell');
+      itemCodeCells.forEach(cell => {
+        const itemCode = cell.getAttribute('data-item-code');
+        if (itemCode === context) {
+          let bubble = cell.querySelector('.comment-indicator');
+          if (bubble) {
+            // Ya tenía burbuja, ponerla verde
+            bubble.classList.add('new-comment');
+            // Actualizar el atributo data-comment
+            const item = currentWorkingData.find(item => item['Item Code'] === itemCode);
+            bubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
+          } else {
+            // No tenía burbuja, crear nueva verde
+            const newBubble = document.createElement('div');
+            newBubble.className = 'comment-indicator new-comment';
+            newBubble.textContent = '💬';
+            // Agregar el atributo data-comment
+            const item = currentWorkingData.find(item => item['Item Code'] === itemCode);
+            newBubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
+            newBubble.addEventListener('click', function(event) {
+              handleCommentClick(event, this);
+            });
+            cell.appendChild(newBubble);
+          }
+        }
+      });
+    }
+  }
+}
+
+// Función para actualizar la vista de comentarios después de agregar uno nuevo
+function updateCommentsDisplay(modal) {
+  const commentsContainer = modal.querySelector('.comments-container');
+  const modalTitle = modal.querySelector('.modal-title').textContent;
+  
+  let commentText = '';
+  
+  if (modalTitle.includes('Item Group') && currentItemGroup) {
+    commentText = currentItemGroup['WA_VIS_Comment'] || '';
+  } else if (modalTitle.includes('Imagen')) {
+    // Es un comentario de imagen
+    const context = modal.querySelector('.modal-context').textContent;
+    commentText = getImageComments(context);
+  } else {
+    // Es un comentario de Item Code
+    const context = modal.querySelector('.modal-context').textContent;
+    const itemCodeData = currentWorkingData.find(item => 
+      item['Object Type'] === 'Item Code' && 
+      item.Name === context
+    );
+    commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
+  }
+  
+  const parsedComments = parseCommentsFromExcel(commentText);
+  commentsContainer.innerHTML = parsedComments.length > 0 ? 
+    generateCommentsHTML(parsedComments) : 
+    '<div class="no-comments">No hay comentarios existentes</div>';
+}
+
+// Función para generar el HTML de los comentarios
+function generateCommentsHTML(comments) {
+  // Crear una copia del array y revertirla para mostrar los más recientes primero
+  const commentsToDisplay = [...comments].reverse();
+  
+  return commentsToDisplay.map(comment => {
+    // Solo mostrar meta si hay tipo o status
+    const showMeta = comment.tipoComentario || comment.status;
+    
+    return `
+      <div class="comment-card">
+        <div class="comment-header">
+          <div class="comment-user">
+            <span class="user-name">${comment.usuario}</span>
+          </div>
+          <div class="comment-date">
+            <span class="date-text">${formatDisplayDate(comment.fechaHora)}</span>
+          </div>
+        </div>
+        ${showMeta ? `
+          <div class="comment-meta">
+            ${comment.tipoComentario ? `
+              <div class="comment-type" style="background-color: ${getCommentTypeColor(comment.tipoComentario)};">
+                <span class="type-text">${comment.tipoComentario}</span>
+              </div>
+            ` : ''}
+            ${comment.status ? `
+              <div class="comment-status" style="background-color: ${getStatusColor(comment.status)};">
+                <span class="status-text">${comment.status}</span>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
+        <div class="comment-body">
+          <div class="comment-text">
+            <span class="message-text">${comment.textoComentario}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Función global para cerrar el modal de comentarios
+function closeCommentModal() {
+  const modal = document.getElementById('commentModal');
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => {
+      if (modal.parentNode) {
+        modal.parentNode.removeChild(modal);
+      }
+    }, 300);
+  }
+}
+
+// Función para configurar la funcionalidad de la modal (mover, redimensionar, cerrar)
+function setupModalFunctionality(modal) {
+  const modalContent = modal.querySelector('.modal-content');
+  const header = modal.querySelector('.modal-header');
+  const closeBtn = modal.querySelector('.modal-close-btn');
+  const commentsContainer = modal.querySelector('.comments-container');
+  
+  // Variables para arrastar
+  let isDragging = false;
+  let startX, startY, startLeft, startTop;
+  
+  // Función para cerrar modal
+  function closeModal() {
+    modal.classList.remove('show');
+    setTimeout(() => {
+      if (modal.parentNode) {
+        modal.parentNode.removeChild(modal);
+      }
+    }, 300);
+  }
+  
+  // Event listener para cerrar
+  closeBtn.addEventListener('click', closeModal);
+  
+  // Cerrar al hacer click fuera de la modal (pero no si está dragging)
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal && !isDragging) {
+      closeModal();
+    }
+  });
+  
+  // Funcionalidad de arrastrar (mover ventana)
+  header.addEventListener('mousedown', function(e) {
+    if (e.target === closeBtn) return;
+    
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = modalContent.offsetLeft;
+    startTop = modalContent.offsetTop;
+    
+    document.addEventListener('mousemove', dragModal);
+    document.addEventListener('mouseup', stopDragging);
+    e.preventDefault();
+    e.stopPropagation(); // Evitar propagación
+  });
+  
+  function dragModal(e) {
+    if (!isDragging) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const deltaX = e.clientX - startX;
+    const deltaY = e.clientY - startY;
+    
+    modalContent.style.left = (startLeft + deltaX) + 'px';
+    modalContent.style.top = (startTop + deltaY) + 'px';
+  }
+  
+  function stopDragging(e) {
+    isDragging = false;
+    document.removeEventListener('mousemove', dragModal);
+    document.removeEventListener('mouseup', stopDragging);
+    
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+}
+
+// Función para manejar la asignación de imagen principal del Item Group (Cmd+Alt+Shift+Click)
+function handleItemGroupImageAssignment(event, imageCell, imageThumbnail) {
+  event.preventDefault();
+  
+  if (!imageCell || !imageThumbnail || imageThumbnail.src.includes('data:image/svg+xml')) {
+    console.log('No hay imagen válida para asignar al Item Group');
+    return;
+  }
+  
+  const imageName = imageThumbnail.alt;
+  const itemCode = imageCell.getAttribute('data-item-code');
+  
+  console.log('=== ASIGNANDO IMAGEN PRINCIPAL DEL ITEM GROUP ===');
+  console.log('Imagen:', imageName);
+  console.log('Item Code origen:', itemCode);
+  
+  // Encontrar el Item Group actual en los datos
+  if (!currentItemGroup) {
+    console.error('No hay Item Group cargado');
+    return;
+  }
+  
+  // Actualizar la imagen en los datos del Item Group
+  const previousImage = currentItemGroup['WA_Gallery_01'] || '';
+  currentItemGroup['WA_Gallery_01'] = imageName;
+  
+  // Actualizar también en currentWorkingData
+  const itemGroupIndex = currentWorkingData.findIndex(item => 
+    item['Object Type'] === 'Item Group' && 
+    item.NamePath === currentItemGroup.NamePath
+  );
+  
+  if (itemGroupIndex !== -1) {
+    currentWorkingData[itemGroupIndex]['WA_Gallery_01'] = imageName;
+  }
+  
+  // Actualizar la imagen en el header del grid
+  updateItemGroupHeaderImage(imageName);
+  
+  console.log(`Imagen principal actualizada: "${previousImage}" → "${imageName}"`);
+}
+
+// Función para actualizar la imagen en el header del Item Group
+function updateItemGroupHeaderImage(imageName) {
+  const groupImageContainer = document.querySelector('.item-group-image');
+  if (!groupImageContainer) {
+    console.error('No se encontró el contenedor de imagen del Item Group');
+    return;
+  }
+  
+  // Crear nueva imagen o actualizar existente
+  if (imageName) {
+    groupImageContainer.innerHTML = `
+      <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
+           alt="Gallery 1" class="group-thumbnail"
+           onerror="this.style.display='none';">
+    `;
+  } else {
+    groupImageContainer.innerHTML = '<div class="no-image">📷</div>';
+  }
+  
+  console.log('Header del Item Group actualizado con nueva imagen');
 }
 
 // Función para manejar la selección de imagen (Shift+Click)
@@ -1775,129 +2765,269 @@ function applyApprovalColors(treeContainer) {
     return;
   }
   
-  // Debug: verificar si existe la columna WA_VIS_Approved
-  const sampleItem = currentWorkingData.find(item => item['WA_VIS_Approved'] !== undefined);
+  // Debug: verificar si existe la columna Vis_color
+  const sampleItem = currentWorkingData.find(item => item['Vis_color'] !== undefined);
   if (sampleItem) {
-    console.log('Columna WA_VIS_Approved encontrada. Ejemplo:', sampleItem['WA_VIS_Approved']);
+    console.log('Columna Vis_color encontrada. Ejemplo:', sampleItem['Vis_color']);
   } else {
-    console.log('Columna WA_VIS_Approved NO encontrada en los datos');
+    console.log('Columna Vis_color NO encontrada en los datos');
     console.log('Columnas disponibles:', Object.keys(currentWorkingData[0] || {}));
   }
   
-  // Evaluar cada elemento en el árbol
-  const allLiElements = treeContainer.querySelectorAll('.category-tree-li');
-  console.log(`Evaluando ${allLiElements.length} elementos del árbol`);
+  // Debug: verificar si existe la columna filtro_color
+  const sampleFilterItem = currentWorkingData.find(item => item['filtro_color'] !== undefined);
+  if (sampleFilterItem) {
+    console.log('Columna filtro_color encontrada. Ejemplo:', sampleFilterItem['filtro_color']);
+  } else {
+    console.log('Columna filtro_color NO encontrada en los datos');
+  }
   
-  allLiElements.forEach(li => {
-    const label = li.querySelector('.category-tree-label');
-    if (!label) return;
-    
-    const dataPath = label.getAttribute('data-path');
-    if (!dataPath) return;
-    
-    // Encontrar el elemento en los datos
-    const dataItem = currentWorkingData.find(item => item.NamePath === dataPath);
-    if (!dataItem) return;
-    
-    const content = li.querySelector('.category-tree-li-content');
-    if (!content) return;
-    
-    // Aplicar coloración según el tipo de objeto
-    const approvalStatus = evaluateApprovalStatus(dataItem, dataPath);
-    
-    content.classList.remove('approval-green', 'approval-orange');
-    content.classList.add('approval-mode');
-    
-    if (approvalStatus === 'green') {
-      content.classList.add('approval-green');
-    } else if (approvalStatus === 'orange') {
-      content.classList.add('approval-orange');
-    }
-    
-    // Debug para algunos elementos
-    if (dataItem['Object Type'] === 'Item Code' || dataItem['Object Type'] === 'Item Group') {
-      console.log(`${dataItem['Object Type']}: ${dataItem.Name} - WA_VIS_Approved: ${dataItem['WA_VIS_Approved']} - Status: ${approvalStatus}`);
+  // OPTIMIZACIÓN: Crear un mapa de datos para acceso rápido
+  const dataMap = new Map();
+  currentWorkingData.forEach(item => {
+    if (item.NamePath) {
+      dataMap.set(item.NamePath, item);
     }
   });
   
-  console.log('Vista de aprobación aplicada');
-}
-
-function evaluateApprovalStatus(dataItem, dataPath) {
-  const objectType = dataItem['Object Type'];
+  // OPTIMIZACIÓN: Obtener todos los elementos de una vez con selector eficiente
+  const allLiElements = treeContainer.querySelectorAll('.category-tree-li-content[data-path]');
+  console.log(`Evaluando ${allLiElements.length} elementos del árbol con optimización`);
   
-  if (objectType === 'Item Code') {
-    // Item Code: verificar su propia columna WA_VIS_Approved
-    const approved = dataItem['WA_VIS_Approved'];
-    return (approved === 1 || approved === '1') ? 'green' : 'orange';
-  }
+  // OPTIMIZACIÓN: Procesar en chunks para no bloquear la UI
+  const CHUNK_SIZE = 50; // Procesar 50 elementos por vez
+  let currentIndex = 0;
   
-  if (objectType === 'Item Group') {
-    // Item Group: verificar su propia columna Y todos sus Item Codes
-    const approved = dataItem['WA_VIS_Approved'];
-    const selfStatus = (approved === 1 || approved === '1') ? 'green' : 'orange';
+  function processChunk() {
+    const endIndex = Math.min(currentIndex + CHUNK_SIZE, allLiElements.length);
     
-    // Si el Item Group mismo está en 0 o vacío, es naranja
-    if (selfStatus === 'orange') {
-      return 'orange';
-    }
-    
-    // Verificar todos los Item Codes hijos
-    const itemCodes = currentWorkingData.filter(item => 
-      item['Object Type'] === 'Item Code' && 
-      item.NamePath.startsWith(dataPath + '/')
-    );
-    
-    // Si algún Item Code es naranja, el Item Group es naranja
-    for (const itemCode of itemCodes) {
-      const itemApproved = itemCode['WA_VIS_Approved'];
-      if (!(itemApproved === 1 || itemApproved === '1')) {
-        return 'orange';
+    for (let i = currentIndex; i < endIndex; i++) {
+      const content = allLiElements[i];
+      const label = content.querySelector('.category-tree-label');
+      if (!label) continue;
+      
+      const dataPath = label.getAttribute('data-path');
+      if (!dataPath) continue;
+      
+      // OPTIMIZACIÓN: Usar el mapa para acceso O(1)
+      const dataItem = dataMap.get(dataPath);
+      if (!dataItem) continue;
+      
+      // Aplicar coloración según el valor directo de Vis_color
+      const approvalStatus = evaluateApprovalStatus(dataItem);
+      
+      // OPTIMIZACIÓN: Usar classList de manera más eficiente
+      content.classList.add('approval-mode');
+      if (approvalStatus === 'green') {
+        content.classList.remove('approval-orange');
+        content.classList.add('approval-green');
+      } else {
+        content.classList.remove('approval-green');
+        content.classList.add('approval-orange');
       }
     }
     
-    return 'green';
-  }
-  
-  // Categorías superiores: verificar todos los hijos
-  return evaluateChildrenStatus(dataPath);
-}
-
-function evaluateChildrenStatus(parentPath) {
-  // Encontrar todos los hijos directos
-  const children = currentWorkingData.filter(item => {
-    const itemPath = item.NamePath || '';
-    const pathParts = itemPath.split('/');
-    const parentParts = parentPath.split('/');
+    currentIndex = endIndex;
     
-    // Verificar que sea hijo directo (un nivel más)
-    return pathParts.length === parentParts.length + 1 && 
-           itemPath.startsWith(parentPath + '/');
-  });
-  
-  if (children.length === 0) {
-    return 'green'; // Sin hijos, consideramos verde
-  }
-  
-  // Evaluar cada hijo recursivamente
-  for (const child of children) {
-    const childStatus = evaluateApprovalStatus(child, child.NamePath);
-    if (childStatus === 'orange') {
-      return 'orange'; // Si cualquier hijo es naranja, el padre es naranja
+    // Si hay más elementos, continuar en el siguiente frame
+    if (currentIndex < allLiElements.length) {
+      requestAnimationFrame(processChunk);
+    } else {
+      console.log('Vista de aprobación aplicada completamente');
     }
   }
   
-  return 'green'; // Todos los hijos son verdes
+  // Iniciar el procesamiento
+  requestAnimationFrame(processChunk);
+}
+
+function evaluateApprovalStatus(dataItem) {
+  // Nueva lógica simple: solo leer el valor directo de Vis_color
+  const visColor = dataItem['Vis_color'];
+  return (visColor === 1 || visColor === '1') ? 'green' : 'orange';
 }
 
 function removeApprovalColors(treeContainer) {
   console.log('Removiendo vista de aprobación...');
   
-  // Remover todas las clases de coloración
-  const allElements = treeContainer.querySelectorAll('.category-tree-li-content');
-  allElements.forEach(element => {
-    element.classList.remove('approval-mode', 'approval-green', 'approval-orange');
+  // OPTIMIZACIÓN: Usar selector más específico y procesar en batch
+  const allElements = treeContainer.querySelectorAll('.category-tree-li-content.approval-mode');
+  
+  // OPTIMIZACIÓN: Procesar en chunks para no bloquear la UI
+  const CHUNK_SIZE = 100; // Remover es más rápido, podemos usar chunks más grandes
+  let currentIndex = 0;
+  
+  function processRemovalChunk() {
+    const endIndex = Math.min(currentIndex + CHUNK_SIZE, allElements.length);
+    
+    for (let i = currentIndex; i < endIndex; i++) {
+      const element = allElements[i];
+      // OPTIMIZACIÓN: Remover todas las clases de una vez
+      element.classList.remove('approval-mode', 'approval-green', 'approval-orange');
+    }
+    
+    currentIndex = endIndex;
+    
+    // Si hay más elementos, continuar en el siguiente frame
+    if (currentIndex < allElements.length) {
+      requestAnimationFrame(processRemovalChunk);
+    } else {
+      console.log('Vista de aprobación removida completamente');
+    }
+  }
+  
+  // Iniciar el procesamiento
+  requestAnimationFrame(processRemovalChunk);
+}
+
+// Función para mostrar todos los elementos (remover filtros)
+function showAllElements(treeContainer) {
+  if (!treeContainer) return;
+  
+  console.log('Restaurando visibilidad de todos los elementos...');
+  
+  // Restaurar todos los elementos li que pudieron haber sido ocultados
+  const allLiElements = treeContainer.querySelectorAll('.category-tree-li');
+  allLiElements.forEach(liElement => {
+    liElement.style.display = '';
   });
+  
+  // También restaurar los elementos content por si acaso
+  const allContentElements = treeContainer.querySelectorAll('.category-tree-li-content');
+  allContentElements.forEach(contentElement => {
+    contentElement.style.display = '';
+  });
+  
+  console.log(`Restaurados ${allLiElements.length} elementos li y ${allContentElements.length} elementos content`);
+}
+
+// Función para aplicar filtro + colores basado en filtro_color
+function applyFilterAndColors(treeContainer) {
+  if (!treeContainer || !currentWorkingData) return;
+  
+  console.log('Aplicando filtro y colores de aprobación...');
+  console.log('Total datos disponibles:', currentWorkingData.length);
+  
+  // Mostrar algunos ejemplos de datos
+  console.log('Ejemplos de datos:');
+  currentWorkingData.slice(0, 3).forEach(item => {
+    console.log(`- ${item.NamePath}: filtro_color=${item['filtro_color']}, vis_color=${item['Vis_color']}`);
+  });
+  
+  // Crear Map para acceso rápido a los datos (igual que applyApprovalColors)
+  const dataMap = new Map();
+  console.log('Creando dataMap...');
+  currentWorkingData.forEach((item, index) => {
+    if (item.NamePath) {
+      dataMap.set(item.NamePath, item);
+      // Debug para los primeros 10 elementos
+      if (index < 10) {
+        console.log(`DataMap[${index}]: "${item.NamePath}" -> filtro_color=${item['filtro_color']}, vis_color=${item['Vis_color']}`);
+      }
+    }
+  });
+  
+  console.log('DataMap creado con', dataMap.size, 'entradas');
+  
+  // Usar el mismo selector que applyApprovalColors
+  const allElements = treeContainer.querySelectorAll('.category-tree-li-content[data-path]');
+  console.log('Total elementos encontrados:', allElements.length);
+  
+  // Debug: mostrar los primeros 10 paths de elementos DOM
+  console.log('Primeros 10 paths de elementos DOM:');
+  for (let i = 0; i < Math.min(10, allElements.length); i++) {
+    const elementPath = allElements[i].getAttribute('data-path');
+    console.log(`  DOM[${i}]: "${elementPath}"`);
+  }
+  let currentIndex = 0;
+  const chunkSize = 50;
+  let hiddenCount = 0;
+  let shownCount = 0;
+  
+  function processFilterChunk() {
+    const endIndex = Math.min(currentIndex + chunkSize, allElements.length);
+    
+    for (let i = currentIndex; i < endIndex; i++) {
+      const element = allElements[i];
+      const elementPath = element.getAttribute('data-path');
+      const dataItem = dataMap.get(elementPath);
+      
+      if (dataItem) {
+        // Convertir a números para asegurar comparación correcta
+        const filtroColorRaw = dataItem['filtro_color'];
+        const visColorRaw = dataItem['Vis_color'];
+        const filtroColor = parseInt(filtroColorRaw);
+        const visColor = parseInt(visColorRaw);
+        
+        // Debug detallado solo para los primeros 10 elementos
+        if (i < 10) {
+          console.log(`Elemento: ${elementPath}`);
+          console.log(`  - filtro_color raw: "${filtroColorRaw}" (tipo: ${typeof filtroColorRaw})`);
+          console.log(`  - filtro_color parsed: ${filtroColor} (tipo: ${typeof filtroColor})`);
+          console.log(`  - vis_color raw: "${visColorRaw}" (tipo: ${typeof visColorRaw})`);
+          console.log(`  - vis_color parsed: ${visColor} (tipo: ${typeof visColor})`);
+        }
+        
+        // Aplicar filtro basado en filtro_color
+        if (filtroColor === 1) {
+          // Ocultar elemento (ocultar el li padre)
+          const liElement = element.closest('.category-tree-li');
+          if (liElement) {
+            liElement.style.display = 'none';
+          }
+          hiddenCount++;
+          if (i < 10) console.log(`  - ACCIÓN: Ocultar (filtro_color === 1)`);
+        } else if (filtroColor === 0) {
+          // Mostrar elemento y aplicar color basado en vis_color
+          const liElement = element.closest('.category-tree-li');
+          if (liElement) {
+            liElement.style.display = '';
+          }
+          shownCount++;
+          if (i < 10) console.log(`  - ACCIÓN: Mostrar (filtro_color === 0)`);
+          
+          // Aplicar colores de aprobación (igual que applyApprovalColors)
+          element.classList.add('approval-mode');
+          element.classList.remove('approval-green', 'approval-orange');
+          if (visColor === 1) {
+            element.classList.add('approval-green');
+            if (i < 10) console.log(`  - COLOR: Verde (vis_color === 1)`);
+          } else if (visColor === 0) {
+            element.classList.add('approval-orange');
+            if (i < 10) console.log(`  - COLOR: Naranja (vis_color === 0)`);
+          }
+        } else {
+          // Si filtro_color no es 0 ni 1, ocultar por defecto
+          const liElement = element.closest('.category-tree-li');
+          if (liElement) {
+            liElement.style.display = 'none';
+          }
+          hiddenCount++;
+          if (i < 10) console.log(`  - ACCIÓN: Ocultar (filtro_color no es 0 ni 1, valor: ${filtroColor})`);
+        }
+      } else {
+        // Si no hay datos, ocultar el elemento
+        const liElement = element.closest('.category-tree-li');
+        if (liElement) {
+          liElement.style.display = 'none';
+        }
+        hiddenCount++;
+        if (i < 10) console.log(`Elemento sin datos: ${elementPath} - OCULTAR`);
+      }
+    }
+    
+    currentIndex = endIndex;
+    
+    // Si hay más elementos, continuar en el siguiente frame
+    if (currentIndex < allElements.length) {
+      requestAnimationFrame(processFilterChunk);
+    } else {
+      console.log(`Filtro aplicado: ${shownCount} elementos mostrados, ${hiddenCount} elementos ocultos`);
+    }
+  }
+  
+  // Iniciar el procesamiento
+  requestAnimationFrame(processFilterChunk);
 }
 
 // Inicializar contenido de ejemplo al cargar la página
@@ -1913,3 +3043,196 @@ document.addEventListener('DOMContentLoaded', function() {
   // Opcionalmente puedes agregar contenido de ejemplo:
   // addSampleContent();
 });
+
+// ================================
+// SISTEMA DE GALERÍAS - BOX 3
+// ================================
+
+// Función para inicializar el sistema de galerías
+function initializeGallerySystem() {
+  const box3Content = document.getElementById('box3-content');
+  if (!box3Content) return;
+
+  // Crear la estructura HTML del sistema de galerías
+  box3Content.innerHTML = `
+    <div class="gallery-system">
+      <div class="gallery-dropdown-container">
+        <select class="gallery-select" id="gallerySelect">
+          <option value="">Galerías...</option>
+        </select>
+      </div>
+      <div class="gallery-grid-container">
+        <div class="gallery-grid" id="galleryGrid">
+          <div class="gallery-placeholder">
+            Selecciona una galería para ver las imágenes
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Si ya hay datos de galerías cargados, poblar el dropdown
+  if (currentAssetGroups && currentAssetGroups.length > 0) {
+    populateGalleryDropdown(currentAssetGroups);
+  }
+
+  // Event listener para el dropdown
+  const gallerySelect = document.getElementById('gallerySelect');
+  gallerySelect.addEventListener('change', function() {
+    const selectedGallery = this.value;
+    if (selectedGallery) {
+      loadGalleryImages(selectedGallery);
+    } else {
+      clearGalleryGrid();
+    }
+  });
+}
+
+// Función para poblar el dropdown con las galerías
+function populateGalleryDropdown(data) {
+  const gallerySelect = document.getElementById('gallerySelect');
+  if (!gallerySelect) {
+    console.error('❌ No se encontró el elemento gallerySelect');
+    return;
+  }
+  
+  console.log('🔄 Poblando dropdown de galerías...');
+  
+  // Obtener galerías únicas - probando diferentes variaciones de nombre de columna
+  const galleries = [];
+  
+  data.forEach(item => {
+    const galleryName = item.Galeria || item.galeria || item.GALERIA || item['Galeria'] || '';
+    if (galleryName && galleryName.trim() && !galleries.includes(galleryName)) {
+      galleries.push(galleryName.trim());
+    }
+  });
+  
+  console.log('🎯 Galerías únicas encontradas:', galleries);
+  
+  // Limpiar opciones existentes (excepto la primera)
+  gallerySelect.innerHTML = '<option value="">Galerías...</option>';
+  
+  // Agregar opciones
+  galleries.forEach(gallery => {
+    const option = document.createElement('option');
+    option.value = gallery;
+    option.textContent = gallery;
+    gallerySelect.appendChild(option);
+  });
+  
+  console.log('✅ Dropdown poblado con', galleries.length, 'galerías');
+}
+
+// Función para cargar las imágenes de una galería específica
+function loadGalleryImages(galleryName) {
+  console.log('🔄 Cargando imágenes para la galería:', galleryName);
+  
+  // Filtrar las imágenes que pertenecen a esta galería
+  const galleryImages = currentAssetGroups.filter(item => {
+    const itemGallery = item.Galeria || item.galeria || item.GALERIA || item['Galeria'] || '';
+    const itemImage = item.Imagen || item.imagen || item.IMAGEN || item['Imagen'] || '';
+    
+    return itemGallery === galleryName && itemImage && itemImage.trim();
+  });
+  
+  console.log(`📸 Encontradas ${galleryImages.length} imágenes para la galería: ${galleryName}`);
+  console.log('🔍 Imágenes encontradas:', galleryImages.map(img => img.Imagen || img.imagen || img.IMAGEN || img['Imagen']));
+  
+  // Renderizar el grid de imágenes
+  renderGalleryGrid(galleryImages);
+}
+
+// Función para renderizar el grid de imágenes
+function renderGalleryGrid(images) {
+  const galleryGrid = document.getElementById('galleryGrid');
+  if (!galleryGrid) {
+    console.error('❌ No se encontró el elemento galleryGrid');
+    return;
+  }
+  
+  if (images.length === 0) {
+    galleryGrid.innerHTML = '<div class="gallery-placeholder">No hay imágenes en esta galería</div>';
+    return;
+  }
+  
+  console.log('🎨 Renderizando grid con', images.length, 'imágenes');
+  
+  // Crear el HTML del grid
+  const gridHTML = images.map(item => {
+    const imageName = item.Imagen || item.imagen || item.IMAGEN || item['Imagen'] || '';
+    const imageUrl = `https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}`;
+    
+    console.log('🖼️ Procesando imagen:', imageName);
+    
+    return `
+      <div class="gallery-image-item" data-image-name="${imageName}">
+        <div class="gallery-image-container">
+          <img src="${imageUrl}" 
+               alt="${imageName}"
+               onerror="this.src='https://www.travers.com.mx/media/catalog/product/agility/img/prod_img_blank.jpg';"
+               class="gallery-image">
+        </div>
+        <div class="gallery-image-name">${imageName}</div>
+      </div>
+    `;
+  }).join('');
+  
+  galleryGrid.innerHTML = gridHTML;
+  
+  // Agregar event listeners para Shift+Click
+  setupGalleryImageSelection();
+  
+  console.log('✅ Grid renderizado exitosamente');
+}
+
+// Función para configurar la selección de imágenes con Shift+Click
+function setupGalleryImageSelection() {
+  const galleryImages = document.querySelectorAll('.gallery-image-item');
+  
+  galleryImages.forEach(item => {
+    item.addEventListener('click', function(event) {
+      if (event.shiftKey) {
+        event.preventDefault();
+        const imageName = this.getAttribute('data-image-name');
+        loadImageAsWorkingImage(imageName);
+      }
+    });
+  });
+}
+
+// Función para cargar una imagen como imagen de trabajo
+function loadImageAsWorkingImage(imageName) {
+  // Establecer la imagen de trabajo con datos de galería
+  workingImage = {
+    imageName: imageName,
+    itemCode: 'GALERÍA', // Indicar que viene de galería
+    section: 'gallery',
+    originalPosition: { row: -1, col: -1 } // Posición especial para galería
+  };
+  
+  console.log('Imagen cargada desde galería como imagen de trabajo:', workingImage);
+  
+  // Actualizar el placeholder visual
+  updateWorkingImagePlaceholder();
+  
+  // Feedback visual en el grid de galería
+  const galleryItems = document.querySelectorAll('.gallery-image-item');
+  galleryItems.forEach(item => item.classList.remove('selected'));
+  
+  const selectedItem = document.querySelector(`[data-image-name="${imageName}"]`);
+  if (selectedItem) {
+    selectedItem.classList.add('selected');
+  }
+  
+  // Mostrar mensaje de confirmación
+  console.log('✅ Imagen lista para asignar. Usa Command+Click en el grid para colocarla.');
+}
+
+// Función para limpiar el grid
+function clearGalleryGrid() {
+  const galleryGrid = document.getElementById('galleryGrid');
+  if (galleryGrid) {
+    galleryGrid.innerHTML = '<div class="gallery-placeholder">Selecciona una galería para ver las imágenes</div>';
+  }
+}

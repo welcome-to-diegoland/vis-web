@@ -193,13 +193,13 @@ input[type="file"] {
   flex: 1;
   height: calc(100% - 20px);
   min-width: 0;
-  max-width: calc(100vw - 400px - 20px);
+  max-width: calc(100vw - 200px - 20px);
   overflow: hidden;
 }
 
 .left-section {
-  width: 400px;
-  min-width: 350px;
+  width: 300px;
+  min-width: 200px;
   max-width: 500px;
   flex-shrink: 0;
 }
@@ -413,7 +413,7 @@ input[type="file"] {
 
 
 #box3 {
-  height: 190%;
+  height: 15%;
 }
 
 #box4 {
@@ -703,7 +703,15 @@ input[type="file"] {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto; 
+  overflow: hidden; /* Cambiado para que el scroll lo maneje el gallery-system */
+  height: 100%;
+  flex: 1;
+}
+
+/* Asegurar que el sistema de galerías ocupe toda la altura disponible en Box 3 */
+#box3 .gallery-system {
+  height: 100%;
+  flex: 1;
 }
 
 .checkbox-column {
@@ -1809,6 +1817,194 @@ html, body {
   margin: 0;
   cursor: pointer;
 }
+
+/* Estilos específicos para el dropdown de vista del árbol */
+.approval-toggle-container .form-select {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  background: white;
+  color: #495057;
+  outline: none;
+  transition: all 0.2s ease;
+  height: 28px;
+  width: auto;
+  min-width: 140px;
+  max-width: 180px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path fill='%23495057' d='M6 9L1.5 4.5h9z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 10px;
+  cursor: pointer;
+}
+
+.approval-toggle-container .form-select:hover {
+  border-color: #9ca3af;
+}
+
+.approval-toggle-container .form-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.approval-toggle-container .form-group {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ================================ */
+/* SISTEMA DE GALERÍAS - BOX 3 */
+/* ================================ */
+
+.gallery-system {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-height: 0; /* Permite que el flex container se encoja */
+}
+
+.gallery-dropdown-container {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  z-index: 10;
+  flex-shrink: 0;
+  padding: 12px;
+  border-bottom: 1px solid #dee2e6;
+  width: 100%;
+}
+
+.gallery-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  color: #495057;
+  outline: none;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%23495057' d='M6 9L1.5 4.5h9z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  cursor: pointer;
+}
+
+.gallery-select:hover {
+  border-color: #9ca3af;
+}
+
+.gallery-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.gallery-grid-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.gallery-placeholder {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 40px 20px;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+}
+
+.gallery-image-item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.gallery-image-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.gallery-image-item.selected {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  background: #f0fdf4;
+}
+
+.gallery-image-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 75%; /* Aspect ratio 4:3 */
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.gallery-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.gallery-image-item:hover .gallery-image {
+  transform: scale(1.05);
+}
+
+.gallery-image-name {
+  font-size: 10px;
+  color: #6c757d;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+  margin-top: 1px;
+  text-align: center;
+  line-height: 1.1;
+  padding: 6px 8px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  font-weight: 500;
+}
+
+.gallery-image-item.selected .gallery-image-name {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+/* Responsive para el grid de galerías */
+@media (max-width: 400px) {
+  .gallery-grid {
+    grid-template-columns: 1fr;
+  }
+}
 #btn-cargar-categoria {
   font-size: 16px !important;
   display: block;
@@ -2368,6 +2564,40 @@ html, body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: opacity 0.3s ease;
+}
+
+/* Efecto hover para indicar que se puede asignar imagen */
+.item-group-image {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.item-group-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.item-group-image::after {
+  content: "⌘⌥⇧ + Click para asignar";
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.item-group-image:hover::after {
+  opacity: 1;
 }
 
 .no-image {
@@ -2914,7 +3144,7 @@ html, body {
   font-size: calc(var(--font-scale, 8px) * 1.0); /* +1 punto: 8px base = 8px * 1.0 */
   color: #6c757d;
   font-weight: 400;
-  line-height: 1.1; /* Line height compacto para más líneas */
+  line-height: 1.4; /* Interlineado más espacioso para mejor legibilidad */
   text-overflow: ellipsis;
   overflow: hidden;
   display: -webkit-box;
@@ -3299,7 +3529,7 @@ html, body {
   -webkit-line-clamp: 7; /* Muchas más líneas permitidas */
   line-clamp: 7;
   -webkit-box-orient: vertical;
-  line-height: 1.05; /* Line height muy compacto */
+  line-height: 1.4; /* Interlineado más espacioso para mejor legibilidad */
   margin: 1px 0 0 0; /* Margen mínimo */
   text-align: center;
 }
@@ -3812,7 +4042,7 @@ html, body {
   font-size: calc(var(--font-scale, 8px) * 1.375); /* +1 punto: 11px base = 8px * 1.375 */
   color: #495057;
   margin-top: 1px; /* Margen mínimo */
-  line-height: 1.05; /* Line height muy compacto */
+  line-height: 1.4; /* Interlineado más espacioso para mejor legibilidad */
   display: -webkit-box;
   -webkit-line-clamp: 7; /* Muchas más líneas permitidas */
   -webkit-box-orient: vertical;
@@ -3942,4 +4172,680 @@ html, body {
 
 .sections-body .section-content::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Indicador de aprobación en el grid de imágenes */
+.approval-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: 0 3px 3px 0; /* Bordes redondeados del lado derecho */
+}
+
+/* Mostrar indicador solo cuando está activa la vista de aprobación */
+.approval-view-active .approval-indicator {
+  opacity: 1;
+}
+
+/* Colores del indicador basados en vis_color - colores más bonitos */
+.approval-view-active .approval-indicator[data-vis-color="1"] {
+  background: linear-gradient(135deg, #4CAF50, #66BB6A); /* Verde gradiente más bonito */
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+}
+
+.approval-view-active .approval-indicator[data-vis-color="0"] {
+  background: linear-gradient(135deg, #FF9800, #FFB74D); /* Naranja gradiente más bonito */
+  box-shadow: 0 0 8px rgba(255, 152, 0, 0.3);
+}
+
+/* ===== EFECTOS PARA ASIGNACIÓN DE IMAGEN PRINCIPAL DEL ITEM GROUP ===== */
+
+/* Efecto visual cuando se presionan las teclas Command+Alt+Shift */
+.image-grid-container.itemgroup-assignment-mode .image-thumbnail-container {
+  position: relative;
+}
+
+.image-grid-container.itemgroup-assignment-mode .image-thumbnail-container::before {
+  content: "⌘⌥⇧ + Click";
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(52, 152, 219, 0.9);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: bold;
+  white-space: nowrap;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.image-grid-container.itemgroup-assignment-mode .image-thumbnail-container:hover::before {
+  opacity: 1;
+}
+
+.image-grid-container.itemgroup-assignment-mode .image-thumbnail {
+  border: 2px solid #3498db !important;
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.4) !important;
+  cursor: crosshair !important;
+}
+
+.image-grid-container.itemgroup-assignment-mode .image-thumbnail:hover {
+  transform: scale(1.05);
+  border-color: #2980b9 !important;
+  box-shadow: 0 0 15px rgba(52, 152, 219, 0.6) !important;
+}
+
+/* Para elementos sin vis_color definido, usar un color por defecto */
+.approval-view-active .approval-indicator[data-vis-color=""] {
+  background: linear-gradient(135deg, #9E9E9E, #BDBDBD); /* Gris gradiente */
+  box-shadow: 0 0 4px rgba(158, 158, 158, 0.2);
+}
+
+/* Soporte adicional para valores que puedan venir como strings del Excel */
+.approval-view-active .approval-indicator[data-vis-color="1.0"] {
+  background: linear-gradient(135deg, #4CAF50, #66BB6A); /* Verde gradiente más bonito */
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+}
+
+.approval-view-active .approval-indicator[data-vis-color="0.0"] {
+  background: linear-gradient(135deg, #FF9800, #FFB74D); /* Naranja gradiente más bonito */
+  box-shadow: 0 0 8px rgba(255, 152, 0, 0.3);
+}
+
+/* Asegurar que la celda del item code tenga posición relativa */
+.item-code-cell {
+  position: relative;
+}
+
+/* Agregar padding a la derecha cuando el indicador está activo para separar el texto */
+.approval-view-active .item-code-cell {
+  padding-left: 12px; /* Aumentar padding izquierdo para dar espacio al indicador */
+}
+
+/* Ajustar el contenido del item code para evitar solapamiento con el indicador */
+.approval-view-active .item-code-main,
+.approval-view-active .item-code-meta,
+.approval-view-active .item-title {
+  margin-left: 2px; /* Pequeño margen adicional para separación visual */
+}
+
+/* ===== INDICADORES DE COMENTARIOS ===== */
+
+/* Burbuja de comentario para Item Codes - esquina superior derecha */
+.comment-indicator {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  background: #3498db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: white;
+  cursor: pointer;
+  z-index: 5;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.comment-indicator:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* Burbuja de comentario para Item Group - en la imagen */
+.comment-indicator.group-comment {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  background: #3498db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.comment-indicator.group-comment:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+/* Asegurar que el contenedor de imagen del item group tenga posición relativa */
+.item-group-image {
+  position: relative;
+}
+
+/* Burbuja de comentario para imágenes - esquina superior derecha */
+.comment-bubble.image-comment {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  background: #3498db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.comment-bubble.image-comment:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+/* Burbuja verde para comentarios recién agregados */
+.comment-indicator.new-comment,
+.comment-bubble.new-comment {
+  background: #27ae60 !important;
+  animation: pulse-green 2s ease-in-out;
+}
+
+@keyframes pulse-green {
+  0% { 
+    background: #27ae60;
+    transform: scale(1);
+  }
+  50% { 
+    background: #2ecc71;
+    transform: scale(1.1);
+  }
+  100% { 
+    background: #27ae60;
+    transform: scale(1);
+  }
+}
+
+/* Asegurar que los contenedores de imágenes tengan posición relativa */
+.image-thumbnail-container {
+  position: relative;
+}
+
+/* Asegurar que la celda item-code tenga posición relativa para el posicionamiento absoluto */
+.item-code-cell {
+  position: relative;
+}
+
+/* ===== VENTANA MODAL DE COMENTARIOS ===== */
+
+/* ===== VENTANA MODAL DE COMENTARIOS ===== */
+
+.comment-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.comment-modal.show {
+  opacity: 1;
+}
+
+/* Forzar el ancho específico */
+.comment-modal .modal-content {
+  background: white;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+  width: 560px !important;
+  height: 650px;
+  min-width: 500px !important;
+  min-height: 500px;
+  max-width: 90vw;
+  max-height: 90vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: scale(0.8) translateY(-50px);
+  transition: transform 0.3s ease;
+}
+
+.comment-modal.show .modal-content {
+  transform: scale(1) translateY(0);
+}
+
+.comment-modal .modal-header {
+  background: #4a90e2 !important;
+  border-bottom: none !important;
+  padding: 20px 25px !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+  user-select: none;
+}
+
+.comment-modal .modal-title {
+  margin: 0 !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: white !important;
+  letter-spacing: -0.02em;
+}
+
+.comment-modal .modal-context {
+  font-size: 14px !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+.modal-title-container {
+  flex: 1;
+}
+
+.comment-modal .modal-close-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
+  font-size: 20px !important;
+  color: white !important;
+  cursor: pointer;
+  padding: 8px !important;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.comment-modal .modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.modal-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== SECCIÓN DE COMENTARIOS EXISTENTES ===== */
+
+.comments-section {
+  flex: 2; /* Más grande que la sección de nuevo comentario */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: white; /* Evitar transparencia */
+}
+
+.comment-modal .comments-section .section-title {
+  padding: 15px 25px 8px 25px !important;
+  margin: 0 !important;
+  background: white !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: #4a5568 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.comment-modal .comments-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px 25px 20px 25px !important;
+  background: #f7fafc !important;
+}
+
+.comments-divider {
+  height: 1px;
+  background: #e9ecef;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* ===== SECCIÓN DE NUEVO COMENTARIO ===== */
+
+.comment-modal .new-comment-section {
+  flex: 0 0 auto;
+  padding: 15px 25px 25px 25px !important; /* Padding uniforme */
+  background: white;
+  max-height: 220px; /* Aumentar para acomodar el padding */
+}
+
+.new-comment-section .section-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.comment-modal .new-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.comment-modal .form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px; /* Reducir espacios */
+}
+
+.form-group-half {
+  flex: 1;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.textarea-actions-row {
+  display: flex;
+  gap: 5px;
+  align-items: flex-start;
+}
+
+.comment-modal .form-textarea {
+  flex: 1;
+  padding: 12px 16px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  color: #2d3748 !important;
+  outline: none;
+  resize: none;
+  min-height: 80px !important;
+  max-height: 80px !important;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  line-height: 1.5;
+  background: white !important;
+}
+
+.form-actions-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+  min-width: 30px;
+}
+
+.comment-modal .btn-textarea-height {
+  padding: 0 !important;
+  font-size: 16px !important;
+  font-weight: 600;
+  min-width: 54px !important;
+  height: 80px !important; /* Altura del textarea actualizada */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px !important;
+}
+
+.comment-modal .form-select {
+  padding: 8px 14px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  background: white !important;
+  color: #2d3748 !important;
+  outline: none;
+  transition: all 0.2s ease;
+  height: 38px !important;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%232d3748' d='M6 9L1.5 4.5h9z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px !important;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 5px;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-primary:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+}
+
+/* Botón específico para comentarios */
+.btn-comment-submit {
+  background: #4a90e2 !important;
+  color: white;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  box-shadow: none;
+  border: none;
+}
+
+.btn-comment-submit:hover:not(:disabled) {
+  background: #357abd !important;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-comment-submit:disabled {
+  background: #95a5a6 !important;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+.form-select:hover {
+  border-color: #9ca3af;
+}
+
+.form-select:focus,
+.form-textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.no-comments {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 40px 20px;
+}
+
+/* ===== ESTILOS PARA COMENTARIOS TIPO WRIKE ===== */
+
+.comment-card {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s ease;
+}
+
+.comment-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.comment-modal .comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px !important;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  border-radius: 6px 6px 0 0;
+}
+
+.comment-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-modal .user-icon,
+.comment-modal .date-icon,
+.comment-modal .type-icon,
+.comment-modal .status-icon,
+.comment-modal .message-icon {
+  display: none !important;
+}
+
+.comment-modal .user-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.comment-modal .comment-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.comment-modal .date-text {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.comment-modal .date-text:empty {
+  display: none;
+}
+
+.comment-modal .comment-meta {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px !important;
+  background: white;
+}
+
+.comment-type,
+.comment-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: white;
+  font-weight: 500;
+}
+
+.type-icon,
+.status-icon {
+  font-size: 11px;
+}
+
+.comment-modal .comment-body {
+  padding: 10px 12px !important;
+  background: white;
+  border-radius: 0 0 6px 6px;
+}
+
+.comment-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.message-icon {
+  font-size: 14px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.message-text {
+  flex: 1;
+  line-height: 1.5;
+  color: #495057;
+  font-size: 14px;
+}
+
+.comment-textarea {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #495057;
+  background-color: #f8f9fa;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+}
+
+.comment-textarea:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
