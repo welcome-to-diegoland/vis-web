@@ -31,6 +31,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // Inicializar Box 3 con el sistema de galerías
   initializeGallerySystem();
   
+  // Inicializar controles del árbol (Box 1)
+  const treeDiv = document.getElementById('tree');
+  if (treeDiv) {
+    initializeTreeControls(treeDiv);
+  }
+  
   // Event listener para cargar archivo Excel
   combinedFileInput.addEventListener('change', handleCombinedExcel);
   
@@ -245,8 +251,224 @@ function reinitializeBoxContents() {
   }
 }
 
+// FUNCIÓN PARA CONFIGURAR EVENT LISTENERS DEL ÁRBOL
+function setupTreeEventListeners(treeDiv, treeList) {
+  console.log('🎛️ Configurando event listeners del árbol');
+  
+  // Event listener del botón cargar (si existe)
+  const cargarBtn = document.getElementById('btn-cargar-categoria');
+  if (cargarBtn) {
+    // Remover listener previo si existe
+    cargarBtn.removeEventListener('click', cargarBtn._clickHandler);
+    
+    cargarBtn._clickHandler = function() {
+      const selected = treeList.querySelector('.category-tree-label.selected');
+      if (!selected) {
+        alert('Por favor, selecciona un Item Group del árbol.');
+        return;
+      }
+      const infoPath = selected.getAttribute('data-path');
+      loadImageGridInBox4(infoPath);
+    };
+    
+    cargarBtn.addEventListener('click', cargarBtn._clickHandler);
+  }
+
+  // Select para vista de aprobación (3 estados)
+  const approvalSelect = document.getElementById('approvalViewSelect');
+  if (approvalSelect) {
+    // Remover listener previo si existe
+    approvalSelect.removeEventListener('change', approvalSelect._changeHandler);
+    
+    approvalSelect._changeHandler = function() {
+      const selectedView = this.value;
+      
+      // Obtener contenedores para aplicar cambios
+      const box4 = document.getElementById('box4');
+      
+      // Remover todas las clases previas del árbol y del grid
+      treeDiv.classList.remove('approval-view-active', 'approval-filtered-active');
+      if (box4) box4.classList.remove('approval-view-active', 'approval-filtered-active');
+      
+      removeApprovalColors(treeList);
+      showAllElements(treeList);
+      
+      switch (selectedView) {
+        case 'normal':
+          // Vista normal: sin colores, todo visible
+          break;
+          
+        case 'approval-full':
+          // Vista aprobación completa: colores, todo visible
+          treeDiv.classList.add('approval-view-active');
+          if (box4) box4.classList.add('approval-view-active');
+          applyApprovalColors(treeList);
+          break;
+          
+        case 'approval-filtered':
+          // Vista aprobación filtrada: colores + filtro
+          treeDiv.classList.add('approval-view-active', 'approval-filtered-active');
+          if (box4) box4.classList.add('approval-view-active', 'approval-filtered-active');
+          applyFilterAndColors(treeList);
+          break;
+      }
+    };
+    
+    approvalSelect.addEventListener('change', approvalSelect._changeHandler);
+  }
+
+  // Event listeners para búsqueda de catálogo
+  const catalogSearchInput = document.getElementById('catalogSearchInput');
+  const catalogSearchButton = document.getElementById('catalogSearchButton');
+  
+  if (catalogSearchInput && catalogSearchButton) {
+    let currentCatalogSearchResults = [];
+    let currentCatalogSearchIndex = 0;
+
+    function performCatalogSearch() {
+      const searchTerm = catalogSearchInput.value.trim();
+      
+      if (!searchTerm) {
+        console.log('❌ Término de búsqueda vacío');
+        return;
+      }
+
+      if (!currentWorkingData || currentWorkingData.length === 0) {
+        console.log('❌ No hay datos del árbol cargados para buscar');
+        return;
+      }
+
+      console.log('🔍 Buscando catálogo:', searchTerm, 'en', currentWorkingData.length, 'registros de VIS_AG_Library_Structure');
+
+      // Buscar en la columna Name de VIS_AG_Library_Structure
+      const searchResults = currentWorkingData.filter(item => {
+        const itemName = item.Name || '';
+        return itemName.toLowerCase().includes(searchTerm.toLowerCase());
+      });
+
+      console.log('📋 Resultados de búsqueda de catálogo:', searchResults.length, 'encontrados');
+
+      if (searchResults.length === 0) {
+        alert('No se encontraron resultados para: ' + searchTerm);
+        return;
+      }
+
+      // Guardar resultados y resetear índice
+      currentCatalogSearchResults = searchResults;
+      currentCatalogSearchIndex = 0;
+      
+      // Ir al primer resultado
+      navigateToSearchResult();
+    }
+
+    function navigateToSearchResult() {
+      if (currentCatalogSearchResults.length === 0) return;
+
+      const result = currentCatalogSearchResults[currentCatalogSearchIndex];
+      console.log('🎯 Navegando a resultado', currentCatalogSearchIndex + 1, 'de', currentCatalogSearchResults.length, ':', result.Name);
+
+      // Encontrar el Item Group que contiene este item
+      let itemGroupPath = result.NamePath;
+      
+      // Si el resultado es un Item Code, necesitamos encontrar su Item Group padre
+      if (result['Object Type'] === 'Item Code') {
+        itemGroupPath = result.NamePath.split('/').slice(0, -1).join('/');
+        console.log('📁 Item Code encontrado, Item Group padre:', itemGroupPath);
+      } else if (result['Object Type'] === 'Item Group') {
+        console.log('📁 Item Group encontrado directamente:', itemGroupPath);
+      }
+
+      // Expandir el árbol hasta el Item Group (y también expandir el Item Group para mostrar sus Item Codes)
+      expandTreeToPath(itemGroupPath, true);
+      
+      // Seleccionar el Item Group (no cargarlo, solo seleccionarlo)
+      selectItemGroupInTree(itemGroupPath);
+
+      // Avanzar al siguiente resultado para la próxima búsqueda
+      currentCatalogSearchIndex = (currentCatalogSearchIndex + 1) % currentCatalogSearchResults.length;
+      
+      console.log('✅ Resultado seleccionado. Próximo: ', currentCatalogSearchIndex + 1, 'de', currentCatalogSearchResults.length);
+    }
+
+    // Remover listeners previos si existen
+    catalogSearchButton.removeEventListener('click', catalogSearchButton._clickHandler);
+    catalogSearchInput.removeEventListener('keypress', catalogSearchInput._keypressHandler);
+    
+    // Event listeners
+    catalogSearchButton._clickHandler = performCatalogSearch;
+    catalogSearchButton.addEventListener('click', catalogSearchButton._clickHandler);
+    
+    catalogSearchInput._keypressHandler = function(e) {
+      if (e.key === 'Enter') {
+        performCatalogSearch();
+      }
+    };
+    catalogSearchInput.addEventListener('keypress', catalogSearchInput._keypressHandler);
+  }
+}
+
+// FUNCIÓN PARA INICIALIZAR LOS CONTROLES DEL ÁRBOL (sin datos)
+function initializeTreeControls(treeDiv) {
+  console.log('🎛️ Inicializando controles del árbol');
+  
+  // Limpiar contenido previo
+  treeDiv.innerHTML = '';
+
+  // Barra de controles superior
+  const controlsHeader = document.createElement('div');
+  controlsHeader.className = 'category-tree-header';
+  treeDiv.appendChild(controlsHeader);
+
+  // Toggle para vista de aprobación (3 estados) + búsqueda de catálogo
+  const approvalToggleContainer = document.createElement('div');
+  approvalToggleContainer.className = 'approval-toggle-container';
+  approvalToggleContainer.innerHTML = `
+    <div class="gallery-row">
+      <select class="form-select" id="approvalViewSelect">
+        <option value="normal">Normal</option>
+        <option value="approval-full">Aprobación Completa</option>
+        <option value="approval-filtered">Aprobación Filtrada</option>
+      </select>
+    </div>
+    <div class="search-row">
+      <input type="text" class="search-input" id="catalogSearchInput" placeholder="Buscar catálogo...">
+      <button class="search-button" id="catalogSearchButton">Buscar</button>
+    </div>
+  `;
+  controlsHeader.appendChild(approvalToggleContainer);
+
+  // Header sticky con el botón de cargar
+  const header = document.createElement('div');
+  header.className = 'category-tree-header';
+  treeDiv.appendChild(header);
+
+  const cargarBtn = document.createElement('button');
+  cargarBtn.id = 'btn-cargar-categoria';
+  cargarBtn.className = 'btn btn-secondary';
+  cargarBtn.textContent = 'Cargar Item Group';
+  cargarBtn.disabled = true;
+  header.appendChild(cargarBtn);
+
+  // Contenedor para el árbol (hace scroll, no el header)
+  const treeList = document.createElement('div');
+  treeList.className = 'category-tree-list';
+  treeDiv.appendChild(treeList);
+
+  // Mensaje inicial
+  treeList.innerHTML = `
+    <div class="tree-placeholder" style="padding: 40px 20px; text-align: center; color: #6b7280; font-style: italic;">
+      Carga un archivo Excel para ver el árbol de categorías
+    </div>
+  `;
+
+  // Configurar event listeners básicos
+  setupTreeEventListeners(treeDiv, treeList);
+}
+
 // FUNCIÓN PARA RENDERIZAR EL ÁRBOL MODERNO EN EL DIV #tree
 function renderAssetLibraryTree(assetRows, treeDiv) {
+  console.log('🌳 Renderizando árbol con', assetRows.length, 'registros');
+  
   // --- Construye el árbol jerárquico ---
   const root = {};
 
@@ -270,44 +492,16 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
     }
   });
 
-  // --- Renderiza el árbol en el DOM ---
-  treeDiv.innerHTML = '';
+  // --- Buscar el contenedor del árbol existente ---
+  let treeList = treeDiv.querySelector('.category-tree-list');
+  if (!treeList) {
+    // Si no existe, inicializar los controles primero
+    initializeTreeControls(treeDiv);
+    treeList = treeDiv.querySelector('.category-tree-list');
+  }
 
-  // Barra de controles superior
-  const controlsHeader = document.createElement('div');
-  controlsHeader.className = 'category-tree-header';
-  treeDiv.appendChild(controlsHeader);
-
-  // Toggle para vista de aprobación (3 estados)
-  const approvalToggleContainer = document.createElement('div');
-  approvalToggleContainer.className = 'approval-toggle-container';
-  approvalToggleContainer.innerHTML = `
-    <div class="form-group">
-      <select class="form-select" id="approvalViewSelect">
-        <option value="normal">Normal</option>
-        <option value="approval-full">Aprobación Completa</option>
-        <option value="approval-filtered">Aprobación Filtrada</option>
-      </select>
-    </div>
-  `;
-  controlsHeader.appendChild(approvalToggleContainer);
-
-  // Header sticky con el botón de cargar
-  const header = document.createElement('div');
-  header.className = 'category-tree-header';
-  treeDiv.appendChild(header);
-
-  const cargarBtn = document.createElement('button');
-  cargarBtn.id = 'btn-cargar-categoria';
-  cargarBtn.className = 'btn btn-secondary';
-  cargarBtn.textContent = 'Cargar Item Group';
-  cargarBtn.disabled = true;
-  header.appendChild(cargarBtn);
-
-  // Contenedor para el árbol (hace scroll, no el header)
-  const treeList = document.createElement('div');
-  treeList.className = 'category-tree-list';
-  treeDiv.appendChild(treeList);
+  // Limpiar solo el contenido del árbol, mantener los controles
+  treeList.innerHTML = '';
 
   // --- Función recursiva para crear HTML del árbol ---
   function createTreeHTML(nodeObj) {
@@ -414,9 +608,17 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
         
         // Seleccionar si es Item Group
         if (info['Object Type'] === 'Item Group') {
+          // Quitar selección previa (solo el sistema original)
           treeList.querySelectorAll('.category-tree-label.selected').forEach(el => el.classList.remove('selected'));
+          
+          // Marcar como seleccionado (solo el sistema original)
           label.classList.add('selected');
-          cargarBtn.disabled = false;
+          
+          // Habilitar botón de carga
+          const cargarBtn = document.getElementById('btn-cargar-categoria');
+          if (cargarBtn) {
+            cargarBtn.disabled = false;
+          }
         }
       });
 
@@ -433,54 +635,118 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
   const treeHtml = createTreeHTML(root);
   treeList.appendChild(treeHtml);
 
-  // Botón cargar categoría: solo selecciona el Item Group activo
-  cargarBtn.addEventListener('click', function() {
-    const selected = treeList.querySelector('.category-tree-label.selected');
-    if (!selected) {
-      alert("Selecciona un grupo de productos en el árbol");
-      return;
-    }
-    const infoPath = selected.getAttribute('data-path');
-    
-    // Cargar la retícula de imágenes en box4
-    loadImageGridInBox4(infoPath);
-  });
+  // Solo configurar event listeners si no están ya configurados
+  if (!treeDiv.hasAttribute('data-listeners-setup')) {
+    setupTreeEventListeners(treeDiv, treeList);
+    treeDiv.setAttribute('data-listeners-setup', 'true');
+  }
+}
 
-  // Select para vista de aprobación (3 estados)
-  const approvalSelect = document.getElementById('approvalViewSelect');
-  approvalSelect.addEventListener('change', function() {
-    const selectedView = this.value;
+// Función para expandir el árbol hasta un path específico
+function expandTreeToPath(targetPath, expandTarget = false) {
+  console.log('🌳 Expandiendo árbol hasta:', targetPath, expandTarget ? '(y expandiendo el target)' : '');
+  
+  const pathParts = targetPath.split('/');
+  let currentPath = '';
+  
+  // Expandir cada nivel del path
+  pathParts.forEach((part, index) => {
+    if (index === 0) {
+      currentPath = part;
+    } else {
+      currentPath += '/' + part;
+    }
     
-    // Obtener contenedores para aplicar cambios
-    const box4 = document.getElementById('box4');
+    console.log('🔍 Buscando path:', currentPath);
     
-    // Remover todas las clases previas del árbol y del grid
-    treeDiv.classList.remove('approval-view-active', 'approval-filtered-active');
-    if (box4) box4.classList.remove('approval-view-active', 'approval-filtered-active');
-    
-    removeApprovalColors(treeList);
-    showAllElements(treeList);
-    
-    switch (selectedView) {
-      case 'normal':
-        // Vista normal: sin colores, todo visible
-        break;
+    // Buscar el elemento usando el selector correcto
+    const element = document.querySelector(`.category-tree-li-content[data-path="${currentPath}"]`);
+    if (element) {
+      const toggle = element.querySelector('.category-tree-expand-btn');
+      if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
+        console.log('📂 Expandiendo:', currentPath);
+        toggle.click(); // Expandir si está colapsado
         
-      case 'approval-full':
-        // Vista aprobación completa: colores, todo visible
-        treeDiv.classList.add('approval-view-active');
-        if (box4) box4.classList.add('approval-view-active');
-        applyApprovalColors(treeList);
-        break;
-        
-      case 'approval-filtered':
-        // Vista aprobación filtrada: colores + filtro
-        treeDiv.classList.add('approval-view-active', 'approval-filtered-active');
-        if (box4) box4.classList.add('approval-view-active', 'approval-filtered-active');
-        applyFilterAndColors(treeList);
-        break;
+        // Pequeña pausa para permitir que el DOM se actualice
+        setTimeout(() => {
+          console.log('✅ Expandido:', currentPath);
+        }, 100);
+      } else if (toggle) {
+        console.log('📂 Ya expandido:', currentPath);
+      } else {
+        console.log('📄 Sin hijos (leaf node):', currentPath);
+      }
+    } else {
+      console.log('❌ No encontrado:', currentPath);
     }
   });
+  
+  // Si expandTarget es true, también expandir el elemento target para mostrar sus hijos
+  if (expandTarget) {
+    setTimeout(() => {
+      const targetElement = document.querySelector(`.category-tree-li-content[data-path="${targetPath}"]`);
+      if (targetElement) {
+        const toggle = targetElement.querySelector('.category-tree-expand-btn');
+        if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
+          console.log('📂 Expandiendo target para mostrar contenido:', targetPath);
+          toggle.click();
+        }
+      }
+    }, 200);
+  }
+}
+
+// Función para seleccionar un Item Group en el árbol sin cargarlo
+function selectItemGroupInTree(itemGroupPath) {
+  console.log('🎯 Seleccionando Item Group:', itemGroupPath);
+  
+  // Quitar selección previa (usando el sistema original)
+  const previousSelected = document.querySelector('.category-tree-label.selected');
+  if (previousSelected) {
+    previousSelected.classList.remove('selected');
+    console.log('🔄 Removida selección previa');
+  }
+  
+  // Esperar un poco para que el árbol se haya expandido completamente
+  setTimeout(() => {
+    // Encontrar el elemento correcto usando el path
+    const targetElement = document.querySelector(`.category-tree-li-content[data-path="${itemGroupPath}"]`);
+    if (targetElement) {
+      // Buscar el label dentro del elemento
+      const targetLabel = targetElement.querySelector('.category-tree-label');
+      if (targetLabel) {
+        // Usar el sistema de selección original
+        targetLabel.classList.add('selected');
+        console.log('✅ Clase "selected" agregada al label');
+        
+        // Habilitar botón de carga
+        const cargarBtn = document.getElementById('btn-cargar-categoria');
+        if (cargarBtn) {
+          cargarBtn.disabled = false;
+        }
+        
+        // Hacer scroll para que sea visible
+        setTimeout(() => {
+          targetElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+          console.log('✅ Item Group seleccionado y visible:', itemGroupPath);
+        }, 100);
+      } else {
+        console.log('❌ No se encontró el label dentro del elemento');
+      }
+    } else {
+      console.log('❌ No se encontró el elemento en el árbol:', itemGroupPath);
+      
+      // Debug: Buscar elementos similares
+      const similarPaths = Array.from(document.querySelectorAll('.category-tree-li-content[data-path]'))
+        .map(el => el.getAttribute('data-path'))
+        .filter(path => path && path.includes('Sierras'))
+        .slice(0, 5);
+      console.log('🔍 Paths similares encontrados:', similarPaths);
+    }
+  }, 500); // Delay más largo para asegurar que el árbol esté expandido
 }
 
 // Función para cargar la retícula de imágenes en box4
