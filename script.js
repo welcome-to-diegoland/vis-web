@@ -18,6 +18,32 @@ let currentAssetGroups = []; // Para guardar los datos de galerías
 let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 
 // Variables globales para el sistema de selección y asignación de imágenes
+let savedItemGroups = new Set(); // Set para trackear Item Groups guardados
+
+// Función para marcar automáticamente un Item Group como modificado
+function markItemGroupAsModified(itemGroupId = null, itemGroupName = null) {
+  const groupId = itemGroupId || (currentItemGroup ? currentItemGroup['Id'] : null);
+  const groupName = itemGroupName || (currentItemGroup ? currentItemGroup['Name'] : null);
+  
+  if (groupId) {
+    savedItemGroups.add(groupId);
+    console.log(`Item Group modificado: "${groupName}"`);
+    
+    // Guardar en localStorage inmediatamente
+    const dataToSave = {
+      savedItemGroups: Array.from(savedItemGroups),
+      currentItemGroupId: groupId,
+      currentItemGroupName: groupName,
+      timestamp: new Date().toISOString()
+    };
+    
+    try {
+      localStorage.setItem('vis-web-saved-groups', JSON.stringify(dataToSave));
+    } catch (error) {
+      // Silencioso
+    }
+  }
+}
 
 // ===== SISTEMA DE GESTIÓN DE USUARIOS =====
 const USERS = {
@@ -186,6 +212,12 @@ document.addEventListener('DOMContentLoaded', function() {
     saveChangesBtn.addEventListener('click', saveToLocalStorage);
   }
   
+  // Event listener para botón de limpiar Item Groups guardados
+  const clearSavedBtn = document.getElementById('clearSavedBtn');
+  if (clearSavedBtn) {
+    clearSavedBtn.addEventListener('click', clearSavedItemGroups);
+  }
+  
   if (exportBtn) {
     exportBtn.addEventListener('click', exportToExcel);
   }
@@ -323,8 +355,6 @@ function handleCombinedExcel(event) {
         const assetCommentsRows = XLSX.utils.sheet_to_json(assetCommentsSheet, { defval: "" });
         // Guardar TODOS los registros de VIS_AG_Asset_Structure, no solo los que tienen comentarios
         assetCommentsData = assetCommentsRows;
-        console.log("Datos de VIS_AG_Asset_Structure cargados:", assetCommentsData.length);
-        console.log("📋 Registros con comentarios:", assetCommentsRows.filter(row => row.Name && row.WA_VIS_Comment).length);
       } else {
         console.warn("No se encontró la hoja VIS_AG_Asset_Structure para comentarios de imágenes.");
       }
@@ -334,8 +364,6 @@ function handleCombinedExcel(event) {
       let assetGroupsData = [];
       if (assetGroupsSheet) {
         assetGroupsData = XLSX.utils.sheet_to_json(assetGroupsSheet, { defval: "" });
-        console.log("📊 Datos de galerías cargados:", assetGroupsData.length, "registros");
-        console.log("🔍 Primer registro de galerías:", assetGroupsData[0]);
         
         // Guardar los datos globalmente
         currentAssetGroups = assetGroupsData;
@@ -391,7 +419,6 @@ function reinitializeBoxContents() {
 
 // FUNCIÓN PARA CONFIGURAR EVENT LISTENERS DEL ÁRBOL
 function setupTreeEventListeners(treeDiv, treeList) {
-  console.log('🎛️ Configurando event listeners del árbol');
   
   // Event listener del botón cargar (si existe)
   const cargarBtn = document.getElementById('btn-cargar-categoria');
@@ -467,24 +494,18 @@ function setupTreeEventListeners(treeDiv, treeList) {
       const searchTerm = catalogSearchInput.value.trim();
       
       if (!searchTerm) {
-        console.log('❌ Término de búsqueda vacío');
         return;
       }
 
       if (!currentWorkingData || currentWorkingData.length === 0) {
-        console.log('❌ No hay datos del árbol cargados para buscar');
         return;
       }
-
-      console.log('🔍 Buscando catálogo:', searchTerm, 'en', currentWorkingData.length, 'registros de VIS_AG_Library_Structure');
 
       // Buscar en la columna Name de VIS_AG_Library_Structure
       const searchResults = currentWorkingData.filter(item => {
         const itemName = item.Name || '';
         return itemName.toLowerCase().includes(searchTerm.toLowerCase());
       });
-
-      console.log('📋 Resultados de búsqueda de catálogo:', searchResults.length, 'encontrados');
 
       if (searchResults.length === 0) {
         alert('No se encontraron resultados para: ' + searchTerm);
@@ -503,7 +524,6 @@ function setupTreeEventListeners(treeDiv, treeList) {
       if (currentCatalogSearchResults.length === 0) return;
 
       const result = currentCatalogSearchResults[currentCatalogSearchIndex];
-      console.log('🎯 Navegando a resultado', currentCatalogSearchIndex + 1, 'de', currentCatalogSearchResults.length, ':', result.Name);
 
       // Encontrar el Item Group que contiene este item
       let itemGroupPath = result.NamePath;
@@ -511,9 +531,6 @@ function setupTreeEventListeners(treeDiv, treeList) {
       // Si el resultado es un Item Code, necesitamos encontrar su Item Group padre
       if (result['Object Type'] === 'Item Code') {
         itemGroupPath = result.NamePath.split('/').slice(0, -1).join('/');
-        console.log('📁 Item Code encontrado, Item Group padre:', itemGroupPath);
-      } else if (result['Object Type'] === 'Item Group') {
-        console.log('📁 Item Group encontrado directamente:', itemGroupPath);
       }
 
       // Expandir el árbol hasta el Item Group (y también expandir el Item Group para mostrar sus Item Codes)
@@ -524,8 +541,6 @@ function setupTreeEventListeners(treeDiv, treeList) {
 
       // Avanzar al siguiente resultado para la próxima búsqueda
       currentCatalogSearchIndex = (currentCatalogSearchIndex + 1) % currentCatalogSearchResults.length;
-      
-      console.log('✅ Resultado seleccionado. Próximo: ', currentCatalogSearchIndex + 1, 'de', currentCatalogSearchResults.length);
     }
 
     // Remover listeners previos si existen
@@ -547,7 +562,6 @@ function setupTreeEventListeners(treeDiv, treeList) {
 
 // FUNCIÓN PARA INICIALIZAR LOS CONTROLES DEL ÁRBOL (sin datos)
 function initializeTreeControls(treeDiv) {
-  console.log('🎛️ Inicializando controles del árbol');
   
   // Limpiar contenido previo
   treeDiv.innerHTML = '';
@@ -594,7 +608,6 @@ function initializeTreeControls(treeDiv) {
 
 // FUNCIÓN PARA RENDERIZAR EL ÁRBOL MODERNO EN EL DIV #tree
 function renderAssetLibraryTree(assetRows, treeDiv) {
-  console.log('🌳 Renderizando árbol con', assetRows.length, 'registros');
   
   // --- Construye el árbol jerárquico ---
   const root = {};
@@ -771,7 +784,6 @@ function renderAssetLibraryTree(assetRows, treeDiv) {
 
 // Función para expandir el árbol hasta un path específico
 function expandTreeToPath(targetPath, expandTarget = false) {
-  console.log('🌳 Expandiendo árbol hasta:', targetPath, expandTarget ? '(y expandiendo el target)' : '');
   
   const pathParts = targetPath.split('/');
   let currentPath = '';
@@ -784,27 +796,13 @@ function expandTreeToPath(targetPath, expandTarget = false) {
       currentPath += '/' + part;
     }
     
-    console.log('🔍 Buscando path:', currentPath);
-    
     // Buscar el elemento usando el selector correcto
     const element = document.querySelector(`.category-tree-li-content[data-path="${currentPath}"]`);
     if (element) {
       const toggle = element.querySelector('.category-tree-expand-btn');
       if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
-        console.log('📂 Expandiendo:', currentPath);
         toggle.click(); // Expandir si está colapsado
-        
-        // Pequeña pausa para permitir que el DOM se actualice
-        setTimeout(() => {
-          console.log('✅ Expandido:', currentPath);
-        }, 100);
-      } else if (toggle) {
-        console.log('📂 Ya expandido:', currentPath);
-      } else {
-        console.log('📄 Sin hijos (leaf node):', currentPath);
       }
-    } else {
-      console.log('❌ No encontrado:', currentPath);
     }
   });
   
@@ -815,7 +813,6 @@ function expandTreeToPath(targetPath, expandTarget = false) {
       if (targetElement) {
         const toggle = targetElement.querySelector('.category-tree-expand-btn');
         if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
-          console.log('📂 Expandiendo target para mostrar contenido:', targetPath);
           toggle.click();
         }
       }
@@ -825,13 +822,11 @@ function expandTreeToPath(targetPath, expandTarget = false) {
 
 // Función para seleccionar un Item Group en el árbol sin cargarlo
 function selectItemGroupInTree(itemGroupPath) {
-  console.log('🎯 Seleccionando Item Group:', itemGroupPath);
   
   // Quitar selección previa (usando el sistema original)
   const previousSelected = document.querySelector('.category-tree-label.selected');
   if (previousSelected) {
     previousSelected.classList.remove('selected');
-    console.log('🔄 Removida selección previa');
   }
   
   // Esperar un poco para que el árbol se haya expandido completamente
@@ -844,7 +839,6 @@ function selectItemGroupInTree(itemGroupPath) {
       if (targetLabel) {
         // Usar el sistema de selección original
         targetLabel.classList.add('selected');
-        console.log('✅ Clase "selected" agregada al label');
         
         // Habilitar botón de carga
         const cargarBtn = document.getElementById('btn-cargar-categoria');
@@ -858,20 +852,12 @@ function selectItemGroupInTree(itemGroupPath) {
             behavior: 'smooth', 
             block: 'center' 
           });
-          console.log('✅ Item Group seleccionado y visible:', itemGroupPath);
         }, 100);
       } else {
-        console.log('❌ No se encontró el label dentro del elemento');
+        // Debug limitado  
       }
     } else {
-      console.log('❌ No se encontró el elemento en el árbol:', itemGroupPath);
-      
-      // Debug: Buscar elementos similares
-      const similarPaths = Array.from(document.querySelectorAll('.category-tree-li-content[data-path]'))
-        .map(el => el.getAttribute('data-path'))
-        .filter(path => path && path.includes('Sierras'))
-        .slice(0, 5);
-      console.log('🔍 Paths similares encontrados:', similarPaths);
+      // Debug limitado
     }
   }, 500); // Delay más largo para asegurar que el árbol esté expandido
 }
@@ -936,22 +922,7 @@ function loadImageGridInBox4(itemGroupPath) {
   
   // Debug: verificar los indicadores de aprobación en el grid
   setTimeout(() => {
-    const indicators = document.querySelectorAll('.approval-indicator');
-    const box4 = document.getElementById('box4');
-    console.log('Indicadores de aprobación encontrados:', indicators.length);
-    console.log('Box4 tiene clase approval-view-active:', box4 ? box4.classList.contains('approval-view-active') : 'Box4 no encontrado');
-    
-    indicators.forEach((indicator, index) => {
-      if (index < 5) { // Solo mostrar los primeros 5
-        const visColor = indicator.getAttribute('data-vis-color');
-        const cell = indicator.closest('.item-code-cell');
-        const itemCode = cell ? cell.getAttribute('data-item-code') : 'N/A';
-        const computedStyle = window.getComputedStyle(indicator);
-        const backgroundColor = computedStyle.backgroundColor;
-        const opacity = computedStyle.opacity;
-        console.log(`Indicador ${index}: ItemCode="${itemCode}", vis_color="${visColor}", background="${backgroundColor}", opacity="${opacity}"`);
-      }
-    });
+    // Lógica sin debug logs
   }, 100);
   
   // INICIALIZAR VARIABLES CSS INMEDIATAMENTE para evitar glitch visual
@@ -1300,7 +1271,7 @@ function regenerateImageGrid() {
     setupScrollSynchronization();
   }, 100);
   
-  console.log('Grilla regenerada exitosamente');
+  // Grid regenerated
 }
 
 // Función para configurar los controles de zoom
@@ -1439,11 +1410,8 @@ function updateWorkingImagePlaceholder() {
 
 // Función para extraer el Item Code del nombre de imagen
 function extractItemCodeFromImageName(imageName) {
-  console.log('=== DEBUG EXTRACT ITEM CODE ===');
-  console.log('Input imageName:', imageName);
   
   if (!imageName) {
-    console.log('imageName is null/undefined');
     return null;
   }
   
@@ -1451,8 +1419,6 @@ function extractItemCodeFromImageName(imageName) {
   const matchWithUnderscore = imageName.match(/^([^_]+)_/);
   if (matchWithUnderscore) {
     const result = matchWithUnderscore[1];
-    console.log('Found with underscore pattern:', result);
-    console.log('===============================');
     return result;
   }
   
@@ -1460,13 +1426,9 @@ function extractItemCodeFromImageName(imageName) {
   const withoutExtension = imageName.replace(/\.[^.]+$/, ''); // Quitar extensión
   if (withoutExtension.length >= 10) {
     const result = withoutExtension.substring(0, 10);
-    console.log('Using first 10 characters:', result);
-    console.log('===============================');
     return result;
   }
   
-  console.log('No valid pattern found');
-  console.log('===============================');
   return null;
 }
 
@@ -1980,7 +1942,7 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     clearForm();
     
     // Actualizar burbujas de comentarios en la UI
-    updateCommentBubbles(contextForData, type, imageName);
+    updateCommentBubbles(type, contextForData, imageName);
   });
 }
 
@@ -2037,7 +1999,7 @@ function setupStatusControl(modal, context, type = 'item', imageName = null, com
     this.value = '';
     
     // Actualizar burbujas de comentarios en la UI
-    updateCommentBubbles(contextForData, type, imageName);
+    updateCommentBubbles(type, contextForData, imageName);
   });
 }
 
@@ -2096,7 +2058,12 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       currentAssetComments.push(newAssetComment);
     }
     
-    console.log('Nuevo comentario de imagen agregado:', newComment, 'para:', imageName);
+    console.log('Comentario puesto:', newComment, 'para:', imageName);
+    console.log('currentAssetComments después de agregar:', currentAssetComments.length, 'assets');
+    console.log('Asset agregado/actualizado:', assetData || newAssetComment);
+    
+    // Marcar Item Group como modificado automáticamente
+    markItemGroupAsModified();
     
     // Actualizar burbujas visualmente para imágenes
     updateCommentBubbles('image', imageName, null);
@@ -2135,7 +2102,10 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
     }
   }
   
-  console.log('Nuevo comentario agregado:', newComment);
+  console.log('Comentario agregado:', newComment);
+  
+  // Marcar Item Group como modificado automáticamente
+  markItemGroupAsModified();
   
   // Actualizar burbujas visualmente después de agregar comentario
   if (isGroupComment) {
@@ -2426,10 +2396,6 @@ function handleItemGroupImageAssignment(event, imageCell, imageThumbnail) {
   const imageName = imageThumbnail.alt;
   const itemCode = imageCell.getAttribute('data-item-code');
   
-  console.log('=== ASIGNANDO IMAGEN PRINCIPAL DEL ITEM GROUP ===');
-  console.log('Imagen:', imageName);
-  console.log('Item Code origen:', itemCode);
-  
   // Encontrar el Item Group actual en los datos
   if (!currentItemGroup) {
     console.error('No hay Item Group cargado');
@@ -2565,10 +2531,18 @@ function handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIn
   if (imageItemCode === targetItemCode) {
     console.log('Moviendo imagen a REST del mismo Item Code');
     moveImageToRest(imageName, targetItemCode, targetRowIndex, targetColIndex, targetSection);
+    // Marcar Item Group como modificado automáticamente
+    markItemGroupAsModified();
+    // Actualizar currentWorkingData
+    updateCurrentWorkingDataWithGridState();
   } else {
     // Si es de diferente Item Code, solo quitar
     console.log('Quitando imagen de diferente Item Code');
     removeImageFromGrid(targetRowIndex, targetColIndex, targetSection);
+    // Marcar Item Group como modificado automáticamente
+    markItemGroupAsModified();
+    // Actualizar currentWorkingData
+    updateCurrentWorkingDataWithGridState();
   }
   
   // Recorrer imágenes hacia la izquierda para llenar el espacio vacío
@@ -2590,7 +2564,129 @@ function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIn
   // Insertar imagen en la nueva posición
   insertImageInGrid(workingImage.imageName, targetRowIndex, targetColIndex, targetSection);
   
+  // Marcar Item Group como modificado automáticamente
+  markItemGroupAsModified();
+  
   console.log('Imagen asignada exitosamente');
+  
+  // Actualizar currentWorkingData con el nuevo estado
+  updateCurrentWorkingDataWithGridState();
+}
+
+// Función para actualizar currentWorkingData con el estado actual de las imágenes
+function updateCurrentWorkingDataWithGridState() {
+  console.log('🔄 DEBUG updateCurrentWorkingDataWithGridState iniciando...');
+  
+  if (!currentWorkingData) {
+    console.log('❌ currentWorkingData no existe');
+    return;
+  }
+  
+  if (!currentItemGroup) {
+    console.log('❌ currentItemGroup no existe');
+    return;
+  }
+  
+  console.log('🔄 Actualizando currentWorkingData con cambios de imágenes...');
+  console.log('📋 currentItemGroup:', currentItemGroup.Name, 'NamePath:', currentItemGroup.NamePath);
+  
+  // Encontrar todos los Item Codes del Item Group actual
+  const itemCodesInGroup = currentWorkingData.filter(row => 
+    row['Object Type'] === 'Item Code' && 
+    row.NamePath && 
+    row.NamePath.startsWith(currentItemGroup.NamePath + '/')
+  );
+  
+  console.log(`📋 Item Codes en el grupo: ${itemCodesInGroup.length}`, itemCodesInGroup.map(r => r.Name));
+  
+  // Para cada Item Code, leer las imágenes de la grilla y actualizar currentWorkingData
+  itemCodesInGroup.forEach(itemCodeRow => {
+    const itemCode = itemCodeRow['Item Code'] || itemCodeRow.Name;
+    console.log(`🔍 Procesando Item Code: ${itemCode}`);
+    
+    // DEBUG: Mostrar qué datos tiene actualmente este Item Code
+    const imageColumns = Object.keys(itemCodeRow).filter(key => 
+      key.includes('WA_Cover') || key.includes('WA_Gallery') || key.includes('WA_Rest')
+    ).filter(key => itemCodeRow[key]);
+    console.log(`🔍 DEBUG: ${itemCode} tiene imágenes en:`, imageColumns);
+    imageColumns.forEach(col => {
+      console.log(`🔍 DEBUG: ${itemCode}.${col} = "${itemCodeRow[col]}"`);
+    });
+    
+    // Buscar la fila del Item Code en la grilla (la fila completa, no solo la celda del nombre)
+    let itemCodeGridRow = document.querySelector(`.table-row:has([data-item-code="${itemCode}"])`);
+    
+    // Fallback si :has() no está soportado
+    if (!itemCodeGridRow) {
+      const allRows = document.querySelectorAll('.table-row');
+      itemCodeGridRow = Array.from(allRows).find(row => 
+        row.querySelector(`[data-item-code="${itemCode}"]`)
+      );
+    }
+    
+    if (itemCodeGridRow) {
+      console.log(`✅ Fila encontrada en grilla para: ${itemCode}`);
+      console.log(`🔍 DEBUG: HTML de la fila:`, itemCodeGridRow.outerHTML.substring(0, 200) + '...');
+      
+      // CORRECCIÓN: Buscar las celdas de imagen por data-item-code, no dentro de la fila del item code
+      const allImageCellsForItem = document.querySelectorAll(`.image-cell[data-item-code="${itemCode}"]`);
+      console.log(`🔍 DEBUG: Total celdas de imagen para ${itemCode}:`, allImageCellsForItem.length);
+      
+      // Leer las imágenes de cada sección con los nombres correctos de columnas
+      const sections = {
+        'cov': { prefix: 'WA_Cover_Image_', count: 5 },
+        'gallery': { prefix: 'WA_Gallery_', count: 22 },
+        'rest': { prefix: 'WA_Rest_', count: 25 }
+      };
+      
+      console.log(`🔍 DEBUG: Sections a procesar para ${itemCode}:`, Object.keys(sections));
+      
+      Object.keys(sections).forEach(section => {
+        // Buscar las celdas de imagen para esta sección y este item code
+        const selector = `.image-cell[data-item-code="${itemCode}"][data-section="${section}"]`;
+        console.log(`🔍 DEBUG: Buscando con selector: "${selector}"`);
+        const imageCells = document.querySelectorAll(selector);
+        console.log(`🔍 DEBUG: Section ${section} encontrada: ${imageCells.length} celdas`);
+        
+        if (imageCells.length > 0) {
+          imageCells.forEach((cell, index) => {
+            const img = cell.querySelector('.image-thumbnail');
+            const imageName = img && !img.src.includes('data:image/svg+xml') 
+              ? img.alt || '' 
+              : '';
+            
+            // Actualizar en currentWorkingData usando los nombres correctos
+            const columnName = `${sections[section].prefix}${String(index + 1).padStart(2, '0')}`;
+            const oldValue = itemCodeRow[columnName];
+            
+            // Log detallado para debug
+            console.log(`🔍 ${itemCode}.${columnName}: Grilla="${imageName}" | CurrentData="${oldValue}"`);
+            
+            if (itemCodeRow[columnName] !== undefined) {
+              itemCodeRow[columnName] = imageName;
+              
+              if (oldValue !== imageName) {
+                console.log(`📝 CAMBIO DETECTADO ${itemCode}.${columnName}: "${oldValue}" → "${imageName}"`);
+              }
+            } else {
+              console.log(`⚠️ Columna no encontrada: ${columnName} en ${itemCode}`);
+              if (index === 0) {
+                console.log(`📋 Columnas disponibles en ${itemCode}:`, Object.keys(itemCodeRow).filter(key => key.includes('WA_')));
+              }
+            }
+          });
+        } else {
+          console.log(`❌ No se encontraron celdas para sección ${section} en ${itemCode}`);
+        }
+      });
+      
+      console.log(`✅ Actualizado Item Code: ${itemCode} con imágenes actuales`);
+    } else {
+      console.log(`❌ No se encontró fila en grilla para: ${itemCode}`);
+    }
+  });
+  
+  console.log('✅ updateCurrentWorkingDataWithGridState completado');
 }
 
 // Función para manejar eliminación masiva de imágenes (botón basura)
@@ -2670,6 +2766,9 @@ function handleBulkImageRemoval(event, imageCell) {
   });
   
   console.log('Eliminación masiva completada');
+  
+  // Actualizar currentWorkingData después de operación masiva
+  updateCurrentWorkingDataWithGridState();
 }
 
 // Función para manejar asignación masiva por columna (click en headers)
@@ -2769,6 +2868,9 @@ function handleBulkRemoveFromColumn(columnCells, section, columnNumber) {
     // Recorrer hacia la izquierda
     shiftImagesLeft(rowIndex, columnNumber, section);
   });
+  
+  // Actualizar currentWorkingData después de operación masiva por columna
+  updateCurrentWorkingDataWithGridState();
 }
 
 // Función para encontrar una imagen en un Item Code específico
@@ -2819,9 +2921,54 @@ function moveImageToRest(imageName, itemCode, sourceRow, sourceCol, sourceSectio
 }
 
 // Función para quitar una imagen del grid
+// Función auxiliar para obtener el nombre de columna correcto
+function getColumnName(section, colIndex) {
+  const sections = {
+    'cover': { prefix: 'WA_Cover_Image_', count: 5 },
+    'gallery': { prefix: 'WA_Gallery_', count: 22 },
+    'rest': { prefix: 'WA_Rest_', count: 25 }
+  };
+  
+  if (sections[section]) {
+    return `${sections[section].prefix}${String(colIndex + 1).padStart(2, '0')}`;
+  }
+  return null;
+}
+
+// Función auxiliar para actualizar una columna específica en currentWorkingData
+function updateCurrentWorkingDataColumn(itemCode, columnName, newValue) {
+  if (!currentWorkingData || !itemCode || !columnName) return;
+  
+  // Buscar el Item Code en currentWorkingData
+  const itemCodeIndex = currentWorkingData.findIndex(item => 
+    item['Object Type'] === 'Item Code' && 
+    (item.Name === itemCode || item['Item Code'] === itemCode)
+  );
+  
+  if (itemCodeIndex !== -1) {
+    const oldValue = currentWorkingData[itemCodeIndex][columnName];
+    currentWorkingData[itemCodeIndex][columnName] = newValue;
+    console.log(`✅ UPDATED currentWorkingData: ${itemCode}.${columnName} "${oldValue}" → "${newValue}"`);
+  } else {
+    console.log(`❌ No se encontró ${itemCode} en currentWorkingData`);
+  }
+}
+
 function removeImageFromGrid(rowIndex, colIndex, section) {
   const cell = document.querySelector(`[data-row-index="${rowIndex}"][data-col-index="${colIndex}"][data-section="${section}"].image-cell`);
   if (!cell) return;
+  
+  // Obtener información para actualizar currentWorkingData
+  const itemCode = cell.getAttribute('data-item-code');
+  
+  // Calcular el nombre de columna correcto
+  const columnName = getColumnName(section, colIndex);
+  
+  // Actualizar currentWorkingData directamente
+  if (itemCode && columnName) {
+    updateCurrentWorkingDataColumn(itemCode, columnName, '');
+    console.log(`🔄 DIRECT UPDATE: ${itemCode}.${columnName} = "" (eliminado)`);
+  }
   
   // Reemplazar con celda vacía
   cell.innerHTML = `
@@ -2854,6 +3001,13 @@ function insertImageInGrid(imageName, rowIndex, colIndex, section) {
   
   // Insertar la nueva imagen
   targetCell.innerHTML = generateImageCell(imageName, itemCode);
+  
+  // Actualizar currentWorkingData directamente
+  const columnName = getColumnName(section, colIndex);
+  if (itemCode && columnName) {
+    updateCurrentWorkingDataColumn(itemCode, columnName, imageName);
+    console.log(`🔄 DIRECT UPDATE: ${itemCode}.${columnName} = "${imageName}" (agregado)`);
+  }
 }
 
 // Función para recorrer imágenes hacia la derecha
@@ -2943,15 +3097,36 @@ function shiftImagesLeft(fromRow, fromCol, section) {
 // Función para guardar en localStorage
 function saveToLocalStorage() {
   try {
-    // Solo guardar los datos esenciales para evitar exceder el límite de localStorage
+    // Verificar que tengamos un Item Group activo
+    if (!currentItemGroup || !currentItemGroup.Id) {
+      alert('No hay un Item Group seleccionado para guardar.');
+      return;
+    }
+
+    // IMPORTANTE: Sincronizar cambios antes de guardar
+    updateCurrentWorkingDataWithGridState();
+    
+    // Marcar el Item Group actual como guardado
+    savedItemGroups.add(currentItemGroup.Id);
+    
+    console.log(`📋 DEBUG: Item Groups guardados actualmente: ${Array.from(savedItemGroups)}`);
+    console.log(`📋 DEBUG: Guardando nuevo Item Group: ${currentItemGroup.Id} (${currentItemGroup.Name})`);
+    
+    // Solo guardar los datos esenciales - solo IDs para evitar exceder el límite
     const dataToSave = {
-      currentWorkingData: currentWorkingData,
-      currentColumnsOrder: currentColumnsOrder,
+      savedItemGroups: Array.from(savedItemGroups), // Solo los IDs de Item Groups guardados
+      currentItemGroupId: currentItemGroup.Id,
+      currentItemGroupName: currentItemGroup.Name,
       timestamp: new Date().toISOString()
-      // NO guardamos originalExcelSheets para evitar exceder el límite
     };
     
-    localStorage.setItem('vis-web-data', JSON.stringify(dataToSave));
+    // Intentar guardar - si falla, continuar sin localStorage
+    try {
+      localStorage.setItem('vis-web-saved-itemgroups', JSON.stringify(dataToSave));
+      console.log('Se guarda en localStorage:', dataToSave);
+    } catch (localStorageError) {
+      console.warn('⚠️ No se pudo guardar en localStorage, continuando sin persistencia:', localStorageError.message);
+    }
     
     // Mostrar feedback al usuario
     const saveBtn = document.getElementById('saveChangesBtn');
@@ -2966,7 +3141,7 @@ function saveToLocalStorage() {
       saveBtn.classList.add('btn-success');
     }, 2000);
     
-    console.log('Datos guardados en localStorage:', dataToSave.timestamp);
+    console.log(`Se guarda Item Group: "${currentItemGroup.Name}"`);
   } catch (error) {
     console.error('Error guardando en localStorage:', error);
     
@@ -2996,26 +3171,155 @@ function saveToLocalStorage() {
 // Función para cargar desde localStorage
 function loadFromLocalStorage() {
   try {
-    const savedData = localStorage.getItem('vis-web-data');
+    const savedData = localStorage.getItem('vis-web-saved-itemgroups');
     if (savedData) {
       const parsedData = JSON.parse(savedData);
-      // Solo cargar los datos esenciales
-      currentWorkingData = parsedData.currentWorkingData || [];
-      currentColumnsOrder = parsedData.currentColumnsOrder || [];
       
-      // Si hay datos, renderizar el árbol
-      if (currentWorkingData.length > 0) {
-        renderAssetLibraryTree(currentWorkingData, document.getElementById('tree'));
+      // Restaurar los Item Groups guardados
+      if (parsedData.savedItemGroups) {
+        savedItemGroups = new Set(parsedData.savedItemGroups);
+        console.log('✅ Item Groups guardados cargados desde localStorage:', Array.from(savedItemGroups));
+        console.log('📅 Última actualización:', parsedData.timestamp);
+        return true;
       }
-      
-      console.log('Datos cargados desde localStorage:', parsedData.timestamp);
-      return true;
     }
+    console.log('ℹ️ No se encontraron Item Groups guardados en localStorage');
     return false;
   } catch (error) {
-    console.error('Error cargando desde localStorage:', error);
+    console.error('❌ Error cargando desde localStorage:', error);
     return false;
   }
+}
+
+// Función para sincronizar todos los cambios hechos en la interfaz de vuelta a currentWorkingData
+function syncChangesToWorkingData() {
+  console.log('🔄 Sincronizando cambios a currentWorkingData...');
+  
+  // 1. Sincronizar imágenes del estado actual de la grilla PRIMERO
+  updateCurrentWorkingDataWithGridState();
+  
+  // 2. Sincronizar comentarios de Item Groups guardados
+  savedItemGroups.forEach(itemGroupId => {
+    // Encontrar el Item Group en currentWorkingData
+    const itemGroupIndex = currentWorkingData.findIndex(item => 
+      item['Object Type'] === 'Item Group' && 
+      item.Id === itemGroupId
+    );
+    
+    if (itemGroupIndex !== -1) {
+      // Si es el Item Group actual, usar sus datos actualizados
+      if (currentItemGroup && currentItemGroup.Id === itemGroupId) {
+        if (currentItemGroup['WA_VIS_Comment']) {
+          currentWorkingData[itemGroupIndex]['WA_VIS_Comment'] = currentItemGroup['WA_VIS_Comment'];
+        }
+        if (currentItemGroup['WA_VIS_Approved']) {
+          currentWorkingData[itemGroupIndex]['WA_VIS_Approved'] = currentItemGroup['WA_VIS_Approved'];
+        }
+        
+        // Sincronizar imagen principal del Item Group (WA_Gallery_01)
+        if (currentItemGroup['WA_Gallery_01'] !== undefined) {
+          currentWorkingData[itemGroupIndex]['WA_Gallery_01'] = currentItemGroup['WA_Gallery_01'] || '';
+        }
+        
+        console.log(`✅ Sincronizado Item Group actual: ${currentItemGroup.Name}`);
+      }
+    }
+  });
+  
+  // 3. Sincronizar comentarios de Item Codes para Item Groups guardados
+  savedItemGroups.forEach(itemGroupId => {
+    // Encontrar todos los Item Codes que pertenecen a este Item Group
+    const itemGroup = currentWorkingData.find(item => 
+      item['Object Type'] === 'Item Group' && 
+      item.Id === itemGroupId
+    );
+    
+    if (itemGroup) {
+      // Si es el Item Group actual, usar currentItemCodes si está disponible
+      if (currentItemGroup && currentItemGroup.Id === itemGroupId && currentItemCodes) {
+        currentItemCodes.forEach(currentItemCode => {
+          const itemCodeIndex = currentWorkingData.findIndex(item => 
+            item['Object Type'] === 'Item Code' && 
+            item.NamePath === currentItemCode.NamePath
+          );
+          
+          if (itemCodeIndex !== -1) {
+            if (currentItemCode['WA_VIS_Comment']) {
+              currentWorkingData[itemCodeIndex]['WA_VIS_Comment'] = currentItemCode['WA_VIS_Comment'];
+            }
+            if (currentItemCode['WA_VIS_Approved']) {
+              currentWorkingData[itemCodeIndex]['WA_VIS_Approved'] = currentItemCode['WA_VIS_Approved'];
+            }
+          }
+        });
+      }
+    }
+  });
+  
+  console.log('✅ Sincronización completada');
+}
+
+// Función para debuggear qué Item Groups están guardados
+function debugSavedItemGroups() {
+  console.log('=== DEBUG ITEM GROUPS GUARDADOS ===');
+  console.log('savedItemGroups:', Array.from(savedItemGroups));
+  console.log('currentItemGroup:', currentItemGroup ? `${currentItemGroup.Id} - ${currentItemGroup.Name}` : 'None');
+  
+  // Buscar información de cada Item Group guardado
+  savedItemGroups.forEach(groupId => {
+    const groupData = currentWorkingData.find(item => 
+      item['Object Type'] === 'Item Group' && item.Id === groupId
+    );
+    if (groupData) {
+      console.log(`- ID ${groupId}: ${groupData.Name}`);
+      
+      // Buscar Item Codes de este grupo
+      const itemCodes = currentWorkingData.filter(item => 
+        item['Object Type'] === 'Item Code' && 
+        item.NamePath && item.NamePath.startsWith(groupData.NamePath + '/')
+      );
+      console.log(`  └─ ${itemCodes.length} Item Codes:`, itemCodes.map(ic => ic.Name));
+    } else {
+      console.log(`- ID ${groupId}: NO ENCONTRADO en currentWorkingData`);
+    }
+  });
+  
+  // Verificar localStorage
+  try {
+    const localStorageData = localStorage.getItem('vis-web-saved-itemgroups');
+    if (localStorageData) {
+      const parsed = JSON.parse(localStorageData);
+      console.log('localStorage savedItemGroups:', parsed.savedItemGroups);
+    } else {
+      console.log('localStorage: Sin datos guardados');
+    }
+  } catch (error) {
+    console.log('localStorage: Error leyendo datos');
+  }
+  
+  console.log('==================================');
+}
+
+// Función para limpiar Item Groups guardados anteriores
+function clearSavedItemGroups() {
+  const confirmMessage = `¿Estás seguro de que quieres limpiar todos los Item Groups guardados anteriormente?\n\nEsto eliminará: ${Array.from(savedItemGroups).length} Item Groups de la lista de exportación.\n\nDespués de esto, solo se exportará el Item Group actual cuando lo guardes.`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  savedItemGroups.clear();
+  
+  // Limpiar también el localStorage
+  try {
+    localStorage.removeItem('vis-web-saved-groups');
+    localStorage.removeItem('vis-web-saved-itemgroups');
+  } catch (error) {
+    console.warn('No se pudo limpiar localStorage:', error);
+  }
+  
+  console.log('✅ Se limpiaron todos los Item Groups guardados anteriormente');
+  alert('✅ Item Groups anteriores limpiados. Ahora solo se exportará el Item Group actual cuando lo guardes.');
 }
 
 // Función para exportar a Excel
@@ -3025,12 +3329,39 @@ function exportToExcel() {
       alert('No hay datos para exportar. Primero carga un archivo Excel.');
       return;
     }
+
+    if (savedItemGroups.size === 0) {
+      alert('No hay Item Groups guardados para exportar. Usa el botón "Guardar Cambios" después de trabajar en un Item Group.');
+      return;
+    }
+    
+    // IMPORTANTE: Sincronizar cambios antes de exportar
+    syncChangesToWorkingData();
     
     // Crear un nuevo workbook
     const wb = XLSX.utils.book_new();
     
-    // Preparar los datos manteniendo el orden original de las columnas
-    const dataForExport = currentWorkingData.map(row => {
+    // ===== PRIMERA PESTAÑA: VIS_AG_Library_Structure (solo Item Groups guardados) =====
+    
+    console.log(`🔍 Debug VIS_AG_Library_Structure:`);
+    console.log(`- currentWorkingData length: ${currentWorkingData.length}`);
+    console.log(`- savedItemGroups:`, Array.from(savedItemGroups));
+    
+    // Filtrar datos para incluir solo los Item Groups guardados y sus contenidos
+    const dataForExport = currentWorkingData.filter(row => {
+      if (row['Object Type'] === 'Item Group') {
+        return savedItemGroups.has(row.Id);
+      } else if (row['Object Type'] === 'Item Code') {
+        // Buscar el Item Group padre de este Item Code
+        const parentPath = row.NamePath ? row.NamePath.split('/').slice(0, -1).join('/') : '';
+        const parentItemGroup = currentWorkingData.find(item => 
+          item['Object Type'] === 'Item Group' && 
+          item.NamePath === parentPath
+        );
+        return parentItemGroup && savedItemGroups.has(parentItemGroup.Id);
+      }
+      return false;
+    }).map(row => {
       const orderedRow = {};
       currentColumnsOrder.forEach(col => {
         orderedRow[col] = row[col] || "";
@@ -3038,13 +3369,89 @@ function exportToExcel() {
       return orderedRow;
     });
     
-    // Crear la hoja principal con los datos trabajados
+    console.log('🔍 DEBUG dataForExport sample:', dataForExport[0]);
+    
+    // DEBUG: Mostrar TODOS los Item Codes con imágenes de TODOS los Item Groups guardados
+    const allItemCodesWithImages = dataForExport.filter(row => row['Object Type'] === 'Item Code' && 
+      Object.keys(row).some(key => key.includes('WA_Gallery') && row[key])
+    );
+    
+    console.log(`🔍 DEBUG: Total Item Codes con imágenes en export: ${allItemCodesWithImages.length}`);
+    allItemCodesWithImages.forEach(itemCode => {
+      console.log(`🔍 DEBUG: ${itemCode.Name} (${itemCode.NamePath.split('/').slice(-2, -1)[0]})`);
+      const imageColumns = Object.keys(itemCode).filter(key => 
+        (key.includes('WA_Gallery') || key.includes('WA_Cover') || key.includes('WA_Rest')) && 
+        itemCode[key]
+      );
+      console.log(`   - Tiene ${imageColumns.length} imágenes:`, imageColumns.slice(0, 3).map(col => `${col}="${itemCode[col]}"`));
+    });
+    
+    // Crear la hoja principal con los datos guardados
     const ws = XLSX.utils.json_to_sheet(dataForExport, { 
       header: currentColumnsOrder 
     });
     
-    // Solo agregar la hoja principal
+    // Agregar la hoja principal
     XLSX.utils.book_append_sheet(wb, ws, "VIS_AG_Library_Structure");
+    
+    // ===== SEGUNDA PESTAÑA: VIS_AG_Asset_Structure (solo assets con comentarios de Item Groups guardados) =====
+    
+    console.log(`🔍 Debug VIS_AG_Asset_Structure:`);
+    console.log(`- currentAssetComments length: ${currentAssetComments ? currentAssetComments.length : 0}`);
+    console.log(`- savedItemGroups:`, Array.from(savedItemGroups));
+    
+    const assetStructureData = [];
+    
+    // Solo procesar si hay comentarios de assets
+    if (currentAssetComments && currentAssetComments.length > 0) {
+      console.log(`📋 Revisando ${currentAssetComments.length} assets en currentAssetComments`);
+      
+      // Filtrar solo assets con comentarios
+      const assetsWithComments = currentAssetComments.filter(asset => 
+        asset.WA_VIS_Comment && asset.WA_VIS_Comment.trim()
+      );
+      
+      console.log(`📋 Assets con comentarios reales: ${assetsWithComments.length}`);
+      
+      assetsWithComments.forEach((asset) => {
+        console.log(`✅ Asset con comentario encontrado: ${asset.Name}`);
+        
+        // ENFOQUE SIMPLIFICADO: Si estamos en un Item Group actual y está guardado,
+        // entonces las imágenes con comentarios pertenecen a este Item Group
+        if (currentItemGroup && currentItemGroup.Id && savedItemGroups.has(currentItemGroup.Id)) {
+          const assetRow = {
+            'Name': asset.Name,
+            'Item_Group_Id': currentItemGroup.Id,
+            'WA_VIS_Comment': asset.WA_VIS_Comment
+          };
+          assetStructureData.push(assetRow);
+          console.log(`✅ Asset agregado al export (Item Group actual):`, assetRow);
+        } else {
+          console.log(`❌ No hay Item Group actual guardado para asociar la imagen`);
+        }
+      });
+    } else {
+      console.log(`⚠️ No se encontraron assets con comentarios en currentAssetComments`);
+    }
+    
+    console.log(`📊 Total assets para exportar: ${assetStructureData.length}`);
+    
+    // Si no hay datos de assets con comentarios, crear estructura vacía con headers
+    if (assetStructureData.length === 0) {
+      assetStructureData.push({
+        'Name': '',
+        'Item_Group_Id': '',
+        'WA_VIS_Comment': ''
+      });
+    }
+    
+    // Crear la hoja de estructura de assets
+    const assetWs = XLSX.utils.json_to_sheet(assetStructureData, { 
+      header: ['Name', 'Item_Group_Id', 'WA_VIS_Comment']
+    });
+    
+    // Agregar la hoja de assets
+    XLSX.utils.book_append_sheet(wb, assetWs, "VIS_AG_Asset_Structure");
     
     // Generar nombre de archivo con timestamp
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
@@ -3066,7 +3473,8 @@ function exportToExcel() {
       exportBtn.classList.add('btn-warning');
     }, 2000);
     
-    console.log('Archivo exportado:', filename);
+    console.log(`Se exporta:`, {filename, libraryRecords: dataForExport.length, assetRecords: assetStructureData.length});
+    console.log(`- VIS_AG_Asset_Structure: ${assetStructureData.length > 0 && assetStructureData[0].Name !== '' ? assetStructureData.length : 0} assets con comentarios`);
   } catch (error) {
     console.error('Error exportando a Excel:', error);
     alert('Error al exportar: ' + error.message);
