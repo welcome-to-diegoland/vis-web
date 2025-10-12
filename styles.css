@@ -50,14 +50,79 @@ html, body {
   justify-content: flex-start;
 }
 
+.center-column {
+  flex: 1;
+  background-color: #34495e;
+  justify-content: center;
+  padding: 0 20px;
+}
+
 .right-column {
-  width: 90%;
+  width: 40%;
   display: flex;
   background-color: #3498db;
   justify-content: flex-end;
   align-items: center;
   padding: 0 20px;
   gap: 10px;
+}
+
+/* ===== SELECTOR DE USUARIO EN HEADER ===== */
+.user-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-icon {
+  color: white;
+  font-size: 16px;
+}
+
+.user-label {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.user-select {
+  padding: 6px 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  color: #2c3e50;
+  outline: none;
+  transition: all 0.2s ease;
+  min-width: 180px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%232c3e50' d='M6 9L1.5 4.5h9z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  cursor: pointer;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.user-select:hover {
+  border-color: #95a5a6;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.user-select:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+/* Colores diferenciados por grupo de usuario */
+.center-column.user-group-analistas {
+  background-color: #27ae60; /* Verde para Analistas */
+}
+
+.center-column.user-group-diseño {
+  background-color: #e74c3c; /* Rojo para Diseño */
 }
 
 .header-buttons {
@@ -4209,7 +4274,7 @@ html, body {
   right: 2px;
   width: 16px;
   height: 16px;
-  background: #3498db;
+  background: #3498db; /* Azul por defecto */
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -4227,6 +4292,27 @@ html, body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
+/* Colores basados en status */
+.comment-indicator[data-status="Diseño"] {
+  background: #9b59b6; /* Morado */
+}
+
+.comment-indicator[data-status="Revision"] {
+  background: #e67e22; /* Naranja */
+}
+
+.comment-indicator[data-status="Completado"] {
+  background: #2ecc71; /* Verde */
+}
+
+.comment-indicator[data-status="Cancelado"] {
+  background: #95a5a6; /* Gris */
+}
+
+.comment-indicator[data-status="Analista"] {
+  background: #3498db; /* Azul */
+}
+
 /* Burbuja de comentario para Item Group - en la imagen */
 .comment-indicator.group-comment {
   position: absolute;
@@ -4234,7 +4320,7 @@ html, body {
   right: 4px;
   width: 18px;
   height: 18px;
-  background: #3498db;
+  background: #3498db; /* Azul por defecto */
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -4252,6 +4338,27 @@ html, body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
+/* Colores basados en status para group comments */
+.comment-indicator.group-comment[data-status="Diseño"] {
+  background: #9b59b6; /* Morado */
+}
+
+.comment-indicator.group-comment[data-status="Revision"] {
+  background: #e67e22; /* Naranja */
+}
+
+.comment-indicator.group-comment[data-status="Completado"] {
+  background: #2ecc71; /* Verde */
+}
+
+.comment-indicator.group-comment[data-status="Cancelado"] {
+  background: #95a5a6; /* Gris */
+}
+
+.comment-indicator.group-comment[data-status="Analista"] {
+  background: #3498db; /* Azul */
+}
+
 /* Asegurar que el contenedor de imagen del item group tenga posición relativa */
 .item-group-image {
   position: relative;
@@ -4264,7 +4371,7 @@ html, body {
   right: 4px;
   width: 18px;
   height: 18px;
-  background: #3498db;
+  background: #3498db; /* Azul por defecto */
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -4282,26 +4389,25 @@ html, body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
-/* Burbuja verde para comentarios recién agregados */
-.comment-indicator.new-comment,
-.comment-bubble.new-comment {
-  background: #27ae60 !important;
-  animation: pulse-green 2s ease-in-out;
+/* Colores basados en status para image comments */
+.comment-bubble.image-comment[data-status="Diseño"] {
+  background: #9b59b6; /* Morado */
 }
 
-@keyframes pulse-green {
-  0% { 
-    background: #27ae60;
-    transform: scale(1);
-  }
-  50% { 
-    background: #2ecc71;
-    transform: scale(1.1);
-  }
-  100% { 
-    background: #27ae60;
-    transform: scale(1);
-  }
+.comment-bubble.image-comment[data-status="Revision"] {
+  background: #e67e22; /* Naranja */
+}
+
+.comment-bubble.image-comment[data-status="Completado"] {
+  background: #2ecc71; /* Verde */
+}
+
+.comment-bubble.image-comment[data-status="Cancelado"] {
+  background: #95a5a6; /* Gris */
+}
+
+.comment-bubble.image-comment[data-status="Analista"] {
+  background: #3498db; /* Azul */
 }
 
 /* Asegurar que los contenedores de imágenes tengan posición relativa */
@@ -4369,6 +4475,83 @@ html, body {
   align-items: center;
   cursor: move;
   user-select: none;
+  gap: 15px;
+}
+
+/* Contenedor del status en el header */
+.status-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Badge de status */
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 80px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Colores específicos por status */
+.status-badge[data-status="Diseño"] {
+  background: linear-gradient(135deg, #8e44ad, #9b59b6);
+}
+
+.status-badge[data-status="Revision"] {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+}
+
+.status-badge[data-status="Completado"] {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+}
+
+.status-badge[data-status="Cancelado"] {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.status-badge[data-status="Analista"] {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+}
+
+/* Dropdown de control de status */
+.status-dropdown {
+  position: relative;
+}
+
+.status-control {
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path fill='%23ffffff' d='M6 9L1.5 4.5h9z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 10px;
+  min-width: 120px;
+}
+
+.status-control:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.status-control:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 .comment-modal .modal-title {
@@ -4482,6 +4665,11 @@ html, body {
   gap: 12px;
 }
 
+/* Para el dropdown de tipo, que debe ocupar todo el ancho */
+.comment-modal .form-row .form-group {
+  flex: 1;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -4560,6 +4748,7 @@ html, body {
   background-repeat: no-repeat !important;
   background-position: right 14px center !important;
   background-size: 12px !important;
+  width: 100% !important; /* Ocupar todo el ancho disponible */
 }
 
 .form-actions {

@@ -18,6 +18,141 @@ let currentAssetGroups = []; // Para guardar los datos de galerías
 let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 
 // Variables globales para el sistema de selección y asignación de imágenes
+
+// ===== SISTEMA DE GESTIÓN DE USUARIOS =====
+const USERS = {
+  sandra: {
+    name: 'Sandra',
+    group: 'Analistas',
+    displayName: 'Sandra (Analistas)'
+  },
+  rossana: {
+    name: 'Rossana',
+    group: 'Diseño',
+    displayName: 'Rossana (Diseño)'
+  }
+};
+
+// Función para obtener el usuario actual
+function getCurrentUser() {
+  const userSelect = document.getElementById('userSelect');
+  return userSelect ? userSelect.value : 'sandra'; // Sandra por defecto
+}
+
+// Función para obtener información completa del usuario actual
+function getCurrentUserInfo() {
+  const currentUserId = getCurrentUser();
+  return USERS[currentUserId] || USERS.sandra;
+}
+
+// Función para generar el contexto completo para comentarios de Item Code
+function generateItemCodeContext(itemCodeName) {
+  if (!currentItemGroup || !itemCodeName) {
+    return itemCodeName;
+  }
+
+  // Buscar el item code en los datos
+  const itemCodeData = currentWorkingData.find(item => 
+    item['Object Type'] === 'Item Code' && item.Name === itemCodeName
+  );
+
+  if (!itemCodeData) {
+    return itemCodeName;
+  }
+
+  // Incluir el ID del Item Group, nombre, Item Code y Marca
+  const itemGroupId = currentItemGroup['Id'] || currentItemGroup['ID'] || currentItemGroup['Item Group ID'] || '';
+  const itemGroupName = currentItemGroup['Name'] || 'Item Group';
+  const brandName = itemCodeData['Marca'] || itemCodeData['Brand'] || 'Marca';
+
+  return `${itemGroupName} (${itemGroupId}) | ${itemCodeName} | ${brandName}`;
+}
+function generateImageContext(imageName) {
+  if (!currentItemGroup || !currentItemCodes) {
+    return imageName;
+  }
+
+  // Buscar el item code que contiene esta imagen
+  const itemCodeWithImage = currentItemCodes.find(itemCode => {
+    const images = currentImageColumns.map(col => itemCode[col]).filter(img => img);
+    return images.includes(imageName);
+  });
+
+  if (!itemCodeWithImage) {
+    return imageName;
+  }
+
+  // Incluir el ID del Item Group, nombre, Item Code y Marca
+  const itemGroupId = currentItemGroup['Id'] || currentItemGroup['ID'] || currentItemGroup['Item Group ID'] || '';
+  const itemGroupName = currentItemGroup['Name'] || 'Item Group';
+  const itemCodeName = itemCodeWithImage['Name'] || itemCodeWithImage['Item Code'] || 'Item Code';
+  const brandName = itemCodeWithImage['Marca'] || itemCodeWithImage['Brand'] || 'Marca';
+
+  return `${itemGroupName} (${itemGroupId}) | ${itemCodeName} | ${brandName} | ${imageName}`;
+}
+
+// Función para determinar el status automático basado en el grupo del usuario
+function getAutomaticStatus() {
+  const userInfo = getCurrentUserInfo();
+  if (userInfo.group === 'Analistas') {
+    return 'Diseño';
+  } else if (userInfo.group === 'Diseño') {
+    return 'Revision';
+  }
+  return 'Diseño'; // Default
+}
+
+// Función para determinar el status actual general de un contexto
+function getCurrentStatus(commentText) {
+  const parsedComments = parseCommentsFromExcel(commentText);
+  if (parsedComments.length === 0) {
+    return ''; // Sin status si no hay comentarios
+  }
+  
+  // Obtener el último status (del último comentario)
+  const lastComment = parsedComments[parsedComments.length - 1];
+  return lastComment.status || '';
+}
+
+// Función para inicializar el selector de usuario
+function initializeUserSelector() {
+  const userSelect = document.getElementById('userSelect');
+  if (userSelect) {
+    // Establecer Sandra como usuario por defecto
+    userSelect.value = 'sandra';
+    
+    // Agregar event listener para cambios
+    userSelect.addEventListener('change', function() {
+      const userInfo = getCurrentUserInfo();
+      console.log(`Usuario cambiado a: ${userInfo.displayName}`);
+      
+      // Actualizar algún indicador visual si es necesario
+      updateUserDisplay();
+    });
+    
+    // Inicializar display
+    updateUserDisplay();
+  }
+}
+
+// Función para actualizar el display del usuario (por si queremos agregar más feedback visual)
+function updateUserDisplay() {
+  const userInfo = getCurrentUserInfo();
+  
+  // Actualizar el color del header central según el grupo
+  const centerColumn = document.querySelector('.center-column');
+  if (centerColumn) {
+    // Remover clases de grupo previas
+    centerColumn.classList.remove('user-group-analistas', 'user-group-diseño');
+    
+    // Agregar clase según el grupo actual
+    if (userInfo.group === 'Analistas') {
+      centerColumn.classList.add('user-group-analistas');
+    } else if (userInfo.group === 'Diseño') {
+      centerColumn.classList.add('user-group-diseño');
+    }
+  }
+}
 let workingImage = null; // {imageName: string, itemCode: string, section: string, originalPosition: {row, col}}
 let imageGridData = {}; // Cache de datos del grid actual para operaciones rápidas
 
@@ -27,6 +162,9 @@ let currentItemGroup = null; // Para mantener referencia al Item Group cargado
 // Event Listeners (sección limpia)
 document.addEventListener('DOMContentLoaded', function() {
   setupDragAndDrop();
+  
+  // Inicializar sistema de usuarios
+  initializeUserSelector();
   
   // Inicializar Box 3 con el sistema de galerías
   initializeGallerySystem();
@@ -910,7 +1048,7 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
                 '<div class="no-image">📷</div>'
               }
               ${itemGroup && itemGroup['WA_VIS_Comment'] && itemGroup['WA_VIS_Comment'].trim() ? 
-                `<div class="comment-indicator group-comment" data-comment="${itemGroup['WA_VIS_Comment']}">💬</div>` : 
+                `<div class="comment-indicator group-comment" data-comment="${itemGroup['WA_VIS_Comment']}" data-status="${getCurrentStatus(itemGroup['WA_VIS_Comment'])}">💬</div>` : 
                 ''
               }
             </div>
@@ -966,7 +1104,7 @@ function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
                 <div class="table-cell item-code-cell" data-item-code="${row.itemCode.Name}" data-name-path="${row.itemCode.NamePath}">
                   <div class="approval-indicator" data-vis-color="${normalizeVisColor(row.itemCode['Vis_color'])}"></div>
                   ${row.itemCode['WA_VIS_Comment'] && row.itemCode['WA_VIS_Comment'].trim() ? 
-                    `<div class="comment-indicator" data-comment="${row.itemCode['WA_VIS_Comment']}">💬</div>` : 
+                    `<div class="comment-indicator" data-comment="${row.itemCode['WA_VIS_Comment']}" data-status="${getCurrentStatus(row.itemCode['WA_VIS_Comment'])}">💬</div>` : 
                     ''
                   }
                   <div class="item-code-main">${row.itemCode.Name}</div>
@@ -1386,7 +1524,8 @@ function setupImageSystemEventListeners() {
               item['Object Type'] === 'Item Code' && item.Name === itemCode
             );
             const commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
-            openCommentModal('Comentario del Item Code', itemCode, commentText);
+            const fullContext = generateItemCodeContext(itemCode);
+            openCommentModal('Comentario del Item Code', fullContext, commentText, 'item', null);
           }
         }
       } else if (itemCodeCell) {
@@ -1396,11 +1535,14 @@ function setupImageSystemEventListeners() {
           item['Object Type'] === 'Item Code' && item.Name === itemCode
         );
         const commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
-        openCommentModal('Comentario del Item Code', itemCode, commentText);
+        const fullContext = generateItemCodeContext(itemCode);
+        openCommentModal('Comentario del Item Code', fullContext, commentText, 'item', null);
       } else if (itemGroupImage && currentItemGroup) {
         // Click en imagen/espacio del item group
         const commentText = currentItemGroup['WA_VIS_Comment'] || '';
-        const contextInfo = currentItemGroup['Name'] || 'Item Group';
+        const itemGroupId = currentItemGroup['ID'] || currentItemGroup['Item Group ID'] || '';
+        const itemGroupName = currentItemGroup['Name'] || 'Item Group';
+        const contextInfo = `${itemGroupName} (${itemGroupId})`;
         openCommentModal('Comentario del Item Group', contextInfo, commentText);
       }
       
@@ -1466,11 +1608,14 @@ function handleCommentClick(event, commentIndicator) {
   
   if (isGroupComment) {
     modalTitle = 'Comentario del Item Group';
-    contextInfo = currentItemGroup ? (currentItemGroup['Name'] || 'Item Group') : 'Item Group';
+    const itemGroupId = currentItemGroup['Id'] || currentItemGroup['ID'] || '';
+    const itemGroupName = currentItemGroup['Name'] || 'Item Group';
+    contextInfo = `${itemGroupName} (${itemGroupId})`;
   } else {
     modalTitle = 'Comentario del Item Code';
     const itemCodeCell = commentIndicator.closest('.item-code-cell');
-    contextInfo = itemCodeCell ? itemCodeCell.getAttribute('data-item-code') : 'Item Code';
+    const itemCode = itemCodeCell ? itemCodeCell.getAttribute('data-item-code') : 'Item Code';
+    contextInfo = generateItemCodeContext(itemCode);
   }
   
   // Crear y mostrar la ventana modal
@@ -1580,15 +1725,35 @@ function formatDisplayDate(dateString) {
     }
     
     const now = new Date();
-    const diffTime = Math.abs(now - date);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 1) {
-      return 'Ayer ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    // Obtener las fechas sin tiempo para comparar solo días
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Calcular diferencia en días
+    const diffTime = nowOnly - dateOnly;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Formatear tiempo en AM/PM
+    const timeOptions = { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    };
+    const timeString = date.toLocaleTimeString('es-ES', timeOptions);
+    
+    if (diffDays === 0) {
+      // Es hoy
+      return 'Hoy ' + timeString;
+    } else if (diffDays === 1) {
+      // Es ayer
+      return 'Ayer ' + timeString;
     } else if (diffDays < 7) {
-      return diffDays + ' días - ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      // Hace menos de una semana
+      return diffDays + ' días - ' + timeString;
     } else {
-      return date.toLocaleDateString('es-ES') + ' ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      // Más de una semana
+      return date.toLocaleDateString('es-ES') + ' ' + timeString;
     }
   } catch (error) {
     return '';
@@ -1629,6 +1794,16 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
     existingModal.remove();
   }
   
+  // Generar el contexto completo para imágenes
+  let fullContext = context;
+  if (type === 'image' && imageName) {
+    fullContext = generateImageContext(imageName);
+  }
+  
+  // Obtener el status actual
+  const currentStatus = getCurrentStatus(commentText);
+  const userInfo = getCurrentUserInfo();
+  
   // Parsear los comentarios del formato Excel
   const parsedComments = parseCommentsFromExcel(commentText);
   
@@ -1641,7 +1816,17 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
       <div class="modal-header">
         <div class="modal-title-container">
           <h3 class="modal-title">${title}</h3>
-          <div class="modal-context">${context}</div>
+          <div class="modal-context">${fullContext}</div>
+        </div>
+        <div class="status-container">
+          ${currentStatus ? `<div class="status-badge" data-status="${currentStatus}">${currentStatus}</div>` : ''}
+          ${userInfo.group === 'Analistas' && parsedComments.length > 0 ? `
+            <select class="status-control" id="statusControl">
+              <option value="">Cambiar status...</option>
+              <option value="Completado">Completado</option>
+              <option value="Cancelado">Cancelado</option>
+            </select>
+          ` : ''}
         </div>
         <button class="modal-close-btn" title="Cerrar">×</button>
       </div>
@@ -1657,7 +1842,7 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
           <h4 class="section-title">Agregar Nuevo Comentario</h4>
           <div class="new-comment-form">
             <div class="form-row">
-              <div class="form-group form-group-half">
+              <div class="form-group">
                 <select class="form-select comment-type-select" id="commentTypeSelect">
                   <option value="">Tipo...</option>
                   <option value="Guardar IMGs de galería en página web">Guardar IMGs galería web</option>
@@ -1674,17 +1859,6 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
                   <option value="Montar producto en aplicación">Montar en aplicación</option>
                   <option value="Bodegón">Bodegón</option>
                   <option value="Retícula">Retícula</option>
-                </select>
-              </div>
-              <div class="form-group form-group-half">
-                <select class="form-select status-select" id="statusSelect">
-                  <option value="">Status...</option>
-                  <option value="Diseño">Diseño</option>
-                  <option value="Analista">Analista</option>
-                  <option value="Revision">Revision</option>
-                  <option value="Cambios">Cambios</option>
-                  <option value="Completado">Completado</option>
-                  <option value="Cancelado">Cancelado</option>
                 </select>
               </div>
             </div>
@@ -1711,6 +1885,9 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
   // Configurar funcionalidad del formulario
   setupNewCommentForm(modal, context, type, imageName, commentText);
   
+  // Configurar el control de status
+  setupStatusControl(modal, context, type, imageName, commentText);
+  
   // Mostrar modal con animación
   setTimeout(() => {
     modal.classList.add('show');
@@ -1722,133 +1899,179 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
   const addCommentBtn = modal.querySelector('#addCommentBtn');
   const commentTypeSelect = modal.querySelector('#commentTypeSelect');
   const commentTextInput = modal.querySelector('#commentTextInput');
-  const statusSelect = modal.querySelector('#statusSelect');
   
   // Verificar si existen comentarios previos
   const parsedComments = parseCommentsFromExcel(commentText);
   const hasExistingComments = parsedComments.length > 0;
   
-  // Si hay comentarios existentes, preseleccionar valores del último comentario
+  // Si hay comentarios existentes, preseleccionar tipo del último comentario
   if (hasExistingComments) {
     const lastComment = parsedComments[parsedComments.length - 1];
     
-    // Preseleccionar tipo y status del último comentario
+    // Preseleccionar tipo del último comentario
     if (lastComment.tipoComentario) {
       commentTypeSelect.value = lastComment.tipoComentario;
     }
-    if (lastComment.status) {
-      statusSelect.value = lastComment.status;
-    }
   }
   
-  // Función para limpiar el formulario
+  // Función para limpiar el formulario (mantener tipo seleccionado)
   function clearForm() {
-    commentTypeSelect.value = '';
+    // No resetear commentTypeSelect.value para mantener el tipo seleccionado
     commentTextInput.value = '';
-    statusSelect.value = '';
   }
   
   // Función para validar el formulario
   function validateForm() {
-    const errors = [];
+    const commentType = commentTypeSelect.value.trim();
+    const commentText = commentTextInput.value.trim();
     
-    // Verificar si existen comentarios previos
-    const parsedComments = parseCommentsFromExcel(commentText);
-    const hasExistingComments = parsedComments.length > 0;
-    
-    // El texto del comentario siempre es obligatorio
-    if (!commentTextInput.value.trim()) {
-      errors.push('Debe escribir un comentario');
-    }
-    
-    // Si NO hay comentarios previos, tipo y status son obligatorios
-    if (!hasExistingComments) {
-      if (!commentTypeSelect.value.trim()) {
-        errors.push('Debe seleccionar un tipo de comentario');
-      }
-      
-      if (!statusSelect.value.trim()) {
-        errors.push('Debe seleccionar un status');
-      }
-    }
-    
-    return errors;
+    return commentType && commentText;
   }
   
-  // Event listener para el botón Aceptar
+  // Event listener para el botón de agregar comentario
   addCommentBtn.addEventListener('click', function() {
-    const errors = validateForm();
-    
-    if (errors.length > 0) {
-      // Poner el botón rojo en lugar de mostrar alert
-      addCommentBtn.style.backgroundColor = '#ff4444';
-      addCommentBtn.style.color = 'white';
-      addCommentBtn.textContent = 'Campos faltantes';
-      
-      setTimeout(() => {
-        addCommentBtn.style.backgroundColor = '';
-        addCommentBtn.style.color = '';
-        addCommentBtn.textContent = '✓';
-      }, 2000);
+    if (!validateForm()) {
+      alert('Por favor, selecciona un tipo de comentario y escribe un mensaje.');
       return;
     }
     
-    // Verificar si existen comentarios previos para usar sus valores
-    const parsedComments = parseCommentsFromExcel(commentText);
-    const hasExistingComments = parsedComments.length > 0;
-    let finalTipoComentario = commentTypeSelect.value.trim();
-    let finalStatus = statusSelect.value.trim();
+    // Obtener valores del formulario
+    const selectedType = commentTypeSelect.value.trim();
+    const commentText = commentTextInput.value.trim();
     
-    console.log('Valores originales:', {
-      tipoSeleccionado: finalTipoComentario,
-      statusSeleccionado: finalStatus,
-      hasExistingComments
-    });
-    
-    // Si hay comentarios previos y no se seleccionó tipo/status, usar los del último comentario
-    if (hasExistingComments) {
-      const lastComment = parsedComments[parsedComments.length - 1];
-      
-      if (!finalTipoComentario && lastComment.tipoComentario) {
-        finalTipoComentario = lastComment.tipoComentario;
-      }
-      
-      if (!finalStatus && lastComment.status) {
-        finalStatus = lastComment.status;
-      }
-    }
+    // Determinar el status automáticamente basado en el grupo del usuario
+    const automaticStatus = getAutomaticStatus();
     
     console.log('Valores finales:', {
-      finalTipoComentario,
-      finalStatus
+      tipoComentario: selectedType,
+      status: automaticStatus
     });
     
     // Crear el nuevo comentario
+    const userInfo = getCurrentUserInfo();
     const newComment = {
-      usuario: 'Usuario Actual', // Por ahora estático como solicitaste
+      usuario: userInfo.name, // Usar el nombre del usuario seleccionado
       fechaHora: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      tipoComentario: finalTipoComentario,
-      textoComentario: commentTextInput.value.trim(),
-      status: finalStatus
+      tipoComentario: selectedType,
+      textoComentario: commentText,
+      status: automaticStatus
     };
     
+    // Extraer el contexto correcto según el tipo de comentario
+    let contextForData = context;
+    
+    if (type === 'item') {
+      // Para Item Codes, extraer el nombre del item code del contexto completo
+      // El formato es: "Item Group (ID) | Item Code | Marca"
+      const parts = context.split(' | ');
+      contextForData = parts.length >= 2 ? parts[1] : context;
+    }
+    
     // Agregar el comentario a los datos
-    addNewCommentToData(context, newComment, type, imageName);
+    addNewCommentToData(contextForData, newComment, type, imageName);
     
     // Actualizar la vista de comentarios
     updateCommentsDisplay(modal);
     
-    // Limpiar el formulario
+    // Actualizar el status badge en el header
+    updateStatusBadge(modal, automaticStatus);
+    
+    // Limpiar formulario
     clearForm();
     
-    // Feedback visual
-    addCommentBtn.textContent = 'Agregado!';
-    addCommentBtn.disabled = true;
-    setTimeout(() => {
-      addCommentBtn.textContent = '✓';
-      addCommentBtn.disabled = false;
-    }, 1500);
+    // Actualizar burbujas de comentarios en la UI
+    updateCommentBubbles(contextForData, type, imageName);
   });
+}
+
+// Función para configurar el control de status en el header
+function setupStatusControl(modal, context, type = 'item', imageName = null, commentText = '') {
+  const statusControl = modal.querySelector('#statusControl');
+  
+  if (!statusControl) return; // Solo para analistas
+  
+  statusControl.addEventListener('change', function() {
+    const selectedStatus = this.value;
+    
+    if (!selectedStatus) return;
+    
+    // Obtener el tipo del último comentario para mantenerlo
+    const parsedComments = parseCommentsFromExcel(commentText);
+    let lastCommentType = '';
+    
+    if (parsedComments.length > 0) {
+      const lastComment = parsedComments[parsedComments.length - 1];
+      lastCommentType = lastComment.tipoComentario || '';
+    }
+    
+    // Crear un comentario automático de cambio de status manteniendo el tipo anterior
+    const userInfo = getCurrentUserInfo();
+    const newComment = {
+      usuario: userInfo.name,
+      fechaHora: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      tipoComentario: lastCommentType, // Mantener el tipo anterior
+      textoComentario: `Status actualizado a ${selectedStatus}`,
+      status: selectedStatus
+    };
+    
+    // Extraer el contexto correcto según el tipo de comentario
+    let contextForData = context;
+    
+    if (type === 'item') {
+      // Para Item Codes, extraer el nombre del item code del contexto completo
+      // El formato es: "Item Group (ID) | Item Code | Marca"
+      const parts = context.split(' | ');
+      contextForData = parts.length >= 2 ? parts[1] : context;
+    }
+    
+    // Agregar el comentario a los datos
+    addNewCommentToData(contextForData, newComment, type, imageName);
+    
+    // Actualizar la vista de comentarios
+    updateCommentsDisplay(modal);
+    
+    // Actualizar el status badge en el header
+    updateStatusBadge(modal, selectedStatus);
+    
+    // Resetear el dropdown
+    this.value = '';
+    
+    // Actualizar burbujas de comentarios en la UI
+    updateCommentBubbles(contextForData, type, imageName);
+  });
+}
+
+// Función para actualizar el status badge en el header
+function updateStatusBadge(modal, newStatus) {
+  const statusContainer = modal.querySelector('.status-container');
+  let statusBadge = modal.querySelector('.status-badge');
+  
+  if (newStatus) {
+    if (statusBadge) {
+      // Actualizar badge existente
+      statusBadge.textContent = newStatus;
+      statusBadge.setAttribute('data-status', newStatus);
+    } else {
+      // Crear nuevo badge si no existía
+      statusBadge = document.createElement('div');
+      statusBadge.className = 'status-badge';
+      statusBadge.setAttribute('data-status', newStatus);
+      statusBadge.textContent = newStatus;
+      
+      // Insertar antes del dropdown si existe
+      const statusControl = modal.querySelector('#statusControl');
+      if (statusControl) {
+        statusContainer.insertBefore(statusBadge, statusControl);
+      } else {
+        statusContainer.appendChild(statusBadge);
+      }
+    }
+  } else {
+    // Remover badge si no hay status
+    if (statusBadge) {
+      statusBadge.remove();
+    }
+  }
 }
 
 // Función para agregar un nuevo comentario a los datos
@@ -1876,7 +2099,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
     console.log('Nuevo comentario de imagen agregado:', newComment, 'para:', imageName);
     
     // Actualizar burbujas visualmente para imágenes
-    updateCommentBubbles('image', context, imageName);
+    updateCommentBubbles('image', imageName, null);
     return;
   }
   
@@ -1903,7 +2126,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
     // Es un comentario de Item Code
     const itemCodeData = currentWorkingData.find(item => 
       item['Object Type'] === 'Item Code' && 
-      item.Name === context
+      (item.Name === context || item['Item Code'] === context)
     );
     
     if (itemCodeData) {
@@ -1926,23 +2149,31 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
 function updateCommentBubbles(type, context, imageName = null) {
   console.log('updateCommentBubbles llamada con:', { type, context, imageName });
   
-  if (type === 'image' && imageName) {
+  if (type === 'image') {
+    // Para imágenes, el context es realmente el imageName
+    const realImageName = context;
+    
+    // Obtener el status actual de la imagen
+    const imageComments = getImageComments(realImageName);
+    const currentStatus = getCurrentStatus(imageComments);
+    
     // Buscar la imagen en el grid y actualizar/agregar burbuja
     const imageThumbnails = document.querySelectorAll('.image-thumbnail');
     imageThumbnails.forEach(img => {
-      if (img.alt === imageName) {
+      if (img.alt === realImageName) {
         const container = img.closest('.image-thumbnail-container');
         if (container) {
           let bubble = container.querySelector('.comment-bubble.image-comment');
           if (bubble) {
-            // Ya tenía burbuja, ponerla verde
-            bubble.classList.add('new-comment');
+            // Ya tenía burbuja, actualizar color según status
+            bubble.setAttribute('data-status', currentStatus);
           } else {
-            // No tenía burbuja, crear nueva verde
+            // No tenía burbuja, crear nueva
             const newBubble = document.createElement('div');
-            newBubble.className = 'comment-bubble image-comment new-comment';
-            newBubble.setAttribute('data-image', imageName);
-            newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${imageName}')`);
+            newBubble.className = 'comment-bubble image-comment';
+            newBubble.setAttribute('data-image', realImageName);
+            newBubble.setAttribute('data-status', currentStatus);
+            newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${realImageName}')`);
             newBubble.setAttribute('title', 'Ver comentarios');
             newBubble.textContent = '💬';
             container.appendChild(newBubble);
@@ -1955,10 +2186,11 @@ function updateCommentBubbles(type, context, imageName = null) {
     if (type === 'group') {
       // Actualizar burbuja del Item Group
       console.log('Actualizando burbuja de Item Group');
+      const currentStatus = getCurrentStatus(currentItemGroup['WA_VIS_Comment'] || '');
       const groupBubble = document.querySelector('.comment-indicator.group-comment');
       if (groupBubble) {
-        console.log('Burbuja de grupo encontrada, agregando clase verde');
-        groupBubble.classList.add('new-comment');
+        console.log('Burbuja de grupo encontrada, actualizando status');
+        groupBubble.setAttribute('data-status', currentStatus);
         // Actualizar el atributo data-comment
         groupBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
       } else {
@@ -1967,8 +2199,9 @@ function updateCommentBubbles(type, context, imageName = null) {
         const itemGroupImage = document.querySelector('.item-group-image');
         if (itemGroupImage && currentItemGroup) {
           const newBubble = document.createElement('div');
-          newBubble.className = 'comment-indicator group-comment new-comment';
+          newBubble.className = 'comment-indicator group-comment';
           newBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
+          newBubble.setAttribute('data-status', currentStatus);
           newBubble.textContent = '💬';
           newBubble.addEventListener('click', function(event) {
             handleCommentClick(event, this);
@@ -1984,20 +2217,23 @@ function updateCommentBubbles(type, context, imageName = null) {
       itemCodeCells.forEach(cell => {
         const itemCode = cell.getAttribute('data-item-code');
         if (itemCode === context) {
+          // Buscar el item tanto por 'Item Code' como por 'Name'
+          const item = currentWorkingData.find(item => 
+            item['Item Code'] === itemCode || item['Name'] === itemCode
+          );
+          const currentStatus = getCurrentStatus(item?.['WA_VIS_Comment'] || '');
+          
           let bubble = cell.querySelector('.comment-indicator');
           if (bubble) {
-            // Ya tenía burbuja, ponerla verde
-            bubble.classList.add('new-comment');
-            // Actualizar el atributo data-comment
-            const item = currentWorkingData.find(item => item['Item Code'] === itemCode);
+            // Ya tenía burbuja, actualizar status y data-comment
+            bubble.setAttribute('data-status', currentStatus);
             bubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
           } else {
-            // No tenía burbuja, crear nueva verde
+            // No tenía burbuja, crear nueva
             const newBubble = document.createElement('div');
-            newBubble.className = 'comment-indicator new-comment';
+            newBubble.className = 'comment-indicator';
+            newBubble.setAttribute('data-status', currentStatus);
             newBubble.textContent = '💬';
-            // Agregar el atributo data-comment
-            const item = currentWorkingData.find(item => item['Item Code'] === itemCode);
             newBubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
             newBubble.addEventListener('click', function(event) {
               handleCommentClick(event, this);
@@ -2014,21 +2250,27 @@ function updateCommentBubbles(type, context, imageName = null) {
 function updateCommentsDisplay(modal) {
   const commentsContainer = modal.querySelector('.comments-container');
   const modalTitle = modal.querySelector('.modal-title').textContent;
+  const modalContext = modal.querySelector('.modal-context').textContent;
   
   let commentText = '';
   
   if (modalTitle.includes('Item Group') && currentItemGroup) {
     commentText = currentItemGroup['WA_VIS_Comment'] || '';
   } else if (modalTitle.includes('Imagen')) {
-    // Es un comentario de imagen
-    const context = modal.querySelector('.modal-context').textContent;
-    commentText = getImageComments(context);
+    // Es un comentario de imagen - extraer el nombre de la imagen del contexto
+    // El formato ahora es: "Item Group (ID) | Item Code | Marca | imagen.jpg"
+    const parts = modalContext.split(' | ');
+    const imageName = parts[parts.length - 1]; // Tomar la última parte
+    commentText = getImageComments(imageName);
   } else {
-    // Es un comentario de Item Code
-    const context = modal.querySelector('.modal-context').textContent;
+    // Es un comentario de Item Code - extraer el item code del contexto
+    // El formato ahora es: "Item Group (ID) | Item Code | Marca"
+    const parts = modalContext.split(' | ');
+    const itemCodeName = parts.length >= 2 ? parts[1] : modalContext; // Tomar la segunda parte o el contexto completo
+    
     const itemCodeData = currentWorkingData.find(item => 
       item['Object Type'] === 'Item Code' && 
-      item.Name === context
+      (item.Name === itemCodeName || item['Item Code'] === itemCodeName)
     );
     commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
   }
@@ -2045,8 +2287,8 @@ function generateCommentsHTML(comments) {
   const commentsToDisplay = [...comments].reverse();
   
   return commentsToDisplay.map(comment => {
-    // Solo mostrar meta si hay tipo o status
-    const showMeta = comment.tipoComentario || comment.status;
+    // Solo mostrar meta si hay tipo de comentario
+    const showMeta = comment.tipoComentario;
     
     return `
       <div class="comment-card">
@@ -2060,16 +2302,9 @@ function generateCommentsHTML(comments) {
         </div>
         ${showMeta ? `
           <div class="comment-meta">
-            ${comment.tipoComentario ? `
-              <div class="comment-type" style="background-color: ${getCommentTypeColor(comment.tipoComentario)};">
-                <span class="type-text">${comment.tipoComentario}</span>
-              </div>
-            ` : ''}
-            ${comment.status ? `
-              <div class="comment-status" style="background-color: ${getStatusColor(comment.status)};">
-                <span class="status-text">${comment.status}</span>
-              </div>
-            ` : ''}
+            <div class="comment-type" style="background-color: ${getCommentTypeColor(comment.tipoComentario)};">
+              <span class="type-text">${comment.tipoComentario}</span>
+            </div>
           </div>
         ` : ''}
         <div class="comment-body">
@@ -2101,6 +2336,7 @@ function setupModalFunctionality(modal) {
   const header = modal.querySelector('.modal-header');
   const closeBtn = modal.querySelector('.modal-close-btn');
   const commentsContainer = modal.querySelector('.comments-container');
+  const statusControl = modal.querySelector('#statusControl');
   
   // Variables para arrastar
   let isDragging = false;
@@ -2119,6 +2355,17 @@ function setupModalFunctionality(modal) {
   // Event listener para cerrar
   closeBtn.addEventListener('click', closeModal);
   
+  // Prevenir que el dropdown active el dragging
+  if (statusControl) {
+    statusControl.addEventListener('mousedown', function(e) {
+      e.stopPropagation(); // Evitar que se propague al header
+    });
+    
+    statusControl.addEventListener('click', function(e) {
+      e.stopPropagation(); // Evitar que se propague al header
+    });
+  }
+  
   // Cerrar al hacer click fuera de la modal (pero no si está dragging)
   modal.addEventListener('click', function(e) {
     if (e.target === modal && !isDragging) {
@@ -2128,7 +2375,7 @@ function setupModalFunctionality(modal) {
   
   // Funcionalidad de arrastrar (mover ventana)
   header.addEventListener('mousedown', function(e) {
-    if (e.target === closeBtn) return;
+    if (e.target === closeBtn || e.target === statusControl) return;
     
     isDragging = true;
     startX = e.clientX;
