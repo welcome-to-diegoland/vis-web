@@ -3209,29 +3209,31 @@ html, body {
 .drop-zone {
   width: calc(var(--image-width) * var(--image-scale));
   height: calc(var(--image-height) * var(--image-scale));
-  border: 2px dashed #dee2e6;
+  border: 1px dashed #e9ecef; /* Línea más sutil */
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: #f8f9fa;
+  background: #fafbfc; /* Fondo más sutil */
 }
 
 .drop-zone:hover {
-  border-color: #007bff;
-  background: #e3f2fd;
+  border-color: #ced4da; /* Hover más sutil */
+  background: #f1f3f4;
 }
 
 .add-icon {
-  color: #6c757d;
-  font-size: 18px;
-  font-weight: bold;
+  color: #adb5bd; /* Ícono más claro */
+  font-size: 16px; /* Tamaño más pequeño */
+  font-weight: normal; /* Menos bold */
+  opacity: 0.7; /* Más transparente */
 }
 
 .drop-zone:hover .add-icon {
-  color: #007bff;
+  color: #6c757d; /* Hover más sutil */
+  opacity: 1;
 }
 
 /* Estilos para columnas colapsables */
@@ -3600,7 +3602,7 @@ html, body {
 .drop-zone {
   width: 80%;
   height: 80%;
-  border: 2px dashed #dee2e6;
+  border: 1px dashed #e9ecef; /* Línea más sutil */
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -3610,13 +3612,14 @@ html, body {
 }
 
 .drop-zone:hover {
-  border-color: #007bff;
-  background-color: rgba(0, 123, 255, 0.1);
+  border-color: #ced4da; /* Hover más sutil */
+  background-color: rgba(241, 243, 244, 0.5);
 }
 
 .add-icon {
-  font-size: 16px;
-  color: #6c757d;
+  font-size: 14px; /* Más pequeño */
+  color: #adb5bd; /* Más claro */
+  opacity: 0.7; /* Más transparente */
 }
 
 /* ===== NUEVA ESTRUCTURA UNIFICADA ===== */
@@ -3785,7 +3788,7 @@ html, body {
 .section-headers {
   display: flex;
   flex-shrink: 0;
-  background: #343a40; /* Fondo sólido en lugar de transparent */
+  background: #f8f9fa; /* Fondo gris muy claro en lugar de negro */
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
@@ -3793,33 +3796,39 @@ html, body {
 
 .section-headers .header-section {
   padding: 8px 6px;
-  font-weight: 600;
-  color: white;
-  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 500; /* Menos bold */
+  color: #495057; /* Color más suave */
+  background: white; /* Fondo blanco limpio */
+  border-right: 1px solid #e9ecef; /* Borde más sutil */
+  border-bottom: 1px solid #e9ecef; /* Borde inferior sutil */
   text-align: center;
   font-size: 13px;
   flex-shrink: 0;
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
+  opacity: 0.95; /* Ligeramente transparente */
 }
 
-/* Headers específicos por sección - Colores más sobrios */
+/* Headers específicos por sección - Colores muy sutiles */
 .cov-wrapper .section-headers .header-section {
-  background: #e8f5e8; /* Verde muy suave para COV */
-  color: #2d5a3d;
-  border-left: 3px solid #38a169; /* Borde para identificación */
+  background: #f8fdf8; /* Verde casi imperceptible */
+  color: #495057;
+  border-left: 2px solid #c3e6cb; /* Borde muy sutil */
+  opacity: 0.9;
 }
 
 .gallery-wrapper .section-headers .header-section {
-  background: #f8f9fa; /* Gris neutral para Gallery */
+  background: #fafbfc; /* Gris muy neutro */
   color: #495057;
+  opacity: 0.9;
 }
 
 .rest-wrapper .section-headers .header-section {
-  background: #fff8e1; /* Amarillo muy suave para REST */
-  color: #8a6914;
-  border-left: 3px solid #d69e2e; /* Borde para identificación */
+  background: #fefcf7; /* Amarillo casi imperceptible */
+  color: #495057;
+  border-left: 2px solid #ffeaa7; /* Borde muy sutil */
+  opacity: 0.9;
 }
 
 /* Sección Item Code */
@@ -4238,25 +4247,25 @@ html, body {
   position: absolute;
   top: 2px;
   right: 2px;
-  width: 18px;
-  height: 18px;
+  width: 20px; /* Más grande */
+  height: 20px; /* Más grande */
   background: #007bff;
   border: 2px solid white; /* Borde blanco para destacar */
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px; /* Texto más grande */
   color: white;
   cursor: pointer;
   z-index: 5;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3); /* Sombra más marcada */
+  box-shadow: 0 3px 8px rgba(0,0,0,0.4); /* Sombra más marcada */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .comment-indicator:hover {
-  transform: scale(1.2); /* Escala más marcada en hover */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transform: scale(1.3); /* Escala más marcada en hover */
+  box-shadow: 0 6px 16px rgba(0,0,0,0.5);
 }
 
 /* Colores basados en status - Más profesionales */
@@ -4285,24 +4294,25 @@ html, body {
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 18px;
-  height: 18px;
+  width: 22px; /* Más grande */
+  height: 22px; /* Más grande */
   background: #3498db; /* Azul por defecto */
+  border: 2px solid white; /* Borde blanco para destacar */
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 12px; /* Texto más grande */
   color: white;
   cursor: pointer;
   z-index: 10;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.4); /* Sombra más marcada */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .comment-indicator.group-comment:hover {
-  transform: scale(1.1);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  transform: scale(1.3); /* Escala más marcada */
+  box-shadow: 0 6px 16px rgba(0,0,0,0.5);
 }
 
 /* Colores basados en status para group comments */
