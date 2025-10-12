@@ -47,6 +47,11 @@ function markItemGroupAsModified(itemGroupId = null, itemGroupName = null) {
 
 // ===== SISTEMA DE GESTIÓN DE USUARIOS =====
 const USERS = {
+  usuario: {
+    name: 'Usuario',
+    group: 'General',
+    displayName: 'Usuario'
+  },
   sandra: {
     name: 'Sandra',
     group: 'Analistas',
@@ -62,13 +67,13 @@ const USERS = {
 // Función para obtener el usuario actual
 function getCurrentUser() {
   const userSelect = document.getElementById('userSelect');
-  return userSelect ? userSelect.value : 'sandra'; // Sandra por defecto
+  return userSelect ? userSelect.value : 'usuario'; // Usuario por defecto
 }
 
 // Función para obtener información completa del usuario actual
 function getCurrentUserInfo() {
   const currentUserId = getCurrentUser();
-  return USERS[currentUserId] || USERS.sandra;
+  return USERS[currentUserId] || USERS.usuario;
 }
 
 // Función para generar el contexto completo para comentarios de Item Code
@@ -144,39 +149,14 @@ function getCurrentStatus(commentText) {
 function initializeUserSelector() {
   const userSelect = document.getElementById('userSelect');
   if (userSelect) {
-    // Establecer Sandra como usuario por defecto
-    userSelect.value = 'sandra';
+    // Establecer Usuario como valor por defecto
+    userSelect.value = 'usuario';
     
     // Agregar event listener para cambios
     userSelect.addEventListener('change', function() {
       const userInfo = getCurrentUserInfo();
       console.log(`Usuario cambiado a: ${userInfo.displayName}`);
-      
-      // Actualizar algún indicador visual si es necesario
-      updateUserDisplay();
     });
-    
-    // Inicializar display
-    updateUserDisplay();
-  }
-}
-
-// Función para actualizar el display del usuario (por si queremos agregar más feedback visual)
-function updateUserDisplay() {
-  const userInfo = getCurrentUserInfo();
-  
-  // Actualizar el color del header central según el grupo
-  const centerColumn = document.querySelector('.center-column');
-  if (centerColumn) {
-    // Remover clases de grupo previas
-    centerColumn.classList.remove('user-group-analistas', 'user-group-diseño');
-    
-    // Agregar clase según el grupo actual
-    if (userInfo.group === 'Analistas') {
-      centerColumn.classList.add('user-group-analistas');
-    } else if (userInfo.group === 'Diseño') {
-      centerColumn.classList.add('user-group-diseño');
-    }
   }
 }
 let workingImage = null; // {imageName: string, itemCode: string, section: string, originalPosition: {row, col}}
@@ -187,6 +167,11 @@ let currentItemGroup = null; // Para mantener referencia al Item Group cargado
 
 // Event Listeners (sección limpia)
 document.addEventListener('DOMContentLoaded', function() {
+  // Limpiar localStorage automáticamente al cargar la página
+  console.clear();
+  localStorage.clear();
+  console.log('🧹 localStorage limpiado automáticamente al cargar la página');
+  
   setupDragAndDrop();
   
   // Inicializar sistema de usuarios
@@ -958,6 +943,8 @@ function loadImageGridInBox4(itemGroupPath) {
     setupZoomControls();
     setupScrollSynchronization();
     setupImageSystemEventListeners(); // Agregar sistema de imágenes
+    setupItemGroupDeleteButton(); // Configurar botón de basura del Item Group
+  setupItemGroupImageClick(); // Configurar click en imagen del Item Group
   }, 500);
   
   // Intentar de nuevo la sincronización después de un delay más largo
@@ -1015,7 +1002,8 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
               ${itemGroup && itemGroup['WA_Gallery_01'] ? 
                 `<img src="https://www.travers.com.mx/media/catalog/product/agility/img/${itemGroup['WA_Gallery_01']}" 
                      alt="Gallery 1" class="group-thumbnail"
-                     onerror="this.style.display='none';">` : 
+                     onerror="this.style.display='none';">
+                 <div class="item-group-delete-btn" title="Quitar imagen del Item Group">🗑️</div>` : 
                 '<div class="no-image">📷</div>'
               }
               ${itemGroup && itemGroup['WA_VIS_Comment'] && itemGroup['WA_VIS_Comment'].trim() ? 
@@ -1195,7 +1183,6 @@ function generateImageCell(imageName, itemCode) {
            alt="${imageName}" class="image-thumbnail" 
            onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
       <div class="image-controls">
-        <button class="btn-copy" title="Copiar imagen">📋</button>
         <button class="btn-remove" title="Quitar imagen">🗑️</button>
       </div>
       ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}" onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios">💬</div>` : ''}
@@ -1264,6 +1251,14 @@ function regenerateImageGrid() {
   // Regenerar la grilla con los datos actuales
   const newGridHtml = createImageGrid(currentItemCodes, currentImageColumns, currentItemGroup);
   box4Content.innerHTML = newGridHtml;
+  
+  // Configurar event listener para el botón de basura del Item Group
+  setupItemGroupDeleteButton();
+  setupItemGroupImageClick(); // Configurar click en imagen del Item Group
+  
+  // Debug: verificar si el botón se creó
+  const checkDeleteBtn = document.querySelector('.item-group-delete-btn');
+  console.log('🔍 Botón de basura después de regenerar grid:', checkDeleteBtn ? 'SÍ existe' : 'NO existe');
   
   // Reconfigurar controles de zoom y sincronización
   setTimeout(() => {
@@ -1477,7 +1472,7 @@ function setupImageSystemEventListeners() {
         const commentText = getImageComments(imageName);
         openCommentModal('Comentario de la Imagen', imageName, commentText || '', 'image', imageName);
       } else if ((emptyImageCell || imageCell) && !imageThumbnail) {
-        // Click en celda de imagen vacía - buscar item code desde la celda
+        // Click en espacio vacío en celda de imagen - buscar item code desde la celda
         const cell = imageCell || emptyImageCell.closest('.image-cell');
         if (cell) {
           const itemCode = cell.getAttribute('data-item-code');
@@ -1535,6 +1530,11 @@ function setupImageSystemEventListeners() {
       handleItemGroupImageAssignment(event, imageCell, imageThumbnail);
     }
     
+    // Alt+Click: Eliminar/quitar imagen de la celda
+    else if (event.altKey && !event.metaKey && !event.shiftKey && !event.ctrlKey) {
+      handleImageRemoval(event, imageCell, imageThumbnail);
+    }
+    
     // Shift+Click: Seleccionar imagen de trabajo
     else if (event.shiftKey && !event.metaKey && !event.altKey) {
       handleImageSelection(event, imageCell, imageThumbnail);
@@ -1543,6 +1543,11 @@ function setupImageSystemEventListeners() {
     // Cmd+Click (Mac) / Ctrl+Click (Windows): Asignar imagen de trabajo
     else if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
       handleImageAssignment(event, imageCell);
+    }
+    
+    // Click simple: Mostrar imagen en modal
+    else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && imageThumbnail) {
+      handleImagePreview(event, imageThumbnail);
     }
   });
 
@@ -2436,12 +2441,103 @@ function updateItemGroupHeaderImage(imageName) {
       <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
            alt="Gallery 1" class="group-thumbnail"
            onerror="this.style.display='none';">
+      <div class="item-group-delete-btn" title="Quitar imagen del Item Group">🗑️</div>
     `;
+    
+    // Configurar event listener para el botón de basura
+    setupItemGroupDeleteButton();
+    setupItemGroupImageClick(); // Configurar click en imagen
   } else {
     groupImageContainer.innerHTML = '<div class="no-image">📷</div>';
   }
   
   console.log('Header del Item Group actualizado con nueva imagen');
+}
+
+// Función para mostrar imagen en modal de vista previa
+function handleImagePreview(event, imageThumbnail) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  if (!imageThumbnail || imageThumbnail.src.includes('data:image/svg+xml')) {
+    return; // No mostrar modal para imágenes vacías
+  }
+  
+  const imageName = imageThumbnail.alt;
+  const imageSrc = imageThumbnail.src;
+  
+  console.log(`🖼️ Mostrando vista previa de: ${imageName}`);
+  
+  openImagePreviewModal(imageName, imageSrc);
+}
+
+// Función para abrir el modal de vista previa de imagen
+function openImagePreviewModal(imageName, imageSrc) {
+  // Verificar si ya existe un modal y cerrarlo
+  const existingModal = document.getElementById('imagePreviewModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Crear el modal
+  const modal = document.createElement('div');
+  modal.id = 'imagePreviewModal';
+  modal.className = 'image-preview-modal';
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Vista Previa</h3>
+        <button class="close-modal" onclick="closeImagePreviewModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="image-container">
+          <img src="${imageSrc}" alt="${imageName}" class="preview-image" 
+               onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDUwMCA1MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMDAgMjAwTDMwMCAzMDBNMzAwIDIwMEwyMDAgMzAwIiBzdHJva2U9IiM5QzlDOTkiIHN0cm9rZS13aWR0aD0iMTAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8dGV4dCB4PSIyNTAiIHk9IjM1MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzlDOUM5OSIgZm9udC1zaXplPSIxNiI+SW1hZ2VuIG5vIGVuY29udHJhZGE8L3RleHQ+Cjwvc3ZnPgo=';">
+        </div>
+        <div class="image-name">${imageName}</div>
+      </div>
+    </div>
+  `;
+  
+  // Agregar event listener para cerrar al hacer click en el fondo
+  modal.addEventListener('click', function(event) {
+    if (event.target === modal) {
+      closeImagePreviewModal();
+    }
+  });
+  
+  // Agregar al DOM
+  document.body.appendChild(modal);
+  
+  // Mostrar modal con animación
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 10);
+  
+  // Prevenir scroll del body
+  document.body.style.overflow = 'hidden';
+  
+  // Agregar listener para cerrar con Escape
+  const escapeHandler = function(event) {
+    if (event.key === 'Escape') {
+      closeImagePreviewModal();
+      document.removeEventListener('keydown', escapeHandler);
+    }
+  };
+  document.addEventListener('keydown', escapeHandler);
+}
+
+// Función para cerrar el modal de vista previa
+function closeImagePreviewModal() {
+  const modal = document.getElementById('imagePreviewModal');
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => {
+      modal.remove();
+      // Restaurar scroll del body
+      document.body.style.overflow = '';
+    }, 300);
+  }
 }
 
 // Función para manejar la selección de imagen (Shift+Click)
@@ -2499,6 +2595,156 @@ function handleImageAssignment(event, imageCell) {
   handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIndex, targetColIndex);
 }
 
+// Función para manejar Alt+Click: Eliminar imagen de la celda
+function handleImageRemoval(event, imageCell, imageThumbnail) {
+  event.preventDefault();
+  
+  if (!imageCell) return;
+  
+  // Verificar si hay imagen en la celda
+  if (!imageThumbnail || imageThumbnail.src.includes('data:image/svg+xml')) {
+    console.log('💡 Alt+Click: No hay imagen para eliminar en esta celda');
+    return;
+  }
+  
+  const imageName = imageThumbnail.alt;
+  const itemCode = imageCell.getAttribute('data-item-code');
+  const section = imageCell.getAttribute('data-section');
+  const rowIndex = parseInt(imageCell.getAttribute('data-row-index'));
+  const colIndex = parseInt(imageCell.getAttribute('data-col-index'));
+  
+  console.log(`🗑️ Alt+Click: Eliminando "${imageName}" de ${itemCode} en ${section}`);
+  
+  // Si es la imagen principal del Item Group, quitarla
+  if (currentItemGroup && currentItemGroup['WA_Gallery_01'] === imageName) {
+    console.log(`🏢 Quitando imagen principal del Item Group: ${imageName}`);
+    
+    // Actualizar currentWorkingData del Item Group
+    const itemGroupRow = currentWorkingData.find(row => 
+      row['Object Type'] === 'Item Group' && row.Id === currentItemGroup.Id
+    );
+    
+    if (itemGroupRow) {
+      itemGroupRow['WA_Gallery_01'] = '';
+      console.log(`✅ Item Group actualizado: WA_Gallery_01 eliminada`);
+    }
+    
+    // Actualizar la referencia local
+    currentItemGroup['WA_Gallery_01'] = '';
+    
+    // Actualizar visualmente el header del Item Group
+    updateItemGroupHeaderImage('');
+    console.log(`🎨 Header del Item Group actualizado: imagen eliminada`);
+  }
+  
+  // Aplicar reglas de eliminación según el Item Code
+  if (section === 'rest') {
+    // Si está en REST, simplemente eliminar (no hay donde mover)
+    console.log(`→ Eliminando directamente de REST`);
+    removeImageFromGrid(rowIndex, colIndex, section);
+  } else {
+    // Si está en COV o GALLERY, verificar si es del mismo Item Code
+    if (getCurrentItemCodeFromImageName(imageName) === itemCode) {
+      console.log(`→ Moviendo a REST (mismo Item Code: ${itemCode})`);
+      // Mover a REST (siguiente posición disponible)
+      moveImageToRest(imageName, itemCode, rowIndex, colIndex, section);
+    } else {
+      console.log(`→ Eliminando directamente (diferente Item Code)`);
+      removeImageFromGrid(rowIndex, colIndex, section);
+    }
+  }
+  
+  // Actualizar sincronización
+  updateCurrentWorkingDataWithGridState();
+}
+
+// Función para configurar el event listener del botón de basura del Item Group
+function setupItemGroupDeleteButton() {
+  const deleteBtn = document.querySelector('.item-group-delete-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      console.log('🗑️ CLICK en botón de basura del Item Group detectado');
+      handleItemGroupImageRemoval();
+    });
+    console.log('✅ Event listener del botón de basura del Item Group configurado');
+  } else {
+    console.log('❌ No se encontró el botón de basura del Item Group');
+  }
+}
+
+// Función para configurar el click en la imagen del Item Group
+function setupItemGroupImageClick() {
+  const groupImage = document.querySelector('.group-thumbnail');
+  if (groupImage) {
+    // Remover listener anterior si existe
+    groupImage.removeEventListener('click', handleItemGroupImageClick);
+    
+    // Agregar nuevo listener
+    groupImage.addEventListener('click', handleItemGroupImageClick);
+    console.log('✅ Event listener del click en imagen del Item Group configurado');
+  } else {
+    console.log('❌ No se encontró la imagen del Item Group (.group-thumbnail)');
+  }
+}
+
+// Función para manejar el click en la imagen del Item Group
+function handleItemGroupImageClick(event) {
+  // Solo procesar si no es click en el botón de basura
+  if (event.target.closest('.item-group-delete-btn')) {
+    return; // Dejar que el botón de basura maneje su propio click
+  }
+  
+  event.preventDefault();
+  event.stopPropagation();
+  
+  const imageSrc = event.target.src;
+  const imageName = event.target.alt || 'Item Group Image';
+  
+  // Extraer el nombre real de la imagen desde la URL
+  const urlParts = imageSrc.split('/');
+  const actualImageName = urlParts[urlParts.length - 1];
+  
+  console.log(`🖼️ Mostrando vista previa de imagen del Item Group: ${actualImageName}`);
+  
+  openImagePreviewModal(actualImageName, imageSrc);
+}
+
+// Función para quitar la imagen del Item Group
+function handleItemGroupImageRemoval() {
+  if (!currentItemGroup) {
+    console.log('💡 No hay Item Group activo');
+    return;
+  }
+  
+  console.log(`�️ Quitando imagen del Item Group`);
+  
+  // Simplemente quitar la imagen del Item Group
+  currentItemGroup['WA_Gallery_01'] = '';
+  
+  // Buscar y actualizar en currentWorkingData también
+  const itemGroupIndex = currentWorkingData.findIndex(item => 
+    item['Object Type'] === 'Item Group' && item.Id === currentItemGroup.Id
+  );
+  
+  if (itemGroupIndex !== -1) {
+    currentWorkingData[itemGroupIndex]['WA_Gallery_01'] = '';
+    console.log(`✅ currentWorkingData actualizado`);
+  }
+  
+  // Actualizar visualmente
+  updateItemGroupHeaderImage('');
+  console.log(`✅ Imagen del Item Group eliminada`);
+}
+
+// Función auxiliar para obtener el Item Code de un nombre de imagen
+function getCurrentItemCodeFromImageName(imageName) {
+  // Extraer el Item Code del nombre de la imagen (formato: "87-115-608.jpg" o "87-115-608_detalle.jpg")
+  const match = imageName.match(/^(\d{2}-\d{3}-\d{3})/);
+  return match ? match[1] : null;
+}
+
 // Función para quitar una imagen existente
 function handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIndex, targetColIndex) {
   const existingImage = imageCell.querySelector('.image-thumbnail');
@@ -2551,14 +2797,26 @@ function handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIn
 
 // Función para asignar la imagen de trabajo
 function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIndex, targetColIndex) {
-  // SIEMPRE verificar si la imagen ya existe en este Item Code (misma fila)
-  // No importa si el nombre tiene el mismo Item Code, importa que no haya duplicados en la fila
+  // Verificar si la imagen ya existe en este Item Code (misma fila)
   const existingPosition = findImageInItemCode(workingImage.imageName, targetItemCode);
-  if (existingPosition) {
-    console.log('Imagen duplicada encontrada, quitando de posición original...');
-    // Quitar de posición original y recorrer hacia la izquierda
-    removeImageFromGrid(existingPosition.row, existingPosition.col, existingPosition.section);
-    shiftImagesLeft(existingPosition.row, existingPosition.col, existingPosition.section);
+  
+  // Solo quitar de posición original si NO es la misma posición donde se está asignando
+  if (existingPosition && 
+      !(existingPosition.row === targetRowIndex && 
+        existingPosition.col === targetColIndex && 
+        existingPosition.section === targetSection)) {
+    
+    console.log('Imagen duplicada encontrada en diferente posición, quitando de posición original...');
+    // Quitar de posición original con compactación automática
+    const itemCode = imageCell.getAttribute('data-item-code');
+    removeImageFromGrid(existingPosition.row, existingPosition.col, existingPosition.section, true);
+  } else if (existingPosition && 
+             existingPosition.row === targetRowIndex && 
+             existingPosition.col === targetColIndex && 
+             existingPosition.section === targetSection) {
+    
+    console.log('🔄 Imagen ya está en esta posición, no se hace nada');
+    return; // No hacer nada si es la misma posición
   }
   
   // Insertar imagen en la nueva posición
@@ -2954,7 +3212,7 @@ function updateCurrentWorkingDataColumn(itemCode, columnName, newValue) {
   }
 }
 
-function removeImageFromGrid(rowIndex, colIndex, section) {
+function removeImageFromGrid(rowIndex, colIndex, section, shouldCompact = true) {
   const cell = document.querySelector(`[data-row-index="${rowIndex}"][data-col-index="${colIndex}"][data-section="${section}"].image-cell`);
   if (!cell) return;
   
@@ -2978,6 +3236,108 @@ function removeImageFromGrid(rowIndex, colIndex, section) {
       </div>
     </div>
   `;
+  
+  // Si se solicita compactación, recorrer las imágenes hacia la izquierda
+  if (shouldCompact && itemCode) {
+    compactImagesInSection(itemCode, section, colIndex);
+  }
+}
+
+// Función para compactar imágenes en una sección después de eliminar una
+function compactImagesInSection(itemCode, section, removedColIndex) {
+  // Obtener el número de columnas para esta sección
+  const maxCols = getMaxColumnsForSection(section);
+  
+  // Encontrar todas las celdas de esta fila en la sección
+  const rowCells = [];
+  for (let col = 0; col < maxCols; col++) {
+    const cell = document.querySelector(`[data-item-code="${itemCode}"][data-col-index="${col}"][data-section="${section}"].image-cell`);
+    if (cell) {
+      rowCells.push({
+        cell: cell,
+        colIndex: col,
+        hasImage: cell.querySelector('.image-thumbnail') && !cell.querySelector('.image-thumbnail').src.includes('data:image/svg+xml')
+      });
+    }
+  }
+  
+  // Crear un array con solo las imágenes que vienen después de la posición eliminada
+  const imagesToShift = [];
+  for (let i = removedColIndex + 1; i < rowCells.length; i++) {
+    const cellData = rowCells[i];
+    if (cellData && cellData.hasImage) {
+      const img = cellData.cell.querySelector('.image-thumbnail');
+      imagesToShift.push({
+        src: img.src,
+        filename: img.getAttribute('data-filename') || '',
+        colIndex: cellData.colIndex
+      });
+    }
+  }
+  
+  // Limpiar las celdas que vamos a reorganizar (desde removedColIndex hacia adelante)
+  for (let col = removedColIndex; col < rowCells.length; col++) {
+    const cell = rowCells[col]?.cell;
+    if (cell) {
+      cell.innerHTML = `
+        <div class="empty-image-cell">
+          <div class="drop-zone" title="Arrastrar imagen aquí">
+            <span class="add-icon">+</span>
+          </div>
+        </div>
+      `;
+      
+      // Limpiar también los datos correspondientes
+      const columnName = getColumnName(section, col);
+      if (columnName) {
+        updateCurrentWorkingDataColumn(itemCode, columnName, '');
+      }
+    }
+  }
+  
+  // Reorganizar las imágenes, moviéndolas hacia la izquierda
+  let newPosition = removedColIndex;
+  for (const imageData of imagesToShift) {
+    if (newPosition < rowCells.length) {
+      const targetCell = rowCells[newPosition]?.cell;
+      if (targetCell) {
+        // Insertar la imagen en su nueva posición
+        targetCell.innerHTML = `
+          <div class="image-item">
+            <img class="image-thumbnail" src="${imageData.src}" 
+                 data-filename="${imageData.filename}" 
+                 title="${imageData.filename}">
+            <div class="image-overlay">
+              <div class="image-info">
+                <span class="image-name">${imageData.filename}</span>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Actualizar currentWorkingData con la nueva posición
+        const newColumnName = getColumnName(section, newPosition);
+        if (newColumnName) {
+          updateCurrentWorkingDataColumn(itemCode, newColumnName, imageData.filename);
+          console.log(`🔄 IMAGE SHIFT: ${itemCode}.${newColumnName} = ${imageData.filename} (moved from col ${imageData.colIndex})`);
+        }
+        
+        newPosition++;
+      }
+    }
+  }
+  
+  console.log(`✅ Compacted ${imagesToShift.length} images in ${section} section for ${itemCode}`);
+}
+
+// Función auxiliar para obtener el número máximo de columnas por sección
+function getMaxColumnsForSection(section) {
+  switch(section) {
+    case 'cov': return 12;  // COV_1 a COV_12
+    case 'gallery': return 40; // GAL_1 a GAL_40
+    case 'rest': return 16; // REST_1 a REST_16
+    default: return 0;
+  }
 }
 
 // Función para insertar una imagen en el grid
@@ -4200,16 +4560,27 @@ function renderGalleryGrid(images) {
   console.log('✅ Grid renderizado exitosamente');
 }
 
-// Función para configurar la selección de imágenes con Shift+Click
+// Función para configurar la selección de imágenes con Shift+Click y vista previa con Click
 function setupGalleryImageSelection() {
   const galleryImages = document.querySelectorAll('.gallery-image-item');
   
   galleryImages.forEach(item => {
     item.addEventListener('click', function(event) {
       if (event.shiftKey) {
+        // Shift+Click: Seleccionar como imagen de trabajo
         event.preventDefault();
         const imageName = this.getAttribute('data-image-name');
         loadImageAsWorkingImage(imageName);
+      } else {
+        // Click simple: Mostrar vista previa
+        event.preventDefault();
+        const imageName = this.getAttribute('data-image-name');
+        const imageElement = this.querySelector('.gallery-image');
+        if (imageElement) {
+          const imageSrc = imageElement.src;
+          console.log(`🖼️ Mostrando vista previa desde galería: ${imageName}`);
+          openImagePreviewModal(imageName, imageSrc);
+        }
       }
     });
   });

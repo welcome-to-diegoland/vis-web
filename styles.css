@@ -45,22 +45,23 @@ html, body {
 }
 
 .left-column {
-  width: 10%;
+  width: 30%; /* Aumentado más para acomodar dropdown + botón con texto */
   background-color: #2c3e50;
   justify-content: flex-start;
+  gap: 10px; /* Misma separación que botones guardar/exportar */
 }
 
 .center-column {
   flex: 1;
-  background-color: #34495e;
+  background-color: #2c3e50; /* Mismo color que el resto del header */
   justify-content: center;
   padding: 0 20px;
 }
 
 .right-column {
-  width: 40%;
+  width: 30%; /* Balanceado con left-column */
   display: flex;
-  background-color: #3498db;
+  background-color: #2c3e50; /* Mismo color que el resto del header */
   justify-content: flex-end;
   align-items: center;
   padding: 0 20px;
@@ -71,17 +72,17 @@ html, body {
 .user-selector {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px; /* Aumentado ligeramente */
 }
 
 .user-icon {
   color: white;
-  font-size: 16px;
+  font-size: 0.85rem; /* Mismo tamaño que botones */
 }
 
 .user-label {
   color: white;
-  font-size: 14px;
+  font-size: 0.85rem; /* Mismo tamaño que botones */
   font-weight: 500;
   margin: 0;
   white-space: nowrap;
@@ -91,12 +92,12 @@ html, body {
   padding: 6px 12px;
   border: 1px solid #bdc3c7;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 0.85rem; /* Mismo tamaño que botones */
   background: white;
   color: #2c3e50;
   outline: none;
   transition: all 0.2s ease;
-  min-width: 180px;
+  min-width: 120px; /* Aumentado para que el texto se vea bien */
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%232c3e50' d='M6 9L1.5 4.5h9z'/></svg>");
   background-repeat: no-repeat;
@@ -116,19 +117,20 @@ html, body {
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
 }
 
-/* Colores diferenciados por grupo de usuario */
-.center-column.user-group-analistas {
-  background-color: #27ae60; /* Verde para Analistas */
-}
-
-.center-column.user-group-diseño {
-  background-color: #e74c3c; /* Rojo para Diseño */
-}
-
 .header-buttons {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+/* Estandarizar tamaño de fuente para todos los botones del header */
+.main-header .btn {
+  font-size: 0.85rem !important;
+}
+
+/* Estandarizar tamaño de fuente para el dropdown del header */
+.main-header .form-select {
+  font-size: 0.85rem !important;
 }
 
 .header-btn {
@@ -138,7 +140,7 @@ html, body {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem; /* Estandarizado con botón exportar */
   display: flex;
   align-items: center;
   gap: 5px;
@@ -154,7 +156,7 @@ html, body {
 /* Botón de cargar archivo - azul */
 .file-btn {
   background-color: #007bff;
-  font-size: 0.85rem;
+  font-size: 0.85rem; /* Ya correcto */
 }
 
 .file-btn:hover {
@@ -164,7 +166,7 @@ html, body {
 /* Botón de guardar - verde */
 .btn-save {
   background-color: #28a745;
-  font-size: 0.85rem;
+  font-size: 0.85rem; /* Ya correcto */
 }
 
 .btn-save:hover {
@@ -2546,6 +2548,7 @@ html, body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  position: relative; /* Necesario para el botón de basura */
 }
 
 .group-thumbnail {
@@ -3189,7 +3192,7 @@ html, body {
 .image-controls {
   display: none;
   position: absolute;
-  top: 2px;
+  bottom: 2px;
   right: 2px;
   flex-direction: column;
   gap: 2px;
@@ -3199,7 +3202,7 @@ html, body {
   display: flex;
 }
 
-.btn-copy, .btn-remove {
+.btn-remove {
   background: rgba(0,0,0,0.7);
   border: none;
   border-radius: 3px;
@@ -3208,10 +3211,6 @@ html, body {
   font-size: 10px;
   color: white;
   transition: background 0.2s;
-}
-
-.btn-copy:hover {
-  background: #007bff;
 }
 
 .btn-remove:hover {
@@ -3586,7 +3585,7 @@ html, body {
 
 .image-controls {
   position: absolute;
-  top: 2px;
+  bottom: 2px;
   right: 2px;
   display: none;
   gap: 2px;
@@ -3596,7 +3595,6 @@ html, body {
   display: flex;
 }
 
-.btn-copy,
 .btn-remove {
   background: rgba(0, 0, 0, 0.7);
   border: none;
@@ -3605,10 +3603,6 @@ html, body {
   font-size: 10px;
   cursor: pointer;
   color: white;
-}
-
-.btn-copy:hover {
-  background: rgba(0, 123, 255, 0.8);
 }
 
 .btn-remove:hover {
@@ -5207,4 +5201,140 @@ html, body {
   border-color: #dee2e6 !important;
   color: #6c757d !important;
   cursor: not-allowed !important;
+}
+
+/* Icono de basura para Item Group */
+.item-group-delete-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease;
+  z-index: 10;
+  user-select: none;
+}
+
+.item-group-image:hover .item-group-delete-btn {
+  opacity: 1;
+}
+
+.item-group-delete-btn:hover {
+  background: rgba(220, 53, 69, 0.8);
+}
+
+/* Modal de vista previa de imagen */
+.image-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.image-preview-modal.show {
+  opacity: 1;
+}
+
+.image-preview-modal .modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  transform: scale(0.8) translateY(-50px);
+  transition: transform 0.3s ease;
+  width: auto;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.image-preview-modal.show .modal-content {
+  transform: scale(1) translateY(0);
+}
+
+.image-preview-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+  width: 500px;
+  box-sizing: border-box;
+}
+
+.image-preview-modal .modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.image-preview-modal .close-modal {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6c757d;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.image-preview-modal .close-modal:hover {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.image-preview-modal .modal-body {
+  padding: 20px;
+  text-align: center;
+  width: 500px;
+  box-sizing: border-box;
+}
+
+.image-preview-modal .image-container {
+  margin-bottom: 16px;
+}
+
+.image-preview-modal .preview-image {
+  width: 460px;
+  height: 460px;
+  object-fit: contain;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.image-preview-modal .image-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  margin-top: 12px;
+  word-break: break-all;
+  line-height: 1.4;
+  max-width: 460px;
+  margin-left: auto;
+  margin-right: auto;
 }

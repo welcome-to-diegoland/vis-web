@@ -13,23 +13,27 @@
 <body>
   <header class="main-header">
     <div class="header-content d-flex justify-content-between align-items-center px-3 py-2">
-      <div class="header-column left-column bg-primary-dark">
-      <input type="file" id="combinedFile" accept=".xlsx,.xls" style="display:none;">
-      <button id="loadExcelBtn" class="btn btn-primary" onclick="document.getElementById('combinedFile').click()">
-        <i class="fa-solid fa-file-excel"></i> Cargar Excel
-      </button>
-      </div>
-      <div class="header-column center-column">
-        <div class="user-selector">
-          <i class="fa-solid fa-user user-icon"></i>
-          <label for="userSelect" class="user-label">Usuario:</label>
+      <div class="header-column left-column d-flex gap-2 align-items-center">
+        <!-- Dropdown de usuario (solo icono + select) -->
+        <div class="user-selector d-flex align-items-center">
+          <i class="fa-solid fa-user user-icon me-1"></i>
           <select id="userSelect" class="form-select user-select">
+            <option value="usuario">Usuario</option>
             <option value="sandra">Sandra (Analistas)</option>
             <option value="rossana">Rossana (Diseño)</option>
           </select>
         </div>
+        
+        <!-- Botón Cargar Excel -->
+        <input type="file" id="combinedFile" accept=".xlsx,.xls" style="display:none;">
+        <button id="loadExcelBtn" class="btn btn-primary" onclick="document.getElementById('combinedFile').click()">
+          <i class="fa-solid fa-file-excel"></i> Cargar Excel
+        </button>
       </div>
-      <div class="header-column right-column bg-primary-light">
+      <div class="header-column center-column">
+        <!-- Columna central vacía ahora -->
+      </div>
+      <div class="header-column right-column">
         <div class="header-buttons d-flex gap-2">
           <button id="saveChangesBtn" class="btn btn-success">
             <i class="fa-solid fa-save"></i> Guardar cambios
