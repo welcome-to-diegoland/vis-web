@@ -3209,25 +3209,25 @@ html, body {
 .drop-zone {
   width: calc(var(--image-width) * var(--image-scale));
   height: calc(var(--image-height) * var(--image-scale));
-  border: 1px dashed #e9ecef; /* Línea más sutil */
+  border: 1px dashed #f1f3f4; /* Línea casi invisible */
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: #fafbfc; /* Fondo más sutil */
+  background: #fdfdfd; /* Fondo casi blanco */
 }
 
 .drop-zone:hover {
-  border-color: #ced4da; /* Hover más sutil */
-  background: #f1f3f4;
+  border-color: #e9ecef; /* Hover apenas visible */
+  background: #f8f9fa;
 }
 
 .add-icon {
-  color: #adb5bd; /* Ícono más claro */
-  font-size: 16px; /* Tamaño más pequeño */
-  font-weight: normal; /* Menos bold */
+  color: #e9ecef; /* Ícono muy claro */
+  font-size: 14px; /* Tamaño más pequeño */
+  font-weight: 300; /* Muy ligero */
   opacity: 0.7; /* Más transparente */
 }
 
@@ -3326,7 +3326,7 @@ html, body {
 
 /* Colores específicos por tipo de header */
 .item-code-header {
-  background: #4a5568 !important;
+  background: #7C808D !important;
   color: white !important;
 }
 
@@ -3363,7 +3363,7 @@ html, body {
   width: 140px;
   min-width: 140px;
   flex-shrink: 0;
-  background-color: #f8f9fa;
+  background-color: #7C808D !important; /* Gris exacto del Item Code */
 }
 
 .item-codes-section .section-content {
@@ -3505,11 +3505,11 @@ html, body {
 
 /* Colores distintivos por sección */
 .image-cell[data-section="cov"] {
-  background-color: rgba(40, 167, 69, 0.15); /* Verde claro para COV - más visible */
+  background-color: rgba(255, 107, 107, 0.1); /* Rosa claro para COV - del header #FF6B6B */
 }
 
 .image-cell[data-section="rest"] {
-  background-color: rgba(255, 193, 7, 0.15); /* Amarillo claro para REST - más visible */
+  background-color: rgba(176, 201, 18, 0.1); /* Verde lima claro para REST - del header #B0C912 */
 }
 
 /* Gallery mantiene el color blanco por defecto */
@@ -3602,7 +3602,7 @@ html, body {
 .drop-zone {
   width: 80%;
   height: 80%;
-  border: 1px dashed #e9ecef; /* Línea más sutil */
+  border: 1px dashed #f1f3f4; /* Línea casi invisible */
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -3612,12 +3612,14 @@ html, body {
 }
 
 .drop-zone:hover {
-  border-color: #ced4da; /* Hover más sutil */
-  background-color: rgba(241, 243, 244, 0.5);
+  border-color: #e9ecef; /* Hover apenas visible */
+  background-color: rgba(248, 249, 250, 0.5);
 }
 
 .add-icon {
-  font-size: 14px; /* Más pequeño */
+  font-size: 12px; /* Más pequeño */
+  color: #e9ecef; /* Muy claro */
+  font-weight: 300;
   color: #adb5bd; /* Más claro */
   opacity: 0.7; /* Más transparente */
 }
@@ -3672,32 +3674,22 @@ html, body {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-weight: bold !important;
+  font-weight: 500 !important; /* Menos bold */
   font-size: 12px !important;
-  border-right: 1px solid #ddd !important;
+  border-right: 1px solid #e9ecef !important; /* Borde más sutil */
   height: 100% !important;
+  background: white !important; /* Fondo blanco limpio */
+  color: #6c757d !important; /* Texto gris */
 }
 
-/* Colores específicos por tipo */
+/* Headers específicos - Solo item-code mantiene diferencia */
 .item-code-header {
-  background: #4a5568 !important;
-  color: white !important;
+  background: #f8f9fa !important;
+  color: #495057 !important;
+  font-weight: 600 !important;
 }
 
-.cover-header {
-  background: #38a169 !important;
-  color: white !important;
-}
-
-.gallery-header {
-  background: #3182ce !important;
-  color: white !important;
-}
-
-.rest-header {
-  background: #d69e2e !important;
-  color: white !important;
-}
+/* Headers eliminados - Todo limpio y uniforme */
 
 /* Contenedor master con scroll único */
 .master-scroll-container {
@@ -3810,56 +3802,78 @@ html, body {
   opacity: 0.95; /* Ligeramente transparente */
 }
 
-/* Headers específicos por sección - Colores muy sutiles */
+/* Header del Item Code */
+.item-code-header {
+  background: #7C808D !important; /* Gris exacto del Item Code */
+  color: white !important;
+}
+
+/* Headers específicos por sección - Clases directas del JavaScript */
+.cover-header {
+  background: #FF6B6B !important; /* COV - Coral exacto */
+  color: white !important;
+}
+
+.gallery-header {
+  background: #2BB4E0 !important; /* Gallery - Azul exacto */
+  color: white !important;
+}
+
+.rest-header {
+  background: #B0C912 !important; /* REST - Verde lima exacto */
+  color: white !important;
+}
+
+/* Headers específicos por sección - Colores exactos solicitados */
 .cov-wrapper .section-headers .header-section {
-  background: #f8fdf8; /* Verde casi imperceptible */
-  color: #495057;
-  border-left: 2px solid #c3e6cb; /* Borde muy sutil */
-  opacity: 0.9;
+  background: #FF6B6B !important; /* Coral exacto */
+  color: white !important;
+  border-bottom: 2px solid #ff5252 !important;
 }
 
 .gallery-wrapper .section-headers .header-section {
-  background: #fafbfc; /* Gris muy neutro */
-  color: #495057;
-  opacity: 0.9;
+  background: #2BB4E0 !important; /* Azul exacto */
+  color: white !important;
+  border-bottom: 2px solid #1976d2 !important;
 }
 
 .rest-wrapper .section-headers .header-section {
-  background: #fefcf7; /* Amarillo casi imperceptible */
-  color: #495057;
-  border-left: 2px solid #ffeaa7; /* Borde muy sutil */
-  opacity: 0.9;
+  background: #B0C912 !important; /* Verde lima exacto */
+  color: white !important;
+  border-bottom: 2px solid #8bc34a !important;
 }
 
-/* Sección Item Code */
+/* Sección Item Code - Color exacto solicitado */
 .item-code-wrapper {
   width: 140px;
   min-width: 140px;
   flex-shrink: 0;
-  background-color: #f8f9fa;
+  background-color: #7C808D !important; /* Gris exacto */
 }
 
-/* Sección COV */
+/* Sección COV - Fondo suave coordinado con header coral */
 .cov-wrapper {
-  width: calc(var(--image-size, 80px) + 10px); /* Imagen + padding mínimo reducido */
+  width: calc(var(--image-size, 80px) + 10px);
   min-width: calc(var(--image-size, 80px) + 10px);
   flex-shrink: 0;
-  background-color: rgba(40, 167, 69, 0.05);
+  background-color: rgba(255, 107, 107, 0.12) !important; /* Coral más suave del header FF6B6B */
+  border-right: 2px solid #FF6B6B !important; /* Línea delimitadora coral exacta */
 }
 
 /* Sección Gallery */
 .gallery-wrapper {
   flex: 1;
   min-width: 200px;
-  background-color: rgba(0, 123, 255, 0.05);
+  background-color: #ffffff; /* Blanco puro para gallery */
 }
 
-/* Sección REST */
+/* Sección REST - Fondo suave coordinado con header verde lima */
 .rest-wrapper {
-  width: calc(var(--image-size, 80px) + 10px); /* Imagen + padding mínimo reducido */
+  width: calc(var(--image-size, 80px) + 10px);
   min-width: calc(var(--image-size, 80px) + 10px);
   flex-shrink: 0;
-  background-color: rgba(255, 193, 7, 0.05);
+  background-color: rgba(176, 201, 18, 0.12) !important; /* Verde lima muy suave del header B0C912 */
+  border-left: 2px solid #B0C912 !important; /* Línea delimitadora verde lima exacta */
 }
 
 /* Contenedores de scroll por sección */
@@ -4018,14 +4032,14 @@ html, body {
   width: calc(var(--image-size, 80px) + 20px);
   min-width: calc(var(--image-size, 80px) + 20px);
   flex-shrink: 0;
-  background-color: rgba(40, 167, 69, 0.05);
+  background-color: rgba(255, 107, 107, 0.08) !important; /* FF6B6B más claro */
 }
 
 /* Sección Gallery */
 .row-section.gallery-section {
   flex: 1;
   min-width: 200px;
-  background-color: rgba(0, 123, 255, 0.05);
+  background-color: #ffffff; /* Blanco puro para gallery */
 }
 
 /* Sección REST */
@@ -4033,7 +4047,7 @@ html, body {
   width: calc(var(--image-size, 80px) + 20px);
   min-width: calc(var(--image-size, 80px) + 20px);
   flex-shrink: 0;
-  background-color: rgba(255, 193, 7, 0.05);
+  background-color: rgba(176, 201, 18, 0.08) !important; /* B0C912 más claro */
 }
 
 /* Viewports de imágenes con scroll horizontal */
