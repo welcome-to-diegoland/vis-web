@@ -4778,18 +4778,45 @@ html, body {
 /* Los estilos están arriba en la sección unificada */
 
 /* Estilos para el contenedor de galería y búsqueda - LÍNEAS SEPARADAS */
+/* PRIMERA LÍNEA en ambos boxes - tiene separación de 8px */
 .approval-toggle-container .gallery-row {
   width: 100%;
   margin-bottom: 8px;
   display: block !important;
 }
 
-.approval-toggle-container .search-row {
+/* En Box 1, search-row es la PRIMERA línea */
+#tree .approval-toggle-container .search-row {
+  width: 100%;
+  margin-bottom: 8px;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+/* En Box 3, search-row es la SEGUNDA línea */
+#box3-content .approval-toggle-container .search-row {
   width: 100%;
   margin-bottom: 0;
   display: flex !important;
   align-items: center;
   gap: 8px;
+}
+
+/* approval-row es siempre la SEGUNDA línea en Box 1 */
+.approval-toggle-container .approval-row {
+  width: 100%;
+  margin-bottom: 0;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Si es la última línea del contenedor, quitar margin-bottom */
+.approval-toggle-container .gallery-row:last-child,
+.approval-toggle-container .search-row:last-child,
+.approval-toggle-container .approval-row:last-child {
+  margin-bottom: 0;
 }
 
 .approval-toggle-container .gallery-select {
@@ -4883,27 +4910,6 @@ html, body {
   display: block !important;
 }
 
-#tree .approval-toggle-container .gallery-row,
-#tree .approval-toggle-container .search-row,
-#box3-content .approval-toggle-container .gallery-row,
-#box3-content .approval-toggle-container .search-row {
-  width: 100% !important;
-}
-
-#tree .approval-toggle-container .gallery-row,
-#box3-content .approval-toggle-container .gallery-row {
-  margin-bottom: 8px !important;
-  display: block !important;
-}
-
-#tree .approval-toggle-container .search-row,
-#box3-content .approval-toggle-container .search-row {
-  margin-bottom: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-}
-
 #tree .approval-toggle-container select,
 #tree .approval-toggle-container .search-input,
 #tree .approval-toggle-container .search-button,
@@ -4958,4 +4964,58 @@ html, body {
   background-color: #0056b3 !important;
   border-color: #0056b3 !important;
   color: white !important;
+}
+
+/* ===== ESTILOS ESPECÍFICOS PARA APPROVAL-ROW ===== */
+.approval-toggle-container .approval-row .approval-select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  background: white !important;
+  color: #495057 !important;
+  outline: none !important;
+  transition: all 0.2s ease !important;
+  height: 28px !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path fill='%23495057' d='M6 9L1.5 4.5h9z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 10px !important;
+  cursor: pointer !important;
+}
+
+#tree .approval-toggle-container .approval-row .btn {
+  padding: 4px 20px !important;
+  border: 1px solid #6c757d !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: normal !important;
+  background-color: #6c757d !important;
+  color: white !important;
+  cursor: pointer !important;
+  height: 28px !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  min-width: 80px !important;
+}
+
+#tree .approval-toggle-container .approval-row .btn:hover:not(:disabled) {
+  background-color: #545b62 !important;
+  border-color: #545b62 !important;
+}
+
+#tree .approval-toggle-container .approval-row .btn:disabled {
+  background-color: #e9ecef !important;
+  border-color: #dee2e6 !important;
+  color: #6c757d !important;
+  cursor: not-allowed !important;
 }

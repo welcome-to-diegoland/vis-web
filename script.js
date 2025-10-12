@@ -419,35 +419,24 @@ function initializeTreeControls(treeDiv) {
   controlsHeader.className = 'category-tree-header';
   treeDiv.appendChild(controlsHeader);
 
-  // Toggle para vista de aprobación (3 estados) + búsqueda de catálogo
+  // Contenedor de controles reordenado: Búsqueda arriba, Aprobación + Cargar abajo
   const approvalToggleContainer = document.createElement('div');
   approvalToggleContainer.className = 'approval-toggle-container';
   approvalToggleContainer.innerHTML = `
-    <div class="gallery-row">
-      <select class="form-select" id="approvalViewSelect">
-        <option value="normal">Normal</option>
-        <option value="approval-full">Aprobación Completa</option>
-        <option value="approval-filtered">Aprobación Filtrada</option>
-      </select>
-    </div>
     <div class="search-row">
       <input type="text" class="search-input" id="catalogSearchInput" placeholder="Buscar catálogo...">
       <button class="search-button" id="catalogSearchButton">Buscar</button>
     </div>
+    <div class="approval-row">
+      <select class="form-select approval-select" id="approvalViewSelect">
+        <option value="normal">Normal</option>
+        <option value="approval-full">Aprobación Completa</option>
+        <option value="approval-filtered">Aprobación Filtrada</option>
+      </select>
+      <button class="btn btn-secondary" id="btn-cargar-categoria" disabled>Cargar</button>
+    </div>
   `;
   controlsHeader.appendChild(approvalToggleContainer);
-
-  // Header sticky con el botón de cargar
-  const header = document.createElement('div');
-  header.className = 'category-tree-header';
-  treeDiv.appendChild(header);
-
-  const cargarBtn = document.createElement('button');
-  cargarBtn.id = 'btn-cargar-categoria';
-  cargarBtn.className = 'btn btn-secondary';
-  cargarBtn.textContent = 'Cargar Item Group';
-  cargarBtn.disabled = true;
-  header.appendChild(cargarBtn);
 
   // Contenedor para el árbol (hace scroll, no el header)
   const treeList = document.createElement('div');
