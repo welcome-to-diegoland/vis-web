@@ -2508,13 +2508,13 @@ html, body {
 }
 
 .controls-bar {
-  background: #343a40;
-  color: white;
-  padding: 10px 15px;
+  background: #f8f9fa; /* Fondo claro y limpio */
+  color: #495057; /* Texto gris oscuro */
+  border-bottom: 1px solid #dee2e6; /* Borde sutil */
+  padding: 12px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 1001;
 }
 
@@ -2783,9 +2783,9 @@ html, body {
 }
 
 .zoom-button {
-  background: #007bff;
-  border: none;
-  color: white;
+  background: white;
+  border: 1px solid #dee2e6;
+  color: #495057;
   width: 32px;
   height: 32px;
   border-radius: 6px;
@@ -2794,15 +2794,15 @@ html, body {
   justify-content: center;
   cursor: pointer;
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 500;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0,123,255,0.3);
 }
 
 .zoom-button:hover {
-  background: #0056b3;
+  background: #f8f9fa;
+  border-color: #adb5bd;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,123,255,0.4);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .zoom-button:active {
@@ -2810,7 +2810,8 @@ html, body {
 }
 
 .zoom-button:disabled {
-  background: #6c757d;
+  background: #e9ecef;
+  color: #adb5bd;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -2833,15 +2834,15 @@ html, body {
 }
 
 .cleanup-button {
-  background: rgba(255, 99, 71, 0.9);
-  color: white;
-  border: 1px solid #ff6347;
+  background: white;
+  color: #dc3545;
+  border: 1px solid #dc3545;
   border-radius: 6px;
   padding: 8px 16px;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   margin-left: 15px;
   display: flex;
   align-items: center;
@@ -2849,10 +2850,10 @@ html, body {
 }
 
 .cleanup-button:hover {
-  background: rgba(255, 69, 0, 0.95);
-  border-color: #ff4500;
+  background: #dc3545;
+  color: white;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 69, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.25);
 }
 
 .cleanup-button:active {
@@ -2862,40 +2863,6 @@ html, body {
 .cleanup-button::before {
   content: "🧹";
   font-size: 16px;
-}
-
-.zoom-button {
-  background: #007bff;
-  border: none;
-  color: white;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: bold;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0,123,255,0.3);
-}
-
-.zoom-button:hover {
-  background: #0056b3;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,123,255,0.4);
-}
-
-.zoom-button:active {
-  transform: translateY(0);
-}
-
-.zoom-button:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .zoom-info {
@@ -3837,17 +3804,22 @@ html, body {
   z-index: 100 !important;
 }
 
-/* Headers específicos por sección para colores correctos */
+/* Headers específicos por sección - Colores más sobrios */
 .cov-wrapper .section-headers .header-section {
-  background: #38a169; /* Verde para COV */
+  background: #e8f5e8; /* Verde muy suave para COV */
+  color: #2d5a3d;
+  border-left: 3px solid #38a169; /* Borde para identificación */
 }
 
 .gallery-wrapper .section-headers .header-section {
-  background: #3182ce; /* Azul para Gallery */
+  background: #f8f9fa; /* Gris neutral para Gallery */
+  color: #495057;
 }
 
 .rest-wrapper .section-headers .header-section {
-  background: #d69e2e; /* Naranja para REST */
+  background: #fff8e1; /* Amarillo muy suave para REST */
+  color: #8a6914;
+  border-left: 3px solid #d69e2e; /* Borde para identificación */
 }
 
 /* Sección Item Code */
@@ -4266,45 +4238,46 @@ html, body {
   position: absolute;
   top: 2px;
   right: 2px;
-  width: 16px;
-  height: 16px;
-  background: #3498db; /* Azul por defecto */
+  width: 18px;
+  height: 18px;
+  background: #007bff;
+  border: 2px solid white; /* Borde blanco para destacar */
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 11px;
   color: white;
   cursor: pointer;
   z-index: 5;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3); /* Sombra más marcada */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .comment-indicator:hover {
-  transform: scale(1.1);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  transform: scale(1.2); /* Escala más marcada en hover */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
-/* Colores basados en status */
+/* Colores basados en status - Más profesionales */
 .comment-indicator[data-status="Diseño"] {
-  background: #9b59b6; /* Morado */
+  background: #6c5ce7; /* Púrpura profesional */
 }
 
 .comment-indicator[data-status="Revision"] {
-  background: #e67e22; /* Naranja */
+  background: #fd79a8; /* Rosa profesional */
 }
 
 .comment-indicator[data-status="Completado"] {
-  background: #2ecc71; /* Verde */
+  background: #00b894; /* Verde profesional */
 }
 
 .comment-indicator[data-status="Cancelado"] {
-  background: #95a5a6; /* Gris */
+  background: #e17055; /* Naranja profesional */
 }
 
 .comment-indicator[data-status="Analista"] {
-  background: #3498db; /* Azul */
+  background: #0984e3; /* Azul profesional */
 }
 
 /* Burbuja de comentario para Item Group - en la imagen */
