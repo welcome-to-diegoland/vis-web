@@ -124,6 +124,80 @@ function generateImageContext(imageName) {
   return `${itemGroupName} (${itemGroupId}) | ${itemCodeName} | ${brandName} | ${imageName}`;
 }
 
+// Función para navegar a un Item Group específico desde la tabla de inventario
+function navigateToItemGroup(itemGroupId) {
+  console.log('Navegando a Item Group:', itemGroupId);
+  
+  if (!itemGroupId || !allLibraryData) {
+    console.error('ID de Item Group no válido o datos no cargados');
+    return;
+  }
+  
+  // 1. Desactivar vista limpia si está activa
+  if (isCleanViewActive) {
+    console.log('Desactivando vista limpia...');
+    toggleCleanView();
+  }
+  
+  // 2. Buscar el Item Group en TODOS los datos de la library
+  const itemGroup = allLibraryData.find(item => {
+    return item['Object Type'] === 'Item Group' && (item.Id === itemGroupId || String(item.Id) === String(itemGroupId));
+  });
+  
+  if (!itemGroup) {
+    console.error('Item Group no encontrado:', itemGroupId);
+    console.log('Buscando en allLibraryData con', allLibraryData.length, 'elementos');
+    
+    // Debug: mostrar algunos Item Groups disponibles
+    const availableGroups = allLibraryData.filter(item => item['Object Type'] === 'Item Group').slice(0, 5);
+    console.log('Primeros 5 Item Groups disponibles:', availableGroups.map(g => ({ Id: g.Id, Name: g.Name })));
+    
+    alert('Item Group no encontrado');
+    return;
+  }
+  
+  console.log('Item Group encontrado:', itemGroup);
+  
+  // 3. Expandir el árbol hasta el path del Item Group
+  if (itemGroup.NamePath) {
+    expandTreeToPath(itemGroup.NamePath, true);
+    
+    // 4. Seleccionar el Item Group en el árbol después de expandir
+    setTimeout(() => {
+      const treeContainer = document.getElementById('tree');
+      if (treeContainer) {
+        // Quitar selección previa
+        treeContainer.querySelectorAll('.category-tree-label.selected').forEach(el => {
+          el.classList.remove('selected');
+        });
+        
+        // Seleccionar el nuevo Item Group - usar un método más robusto para evitar problemas con comillas
+        let targetElement = null;
+        const allLabels = treeContainer.querySelectorAll('.category-tree-label[data-path]');
+        for (const label of allLabels) {
+          if (label.getAttribute('data-path') === itemGroup.NamePath) {
+            targetElement = label;
+            break;
+          }
+        }
+        if (targetElement) {
+          targetElement.classList.add('selected');
+          console.log('Item Group seleccionado en el árbol');
+          
+          // 5. Cargar el Item Group en el Box 4
+          loadImageGridInBox4(itemGroup.NamePath);
+          console.log('Item Group cargado en Box 4');
+          
+          // 6. Hacer scroll al Item Group seleccionado
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          console.error('No se pudo encontrar el elemento en el árbol:', itemGroup.NamePath);
+        }
+      }
+    }, 1000); // Dar tiempo para que el árbol se expanda
+  }
+}
+
 // Función para determinar el status automático basado en el grupo del usuario
 function getAutomaticStatus() {
   const userInfo = getCurrentUserInfo();
@@ -784,8 +858,15 @@ function expandTreeToPath(targetPath, expandTarget = false) {
       currentPath += '/' + part;
     }
     
-    // Buscar el elemento usando el selector correcto
-    const element = document.querySelector(`.category-tree-li-content[data-path="${currentPath}"]`);
+    // Buscar el elemento usando un método más robusto
+    let element = null;
+    const allElements = document.querySelectorAll('.category-tree-li-content[data-path]');
+    for (const el of allElements) {
+      if (el.getAttribute('data-path') === currentPath) {
+        element = el;
+        break;
+      }
+    }
     if (element) {
       const toggle = element.querySelector('.category-tree-expand-btn');
       if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
@@ -797,7 +878,15 @@ function expandTreeToPath(targetPath, expandTarget = false) {
   // Si expandTarget es true, también expandir el elemento target para mostrar sus hijos
   if (expandTarget) {
     setTimeout(() => {
-      const targetElement = document.querySelector(`.category-tree-li-content[data-path="${targetPath}"]`);
+      let targetElement = null;
+      const allTargetElements = document.querySelectorAll('.category-tree-li-content[data-path]');
+      for (const el of allTargetElements) {
+        if (el.getAttribute('data-path') === targetPath) {
+          targetElement = el;
+          break;
+        }
+      }
+      
       if (targetElement) {
         const toggle = targetElement.querySelector('.category-tree-expand-btn');
         if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
@@ -4744,7 +4833,18 @@ function generateImageInventoryTable() {
     
     const itemGroupPath = pathParts.slice(0, -1).join('/');
     
-    // Primero intentar buscar el Item Group en currentWorkingData
+    // BUSCAR PRIMERO en allLibraryData (datos completos, no filtrados)
+    if (allLibraryData && allLibraryData.length > 0) {
+      const itemGroup = allLibraryData.find(item => 
+        item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath
+      );
+      
+      if (itemGroup && itemGroup.Id) {
+        return itemGroup.Id;
+      }
+    }
+    
+    // Fallback: buscar en currentWorkingData
     const itemGroup = currentWorkingData.find(item => 
       item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath
     );
@@ -4969,7 +5069,7 @@ function generateImageInventoryTable() {
           <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.ultimaFechaDisenador)}</td>
           <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${metadata.name}" data-item-id="${metadata.id}" data-comment-type="item" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
           <td class="inventory-cell inventory-type clickable-comment" data-item-name="${metadata.name}" data-item-id="${metadata.id}" data-comment-type="item" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoTipo)}</td>
-          <td class="inventory-cell inventory-status">${escapeHtml(parsedComment.ultimoStatus)}</td>
+          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(metadata.itemGroupId)}" title="Click para navegar al Item Group">${escapeHtml(parsedComment.ultimoStatus)}</td>
         </tr>
       `);
     }
@@ -5013,7 +5113,7 @@ function generateImageInventoryTable() {
                 <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.ultimaFechaDisenador)}</td>
                 <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${imageValue.trim()}" data-comment-type="image" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
                 <td class="inventory-cell inventory-type clickable-comment" data-image-name="${imageValue.trim()}" data-comment-type="image" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoTipo)}</td>
-                <td class="inventory-cell inventory-status">${escapeHtml(parsedComment.ultimoStatus)}</td>
+                <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(metadata.itemGroupId)}" title="Click para navegar al Item Group">${escapeHtml(parsedComment.ultimoStatus)}</td>
               </tr>
             `);
           }
@@ -5100,14 +5200,17 @@ function escapeHtml(text) {
 // Función para configurar event listeners en la tabla de inventario
 function setupInventoryClickListeners() {
   const clickableComments = document.querySelectorAll('.clickable-comment');
+  const clickableStatuses = document.querySelectorAll('.clickable-status');
   
-  console.log(`🔗 Configurando ${clickableComments.length} elementos clickeables`);
-  console.log(`📊 Datos disponibles: currentWorkingData=${currentWorkingData?.length || 0}, allLibraryData=${allLibraryData?.length || 0}`);
+  console.log(`🔗 Configurando ${clickableComments.length} elementos clickeables de comentarios`);
+  console.log(`� Configurando ${clickableStatuses.length} elementos clickeables de status`);
+  console.log(`�📊 Datos disponibles: currentWorkingData=${currentWorkingData?.length || 0}, allLibraryData=${allLibraryData?.length || 0}`);
   
   if (!allLibraryData || allLibraryData.length === 0) {
     console.warn('⚠️ allLibraryData no está disponible. Los clicks en Item Codes/Groups no funcionarán.');
   }
   
+  // Event listeners para comentarios clickeables
   clickableComments.forEach((cell, index) => {
     cell.addEventListener('click', function(e) {
       e.preventDefault();
@@ -5235,6 +5338,25 @@ function setupInventoryClickListeners() {
     });
     
     // Agregar estilo de cursor pointer
+    cell.style.cursor = 'pointer';
+  });
+
+  // Event listeners para status clickeable
+  clickableStatuses.forEach((cell, index) => {
+    cell.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const itemGroupId = this.getAttribute('data-item-group-id');
+      
+      if (!itemGroupId || itemGroupId.trim() === '') {
+        console.error('❌ Item Group ID vacío o no válido:', itemGroupId);
+        alert('Error: No se pudo determinar el Item Group ID');
+        return;
+      }
+      
+      console.log(`🟢 Click en status, navegando a Item Group:`, itemGroupId);
+      navigateToItemGroup(itemGroupId);
+    });
     cell.style.cursor = 'pointer';
   });
 }
