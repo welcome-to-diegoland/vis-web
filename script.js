@@ -10,6 +10,7 @@ let isVerticalDragging = false;
 let startX, startLeftWidth;
 let originalExcelSheets = {}; // Para guardar las hojas del Excel
 let currentWorkingData = []; // Para guardar los datos que se están trabajando
+let allLibraryData = []; // Para guardar TODOS los datos de la library (no se sobrescribe)
 let currentColumnsOrder = []; // Para mantener el orden original de las columnas
 let currentAssetComments = []; // Para guardar los comentarios de las imágenes
 let currentAssetGroups = []; // Para guardar los datos de galerías
@@ -368,6 +369,7 @@ function handleCombinedExcel(event) {
 
       // Guarda los datos para trabajar, el orden de las columnas y los comentarios de assets
       currentWorkingData = [...assetRows];
+      allLibraryData = [...assetRows]; // Guardar todos los datos globalmente (no se sobrescribe)
       currentAssetComments = [...assetCommentsData];
       currentColumnsOrder = [...columnsToRead];
 
@@ -1699,7 +1701,7 @@ function formatDisplayDate(dateString) {
     const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
     // Calcular diferencia en días
-    const diffTime = nowOnly - dateOnly;
+    const diffTime = dateOnly - nowOnly;  // Cambiado: fecha del comentario - fecha actual
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     // Formatear tiempo en AM/PM
@@ -1713,14 +1715,20 @@ function formatDisplayDate(dateString) {
     if (diffDays === 0) {
       // Es hoy
       return 'Hoy ' + timeString;
-    } else if (diffDays === 1) {
+    } else if (diffDays === -1) {
       // Es ayer
       return 'Ayer ' + timeString;
-    } else if (diffDays < 7) {
-      // Hace menos de una semana
-      return diffDays + ' días - ' + timeString;
+    } else if (diffDays === 1) {
+      // Es mañana
+      return 'Mañana ' + timeString;
+    } else if (diffDays < -1 && diffDays >= -7) {
+      // Hace varios días (pasado)
+      return 'Hace ' + Math.abs(diffDays) + ' días - ' + timeString;
+    } else if (diffDays > 1 && diffDays <= 7) {
+      // En varios días (futuro)
+      return 'En ' + diffDays + ' días - ' + timeString;
     } else {
-      // Más de una semana
+      // Más de una semana (pasado o futuro)
       return date.toLocaleDateString('es-ES') + ' ' + timeString;
     }
   } catch (error) {
@@ -4925,6 +4933,16 @@ function generateImageInventoryTable() {
       importancia: row['WA Importancia'] || ''
     };
 
+    // Debug: log algunos items para verificar datos
+    if (originalIndex < 3) {
+      console.log(`📋 Debug inventario row ${originalIndex}:`, { 
+        name: metadata.name, 
+        id: metadata.id, 
+        objectType: metadata.objectType,
+        hasDirectComment: !!(row['WA_VIS_Comment'] && row['WA_VIS_Comment'].trim())
+      });
+    }
+
     // 1. PRIMERO: Verificar si la fila tiene comentario directo en WA_VIS_Comment
     const directComment = row['WA_VIS_Comment'];
     if (directComment && directComment.trim() !== '') {
@@ -4946,11 +4964,11 @@ function generateImageInventoryTable() {
           <td class="inventory-cell inventory-image-empty">-</td>
           <td class="inventory-cell inventory-analyst">${escapeHtml(parsedComment.analista)}</td>
           <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.primeraFechaAnalista)}</td>
-          <td class="inventory-cell inventory-comment-text">${escapeHtml(parsedComment.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${metadata.name}" data-item-id="${metadata.id}" data-comment-type="item" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioAnalista)}</td>
           <td class="inventory-cell inventory-designer">${escapeHtml(parsedComment.diseñador)}</td>
           <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.ultimaFechaDisenador)}</td>
-          <td class="inventory-cell inventory-comment-text">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
-          <td class="inventory-cell inventory-type">${escapeHtml(parsedComment.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${metadata.name}" data-item-id="${metadata.id}" data-comment-type="item" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-item-name="${metadata.name}" data-item-id="${metadata.id}" data-comment-type="item" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoTipo)}</td>
           <td class="inventory-cell inventory-status">${escapeHtml(parsedComment.ultimoStatus)}</td>
         </tr>
       `);
@@ -4990,11 +5008,11 @@ function generateImageInventoryTable() {
                 <td class="inventory-cell inventory-image">${escapeHtml(imageValue.trim())}</td>
                 <td class="inventory-cell inventory-analyst">${escapeHtml(parsedComment.analista)}</td>
                 <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.primeraFechaAnalista)}</td>
-                <td class="inventory-cell inventory-comment-text">${escapeHtml(parsedComment.ultimoComentarioAnalista)}</td>
+                <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${imageValue.trim()}" data-comment-type="image" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioAnalista)}</td>
                 <td class="inventory-cell inventory-designer">${escapeHtml(parsedComment.diseñador)}</td>
                 <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.ultimaFechaDisenador)}</td>
-                <td class="inventory-cell inventory-comment-text">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
-                <td class="inventory-cell inventory-type">${escapeHtml(parsedComment.ultimoTipo)}</td>
+                <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${imageValue.trim()}" data-comment-type="image" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
+                <td class="inventory-cell inventory-type clickable-comment" data-image-name="${imageValue.trim()}" data-comment-type="image" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoTipo)}</td>
                 <td class="inventory-cell inventory-status">${escapeHtml(parsedComment.ultimoStatus)}</td>
               </tr>
             `);
@@ -5022,7 +5040,7 @@ function generateImageInventoryTable() {
   }
 
   // Generar HTML de la tabla
-  return `
+  const inventoryHTML = `
     <div class="image-inventory-container">
       <div class="inventory-header">
         <h3>Inventario de Elementos con Comentarios</h3>
@@ -5062,6 +5080,13 @@ function generateImageInventoryTable() {
       </div>
     </div>
   `;
+
+  // Configurar event listeners para elementos clickeables después de insertar el HTML
+  setTimeout(() => {
+    setupInventoryClickListeners();
+  }, 100);
+
+  return inventoryHTML;
 }
 
 // Función auxiliar para escapar HTML
@@ -5070,4 +5095,159 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Función para configurar event listeners en la tabla de inventario
+function setupInventoryClickListeners() {
+  const clickableComments = document.querySelectorAll('.clickable-comment');
+  
+  console.log(`🔗 Configurando ${clickableComments.length} elementos clickeables`);
+  console.log(`📊 Datos disponibles: currentWorkingData=${currentWorkingData?.length || 0}, allLibraryData=${allLibraryData?.length || 0}`);
+  
+  if (!allLibraryData || allLibraryData.length === 0) {
+    console.warn('⚠️ allLibraryData no está disponible. Los clicks en Item Codes/Groups no funcionarán.');
+  }
+  
+  clickableComments.forEach((cell, index) => {
+    cell.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const commentType = this.getAttribute('data-comment-type');
+      const imageName = this.getAttribute('data-image-name');
+      const itemName = this.getAttribute('data-item-name');
+      const itemId = this.getAttribute('data-item-id');
+      
+      console.log(`🔍 Debug click ${index}:`, { commentType, imageName, itemName, itemId });
+      console.log(`📊 currentWorkingData tiene ${currentWorkingData ? currentWorkingData.length : 0} elementos`);
+      
+      if (commentType === 'image' && imageName) {
+        // Para comentarios de imagen - usar el comentario original completo
+        const originalComment = getOriginalImageComment(imageName);
+        const modalTitle = `Historial de Comentarios - Imagen: ${imageName}`;
+        
+        console.log('📸 Abriendo modal de imagen:', { imageName, originalComment });
+        openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
+        
+      } else if (commentType === 'item' && itemName && itemId) {
+        // Para comentarios directos de Item Code/Item Group - buscar en todos los datos
+        console.log(`🔍 Buscando item en allLibraryData (${allLibraryData.length} elementos):`, { itemName, itemId });
+        
+        // Buscar en todos los datos de la library, no solo en currentWorkingData
+        const itemData = allLibraryData.find(item => {
+          // Comparación flexible para nombres (trimear espacios)
+          const nameMatch = (item.Name && item.Name.trim()) === (itemName && itemName.trim());
+          // Comparación flexible para IDs (string y number)
+          const idMatch = item.Id === itemId || 
+                         String(item.Id) === String(itemId) || 
+                         Number(item.Id) === Number(itemId);
+          
+          if (index < 5) { // Solo mostrar los primeros 5 para no saturar el log
+            console.log(`   Comparando: "${item.Name?.trim()}" === "${itemName?.trim()}" (${nameMatch}) && "${item.Id}" === "${itemId}" (${idMatch}) [tipos: ${typeof item.Id} vs ${typeof itemId}]`);
+          }
+          return nameMatch && idMatch;
+        });
+        
+        if (itemData) {
+          const originalComment = itemData['WA_VIS_Comment'] || '';
+          const contextInfo = `${itemData.Name} (${itemData.Id})`;
+          const modalTitle = itemData['Object Type'] === 'Item Group' 
+            ? `Historial de Comentarios - Item Group: ${itemData.Name}`
+            : `Historial de Comentarios - Item Code: ${itemData.Name}`;
+          
+          console.log('📝 Abriendo modal de item:', { 
+            itemName, 
+            itemId, 
+            originalComment: originalComment.substring(0, 100) + '...', 
+            objectType: itemData['Object Type'] 
+          });
+          
+          openCommentModal(modalTitle, contextInfo, originalComment, 'item', null);
+        } else {
+          console.warn('❌ No se encontró el item en allLibraryData:', { itemName, itemId });
+          console.log(`📋 Primeros 10 items en allLibraryData:`, allLibraryData.slice(0, 10).map(item => ({ Name: item.Name, Id: item.Id, ObjectType: item['Object Type'] })));
+          
+          // SOLUCIÓN TEMPORAL: Si no encuentra por nombre+ID, intentar buscar solo por ID (más confiable)
+          console.log(`🔄 Intentando búsqueda solo por ID...`);
+          const itemDataById = allLibraryData.find(item => 
+            item.Id === itemId || String(item.Id) === String(itemId) || Number(item.Id) === Number(itemId)
+          );
+          
+          if (itemDataById) {
+            console.log(`✅ Encontrado por ID solamente:`, { Name: itemDataById.Name, Id: itemDataById.Id, ObjectType: itemDataById['Object Type'] });
+            
+            const originalComment = itemDataById['WA_VIS_Comment'] || '';
+            const contextInfo = `${itemDataById.Name} (${itemDataById.Id})`;
+            const modalTitle = itemDataById['Object Type'] === 'Item Group' 
+              ? `Historial de Comentarios - Item Group: ${itemDataById.Name}`
+              : `Historial de Comentarios - Item Code: ${itemDataById.Name}`;
+            
+            console.log('📝 Abriendo modal por ID:', { 
+              Name: itemDataById.Name, 
+              Id: itemDataById.Id, 
+              originalComment: originalComment.substring(0, 100) + '...', 
+              objectType: itemDataById['Object Type'] 
+            });
+            
+            openCommentModal(modalTitle, contextInfo, originalComment, 'item', null);
+            return; // Salir de la función aquí
+          }
+          
+          // Debug adicional solo si falla también la búsqueda por ID
+          const itemsByName = allLibraryData.filter(item => 
+            (item.Name && item.Name.trim()) === (itemName && itemName.trim())
+          );
+          const itemsById = allLibraryData.filter(item => 
+            item.Id === itemId || String(item.Id) === String(itemId) || Number(item.Id) === Number(itemId)
+          );
+          
+          console.log(`🔍 Items con nombre '${itemName?.trim()}':`, itemsByName.map(item => ({ Name: item.Name, Id: item.Id, ObjectType: item['Object Type'] })));
+          console.log(`🔍 Items con ID '${itemId}':`, itemsById.map(item => ({ Name: item.Name, Id: item.Id, ObjectType: item['Object Type'] })));
+          
+          // DETALLE COMPLETO de los items encontrados
+          if (itemsByName.length > 0) {
+            console.log(`📝 DETALLE item por nombre:`, itemsByName[0]);
+          }
+          if (itemsById.length > 0) {
+            console.log(`📝 DETALLE item por ID:`, itemsById[0]);
+          }
+          
+          // Buscar nombres similares (partial match)
+          const similarNames = allLibraryData.filter(item => 
+            item.Name && itemName && (
+              item.Name.toLowerCase().includes(itemName.toLowerCase().trim()) ||
+              itemName.toLowerCase().includes(item.Name.toLowerCase().trim())
+            )
+          ).slice(0, 5);
+          
+          console.log(`🔍 Nombres similares a '${itemName}':`, similarNames.map(item => ({ Name: item.Name, Id: item.Id, ObjectType: item['Object Type'] })));
+          
+          // Revisar si hay problemas de tipo de datos
+          console.log(`📝 Tipos de datos - itemName: ${typeof itemName} (${itemName}), itemId: ${typeof itemId} (${itemId})`);
+          if (allLibraryData.length > 0) {
+            const firstItem = allLibraryData[0];
+            console.log(`📝 Tipos en datos - Name: ${typeof firstItem.Name} (${firstItem.Name}), Id: ${typeof firstItem.Id} (${firstItem.Id})`);
+          }
+        }
+      } else {
+        console.warn('❌ Datos insuficientes para abrir modal:', { commentType, imageName, itemName, itemId });
+      }
+    });
+    
+    // Agregar estilo de cursor pointer
+    cell.style.cursor = 'pointer';
+  });
+}
+
+// Función auxiliar para obtener comentario original completo de imagen
+function getOriginalImageComment(imageName) {
+  if (!currentAssetComments || !imageName || imageName.trim() === '') {
+    return '';
+  }
+  
+  const asset = currentAssetComments.find(asset => 
+    asset.Name === imageName.trim()
+  );
+  
+  return asset && asset.WA_VIS_Comment ? asset.WA_VIS_Comment.trim() : '';
 }
