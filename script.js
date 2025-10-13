@@ -19,6 +19,7 @@ let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 
 // Variables globales para el sistema de selección y asignación de imágenes
 let savedItemGroups = new Set(); // Set para trackear Item Groups guardados
+let isCleanViewActive = false; // Estado del toggle de vista limpia
 
 // Función para marcar automáticamente un Item Group como modificado
 function markItemGroupAsModified(itemGroupId = null, itemGroupName = null) {
@@ -4620,4 +4621,453 @@ function clearGalleryGrid() {
   if (galleryGrid) {
     galleryGrid.innerHTML = '<div class="gallery-placeholder">Selecciona una galería para ver las imágenes</div>';
   }
+}
+
+// Función para toggle de vista limpia
+function toggleCleanView() {
+  isCleanViewActive = !isCleanViewActive;
+  const toggleButton = document.getElementById('cleanViewToggle');
+  
+  if (isCleanViewActive) {
+    // Activar vista limpia - limpiar todos los boxes
+    clearAllBoxes();
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Vista Normal';
+    toggleButton.className = 'btn btn-warning';
+    console.log('Vista limpia activada');
+  } else {
+    // Restaurar vista normal
+    restoreNormalView();
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Vista Limpia';
+    toggleButton.className = 'btn btn-secondary';
+    console.log('Vista normal restaurada');
+  }
+}
+
+// Función para limpiar todos los boxes
+function clearAllBoxes() {
+  // Limpiar Box 1 (Árbol)
+  const treeContainer = document.getElementById('tree');
+  if (treeContainer) {
+    treeContainer.innerHTML = '<div class="empty-box-message">Box 1 - Árbol (Vacío)</div>';
+  }
+  
+  // Limpiar Box 3 (Galerías)
+  const box3Content = document.getElementById('box3-content');
+  if (box3Content) {
+    box3Content.innerHTML = '<div class="empty-box-message">Box 3 - Galerías (Vacío)</div>';
+  }
+  
+  // Crear tabla de inventario de imágenes en Box 4
+  const box4Content = document.getElementById('box4-content');
+  if (box4Content) {
+    if (currentWorkingData && currentWorkingData.length > 0) {
+      box4Content.innerHTML = generateImageInventoryTable();
+    } else {
+      box4Content.innerHTML = '<div class="empty-box-message">Box 4 - Cargar Excel para ver inventario de imágenes</div>';
+    }
+  }
+}
+
+// Función para restaurar la vista normal
+function restoreNormalView() {
+  // Restaurar el contenido de los boxes según el estado actual
+  if (currentWorkingData && currentWorkingData.length > 0) {
+    // Si hay datos cargados, regenerar el contenido
+    
+    // Restaurar Box 1 (Árbol)
+    const treeContainer = document.getElementById('tree');
+    if (treeContainer) {
+      renderAssetLibraryTree(currentWorkingData, treeContainer);
+    }
+    
+    // Restaurar Box 3 (Galerías)
+    initializeGallerySystem();
+    
+    // Restaurar Box 4 (Grid principal) si hay un Item Group seleccionado
+    if (currentItemGroup) {
+      // Regenerar el grid de imágenes si hay un item group activo
+      regenerateImageGrid();
+    } else {
+      // Si no hay item group seleccionado, mostrar mensaje
+      const box4Content = document.getElementById('box4-content');
+      if (box4Content) {
+        box4Content.innerHTML = '<div class="empty-state">Selecciona un Item Group del árbol para ver el grid</div>';
+      }
+    }
+    
+  } else {
+    // Si no hay datos, mostrar mensajes de estado inicial
+    const treeContainer = document.getElementById('tree');
+    if (treeContainer) {
+      treeContainer.innerHTML = '<div class="empty-state">Cargar Excel para ver el árbol de navegación</div>';
+    }
+    
+    const box3Content = document.getElementById('box3-content');
+    if (box3Content) {
+      box3Content.innerHTML = '<div class="empty-state">Cargar Excel para ver las galerías</div>';
+    }
+    
+    const box4Content = document.getElementById('box4-content');
+    if (box4Content) {
+      box4Content.innerHTML = '<div class="empty-state">Cargar Excel para ver el grid de imágenes</div>';
+    }
+  }
+}
+
+// Función para generar tabla de inventario de imágenes
+function generateImageInventoryTable() {
+  if (!currentWorkingData || currentWorkingData.length === 0) {
+    return '<div class="empty-box-message">No hay datos para mostrar</div>';
+  }
+
+  // Función para obtener el Item Group ID de una fila
+  function getItemGroupId(row) {
+    // CASO 1: Si la fila ES un Item Group, usar su propio ID
+    if (row['Object Type'] === 'Item Group') {
+      return row['Id'] || '';
+    }
+    
+    // CASO 2: Si es un Item Code, buscar el ID del Item Group padre
+    if (!row.NamePath) return '';
+    
+    // Obtener el path del Item Group padre (remover último nivel que es el Item Code)
+    const pathParts = row.NamePath.split('/');
+    if (pathParts.length <= 1) return '';
+    
+    const itemGroupPath = pathParts.slice(0, -1).join('/');
+    
+    // Primero intentar buscar el Item Group en currentWorkingData
+    const itemGroup = currentWorkingData.find(item => 
+      item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath
+    );
+    
+    if (itemGroup && itemGroup.Id) {
+      return itemGroup.Id;
+    }
+    
+    // Si no se encuentra, usar currentItemGroup como fallback
+    // Esto debería funcionar en la mayoría de los casos ya que estamos viendo 
+    // los Item Codes de un Item Group específico
+    if (currentItemGroup && currentItemGroup.NamePath === itemGroupPath) {
+      return currentItemGroup.Id || '';
+    }
+    
+    // Último fallback: extraer el ID del último componente del itemGroupPath
+    // Si el path es algo como "Brand/Product/123-ItemGroup", el ID sería "123-ItemGroup"
+    const lastPathComponent = pathParts[pathParts.length - 1];
+    return lastPathComponent || '';
+  }
+
+  // Columnas de imágenes a procesar
+  const imageColumns = [
+    'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
+    'WA_Gallery_01', 'WA_Gallery_02', 'WA_Gallery_03', 'WA_Gallery_04', 'WA_Gallery_05',
+    'WA_Gallery_06', 'WA_Gallery_07', 'WA_Gallery_08', 'WA_Gallery_09', 'WA_Gallery_10',
+    'WA_Gallery_11', 'WA_Gallery_12', 'WA_Gallery_13', 'WA_Gallery_14', 'WA_Gallery_15',
+    'WA_Gallery_16', 'WA_Gallery_17', 'WA_Gallery_18', 'WA_Gallery_19', 'WA_Gallery_20',
+    'WA_Gallery_21', 'WA_Gallery_22', 'WA_Gallery_23', 'WA_Gallery_24', 'WA_Gallery_25',
+    'WA_Rest_01', 'WA_Rest_02', 'WA_Rest_03', 'WA_Rest_04', 'WA_Rest_05',
+    'WA_Rest_06', 'WA_Rest_07', 'WA_Rest_08', 'WA_Rest_09', 'WA_Rest_10',
+    'WA_Rest_11', 'WA_Rest_12', 'WA_Rest_13', 'WA_Rest_14', 'WA_Rest_15',
+    'WA_Rest_16', 'WA_Rest_17', 'WA_Rest_18', 'WA_Rest_19', 'WA_Rest_20',
+    'WA_Rest_21', 'WA_Rest_22', 'WA_Rest_23', 'WA_Rest_24', 'WA_Rest_25'
+  ];
+
+  // Función para buscar comentario de imagen en currentAssetComments
+  function getImageComment(imageName) {
+    if (!currentAssetComments || !imageName || imageName.trim() === '') {
+      return '';
+    }
+    
+    const asset = currentAssetComments.find(asset => 
+      asset.Name === imageName.trim()
+    );
+    
+    return asset && asset.WA_VIS_Comment ? asset.WA_VIS_Comment.trim() : '';
+  }
+
+  // Función para parsear comentarios estructurados
+  function parseComment(commentText) {
+    // Inicializar estructura de respuesta
+    const result = {
+      analista: '',
+      primeraFechaAnalista: '',
+      ultimoComentarioAnalista: '',
+      diseñador: '',
+      ultimaFechaDisenador: '',
+      ultimoComentarioDisenador: '',
+      ultimoTipo: '',
+      ultimoStatus: ''
+    };
+
+    if (!commentText || commentText.trim() === '') {
+      return result;
+    }
+
+    try {
+      // Dividir por ¶ para separar analista y diseñador
+      const sections = commentText.split('¶');
+      
+      let allEntries = [];
+      
+      // Procesar cada sección (analista y diseñador)
+      sections.forEach(section => {
+        if (section.trim()) {
+          // Dividir por ¦ para obtener los campos
+          const fields = section.split('¦');
+          if (fields.length >= 5) {
+            const entry = {
+              usuario: fields[0].trim(),
+              fecha: fields[1].trim(),
+              tipo: fields[2].trim(),
+              comentario: fields[3].trim(),
+              status: fields[4].trim()
+            };
+            allEntries.push(entry);
+          }
+        }
+      });
+
+      if (allEntries.length === 0) {
+        return result;
+      }
+
+      // Separar analistas y diseñadores basado en las secciones originales
+      let analistas = [];
+      let diseñadores = [];
+      
+      if (sections.length >= 1 && sections[0].trim()) {
+        // Primera sección es analista
+        const fields = sections[0].split('¦');
+        if (fields.length >= 5) {
+          analistas.push({
+            usuario: fields[0].trim(),
+            fecha: fields[1].trim(),
+            tipo: fields[2].trim(),
+            comentario: fields[3].trim(),
+            status: fields[4].trim()
+          });
+        }
+      }
+      
+      if (sections.length >= 2 && sections[1].trim()) {
+        // Segunda sección es diseñador
+        const fields = sections[1].split('¦');
+        if (fields.length >= 5) {
+          diseñadores.push({
+            usuario: fields[0].trim(),
+            fecha: fields[1].trim(),
+            tipo: fields[2].trim(),
+            comentario: fields[3].trim(),
+            status: fields[4].trim()
+          });
+        }
+      }
+
+      // Procesar analistas
+      if (analistas.length > 0) {
+        const primerAnalista = analistas[0];
+        const ultimoAnalista = analistas[analistas.length - 1];
+        
+        result.analista = primerAnalista.usuario;
+        result.primeraFechaAnalista = primerAnalista.fecha;
+        result.ultimoComentarioAnalista = ultimoAnalista.comentario;
+      }
+
+      // Procesar diseñadores
+      if (diseñadores.length > 0) {
+        const ultimoDisenador = diseñadores[diseñadores.length - 1];
+        
+        result.diseñador = ultimoDisenador.usuario;
+        result.ultimaFechaDisenador = ultimoDisenador.fecha;
+        result.ultimoComentarioDisenador = ultimoDisenador.comentario;
+      }
+
+      // Determinar último tipo y status (del más reciente entre todos)
+      if (allEntries.length > 0) {
+        // Ordenar por fecha para encontrar el más reciente
+        const sortedEntries = allEntries.sort((a, b) => {
+          const dateA = new Date(a.fecha);
+          const dateB = new Date(b.fecha);
+          return dateB - dateA; // Más reciente primero
+        });
+        
+        result.ultimoTipo = sortedEntries[0].tipo;
+        result.ultimoStatus = sortedEntries[0].status;
+      }
+
+    } catch (error) {
+      console.warn('Error parseando comentario:', commentText, error);
+    }
+
+    return result;
+  }
+
+  // Generar filas de datos - solo para imágenes con comentarios
+  let tableRows = [];
+  let rowIndex = 0;
+  let totalImagesWithComments = 0;
+  
+  // Set para trackear combinaciones únicas de Item Group ID + Nombre de Imagen
+  const uniqueItemGroupImageCombos = new Set();
+
+  currentWorkingData.forEach((row, originalIndex) => {
+    // Extraer metadatos fijos
+    const metadata = {
+      name: row['Name'] || '',
+      id: row['Id'] || '',
+      itemGroup: row['NamePath'] || '', // El NamePath contiene la ruta del Item Group
+      itemGroupId: getItemGroupId(row), // NUEVO: ID específico del Item Group
+      objectType: row['Object Type'] || '',
+      cms: row['CMS'] || '',
+      marca: row['Marca'] || '',
+      titulo: row['Título'] || '',
+      importancia: row['WA Importancia'] || ''
+    };
+
+    // 1. PRIMERO: Verificar si la fila tiene comentario directo en WA_VIS_Comment
+    const directComment = row['WA_VIS_Comment'];
+    if (directComment && directComment.trim() !== '') {
+      const parsedComment = parseComment(directComment.trim());
+      rowIndex++;
+      totalImagesWithComments++;
+      tableRows.push(`
+        <tr class="inventory-row inventory-direct-comment" data-original-row="${originalIndex}">
+          <td class="inventory-cell">${rowIndex}</td>
+          <td class="inventory-cell">${escapeHtml(metadata.name)}</td>
+          <td class="inventory-cell">${escapeHtml(metadata.id)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(metadata.itemGroupId)}</td>
+          <td class="inventory-cell">${escapeHtml(metadata.objectType)}</td>
+          <td class="inventory-cell">${escapeHtml(metadata.cms)}</td>
+          <td class="inventory-cell">${escapeHtml(metadata.marca)}</td>
+          <td class="inventory-cell">${escapeHtml(metadata.titulo)}</td>
+          <td class="inventory-cell">${escapeHtml(metadata.importancia)}</td>
+          <td class="inventory-cell inventory-field">WA_VIS_Comment</td>
+          <td class="inventory-cell inventory-image-empty">-</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(parsedComment.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text">${escapeHtml(parsedComment.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(parsedComment.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type">${escapeHtml(parsedComment.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status">${escapeHtml(parsedComment.ultimoStatus)}</td>
+        </tr>
+      `);
+    }
+
+    // 2. SEGUNDO: Procesar cada columna de imagen para buscar comentarios en assets
+    imageColumns.forEach(column => {
+      const imageValue = row[column];
+      if (imageValue && imageValue.trim() !== '') {
+        // Buscar comentario para esta imagen
+        const comment = getImageComment(imageValue.trim());
+        
+        // Solo incluir si tiene comentario
+        if (comment !== '') {
+          // Crear clave única: Item Group ID + Nombre de Imagen
+          const uniqueKey = `${metadata.itemGroupId}|${imageValue.trim()}`;
+          
+          // Solo agregar si esta combinación no existe ya
+          if (!uniqueItemGroupImageCombos.has(uniqueKey)) {
+            uniqueItemGroupImageCombos.add(uniqueKey);
+            
+            const parsedComment = parseComment(comment);
+            rowIndex++;
+            totalImagesWithComments++;
+            tableRows.push(`
+              <tr class="inventory-row inventory-image-comment" data-original-row="${originalIndex}">
+                <td class="inventory-cell">${rowIndex}</td>
+                <td class="inventory-cell">${escapeHtml(metadata.name)}</td>
+                <td class="inventory-cell">${escapeHtml(metadata.id)}</td>
+                <td class="inventory-cell inventory-item-group">${escapeHtml(metadata.itemGroupId)}</td>
+                <td class="inventory-cell">${escapeHtml(metadata.objectType)}</td>
+                <td class="inventory-cell">${escapeHtml(metadata.cms)}</td>
+                <td class="inventory-cell">${escapeHtml(metadata.marca)}</td>
+                <td class="inventory-cell">${escapeHtml(metadata.titulo)}</td>
+                <td class="inventory-cell">${escapeHtml(metadata.importancia)}</td>
+                <td class="inventory-cell inventory-field">${column}</td>
+                <td class="inventory-cell inventory-image">${escapeHtml(imageValue.trim())}</td>
+                <td class="inventory-cell inventory-analyst">${escapeHtml(parsedComment.analista)}</td>
+                <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.primeraFechaAnalista)}</td>
+                <td class="inventory-cell inventory-comment-text">${escapeHtml(parsedComment.ultimoComentarioAnalista)}</td>
+                <td class="inventory-cell inventory-designer">${escapeHtml(parsedComment.diseñador)}</td>
+                <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.ultimaFechaDisenador)}</td>
+                <td class="inventory-cell inventory-comment-text">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
+                <td class="inventory-cell inventory-type">${escapeHtml(parsedComment.ultimoTipo)}</td>
+                <td class="inventory-cell inventory-status">${escapeHtml(parsedComment.ultimoStatus)}</td>
+              </tr>
+            `);
+          }
+        }
+      }
+    });
+  });
+
+  // Si no hay imágenes con comentarios, mostrar mensaje
+  if (tableRows.length === 0) {
+    return `
+      <div class="image-inventory-container">
+        <div class="inventory-header">
+          <h3>Inventario de Elementos con Comentarios</h3>
+          <div class="inventory-stats">
+            <span style="color: #6c757d;">No se encontraron elementos con comentarios</span>
+          </div>
+        </div>
+        <div class="inventory-empty-state">
+          <p>No hay elementos con comentarios en los datos cargados.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Generar HTML de la tabla
+  return `
+    <div class="image-inventory-container">
+      <div class="inventory-header">
+        <h3>Inventario de Elementos con Comentarios</h3>
+        <div class="inventory-stats">
+          Elementos con comentarios: <strong>${totalImagesWithComments}</strong>
+        </div>
+      </div>
+      <div class="inventory-table-wrapper">
+        <table class="image-inventory-table">
+          <thead>
+            <tr class="inventory-header-row">
+              <th class="inventory-header-cell">#</th>
+              <th class="inventory-header-cell">Name</th>
+              <th class="inventory-header-cell">Id</th>
+              <th class="inventory-header-cell">Item Group ID</th>
+              <th class="inventory-header-cell">Object Type</th>
+              <th class="inventory-header-cell">CMS</th>
+              <th class="inventory-header-cell">Marca</th>
+              <th class="inventory-header-cell">Título</th>
+              <th class="inventory-header-cell">WA Importancia</th>
+              <th class="inventory-header-cell">Campo</th>
+              <th class="inventory-header-cell">Nombre de Imagen</th>
+              <th class="inventory-header-cell">Analista</th>
+              <th class="inventory-header-cell">Primera Fecha Analista</th>
+              <th class="inventory-header-cell">Último Comentario Analista</th>
+              <th class="inventory-header-cell">Diseñador</th>
+              <th class="inventory-header-cell">Última Fecha Diseñador</th>
+              <th class="inventory-header-cell">Último Comentario Diseñador</th>
+              <th class="inventory-header-cell">Último Tipo</th>
+              <th class="inventory-header-cell">Último Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows.join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// Función auxiliar para escapar HTML
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }

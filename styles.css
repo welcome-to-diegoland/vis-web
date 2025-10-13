@@ -5335,3 +5335,371 @@ html, body {
   margin-left: auto;
   margin-right: auto;
 }
+
+/* ===== MENSAJES PARA VISTA LIMPIA ===== */
+.empty-box-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #7C808D;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+  padding: 20px;
+  border: 2px dashed #E0E0E0;
+  border-radius: 8px;
+  background-color: #F8F9FA;
+  margin: 10px;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* ===== TABLA DE INVENTARIO DE IMÁGENES ===== */
+.image-inventory-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.inventory-header {
+  background: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 2px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inventory-header h3 {
+  margin: 0;
+  color: #495057;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.inventory-stats {
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.inventory-stats strong {
+  color: #495057;
+  font-weight: 600;
+}
+
+.inventory-table-wrapper {
+  flex: 1;
+  overflow: auto;
+  background: white;
+}
+
+.image-inventory-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 2200px; /* Aumentar ancho mínimo para la nueva columna */
+}
+
+.inventory-header-row {
+  background: #343a40;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.inventory-header-cell {
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  border-right: 1px solid #495057;
+  white-space: nowrap;
+}
+
+.inventory-header-cell:last-child {
+  border-right: none;
+}
+
+.inventory-row {
+  border-bottom: 1px solid #e9ecef;
+  transition: background-color 0.2s ease;
+  min-height: 60px; /* Altura mínima para acomodar hasta 4 líneas */
+}
+
+.inventory-row:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.inventory-row:hover {
+  background-color: #e3f2fd;
+}
+
+.inventory-cell {
+  padding: 8px;
+  border-right: 1px solid #e9ecef;
+  vertical-align: top;
+  line-height: 1.4;
+}
+
+.inventory-cell:last-child {
+  border-right: none;
+}
+
+/* Estilos específicos por columna */
+.inventory-cell:nth-child(1) { /* # */
+  width: 50px;
+  text-align: center;
+  font-weight: 600;
+  color: #6c757d;
+}
+
+.inventory-cell:nth-child(2) { /* Name */
+  min-width: 150px;
+  font-weight: 500;
+  color: #212529;
+}
+
+.inventory-cell:nth-child(3) { /* Id */
+  min-width: 100px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.inventory-item-group { /* Item Group (columna 4) */
+  min-width: 200px;
+  max-width: 250px;
+  font-weight: 500;
+  color: #495057;
+  background-color: rgba(13, 202, 240, 0.1);
+  font-size: 11px;
+  
+  /* Permitir wrap a múltiples líneas con máximo 4 líneas */
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  word-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.inventory-cell:nth-child(5) { /* Object Type */
+  min-width: 120px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.inventory-cell:nth-child(6) { /* CMS */
+  min-width: 80px;
+}
+
+.inventory-cell:nth-child(7) { /* Marca */
+  min-width: 100px;
+}
+
+.inventory-cell:nth-child(8) { /* Título */
+  min-width: 180px;
+  max-width: 220px;
+  
+  /* Permitir wrap a múltiples líneas con máximo 4 líneas */
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  word-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.inventory-cell:nth-child(9) { /* WA Importancia */
+  min-width: 80px;
+  text-align: center;
+}
+
+.inventory-field { /* Campo (columna 10) */
+  min-width: 120px;
+  font-family: monospace;
+  font-size: 11px;
+  background-color: rgba(0, 123, 255, 0.1);
+  font-weight: 500;
+}
+
+.inventory-image { /* Nombre de Imagen (columna 11) */
+  min-width: 150px;
+  font-family: monospace;
+  font-size: 11px;
+  background-color: rgba(40, 167, 69, 0.1);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.inventory-image-empty { /* Nombre de Imagen vacío (columna 11) */
+  min-width: 150px;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  background-color: rgba(108, 117, 125, 0.1);
+}
+
+.inventory-analyst { /* Analista (columna 12) */
+  min-width: 100px;
+  font-weight: 500;
+  background-color: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+}
+
+.inventory-designer { /* Diseñador (columna 15) */
+  min-width: 100px;
+  font-weight: 500;
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+}
+
+.inventory-date { /* Fechas (columnas 13 y 16) */
+  min-width: 130px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.inventory-comment-text { /* Comentarios (columnas 14 y 17) */
+  min-width: 160px;
+  max-width: 220px;
+  font-size: 12px;
+  line-height: 1.3;
+  
+  /* Permitir wrap a múltiples líneas con máximo 4 líneas */
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  word-wrap: break-word;
+  word-break: break-word;
+  
+  background-color: rgba(255, 193, 7, 0.05);
+  padding: 6px 8px;
+}
+
+.inventory-type { /* Tipo (columna 18) */
+  min-width: 120px;
+  font-weight: 500;
+  background-color: rgba(111, 66, 193, 0.1);
+  color: #6f42c1;
+  text-align: center;
+}
+
+.inventory-status { /* Status (columna 19) */
+  min-width: 100px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 4px;
+}
+
+/* Estilos específicos para diferentes status */
+.inventory-status:contains("Diseño") {
+  background-color: rgba(255, 193, 7, 0.2);
+  color: #856404;
+}
+
+.inventory-status:contains("Revision") {
+  background-color: rgba(220, 53, 69, 0.2);
+  color: #721c24;
+}
+
+.inventory-status:contains("Aprobado") {
+  background-color: rgba(25, 135, 84, 0.2);
+  color: #0f5132;
+}
+
+.inventory-comment { /* Comentario */
+  min-width: 250px;
+  max-width: 400px;
+  font-size: 12px;
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #495057;
+  line-height: 1.4;
+  padding: 8px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* Estilos para tipos de filas */
+.inventory-direct-comment {
+  background-color: rgba(255, 193, 7, 0.05);
+  border-left: 3px solid #ffc107;
+}
+
+.inventory-image-comment {
+  background-color: rgba(40, 167, 69, 0.05);
+  border-left: 3px solid #28a745;
+}
+
+.inventory-direct-comment:hover {
+  background-color: rgba(255, 193, 7, 0.1);
+}
+
+.inventory-image-comment:hover {
+  background-color: rgba(40, 167, 69, 0.1);
+}
+
+.inventory-comment { /* Comentario */
+  min-width: 250px;
+  max-width: 400px;
+  font-size: 12px;
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #495057;
+  line-height: 1.4;
+  padding: 8px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.inventory-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #6c757d;
+  font-size: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin: 20px;
+}
+
+.inventory-empty-state p {
+  margin: 0;
+  font-style: italic;
+}
+
+/* Clase de utilidad para wrap de 4 líneas - aplicable a cualquier elemento */
+.wrap-4-lines {
+  white-space: normal !important;
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 4 !important;
+  line-clamp: 4 !important;
+  -webkit-box-orient: vertical !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  line-height: 1.3 !important;
+}
