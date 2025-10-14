@@ -59,10 +59,40 @@ const USERS = {
     group: 'Analistas',
     displayName: 'Sandra (Analistas)'
   },
+  veronica: {
+    name: 'Verónica',
+    group: 'Diseño',
+    displayName: 'Verónica (Diseño)'
+  },
   rossana: {
     name: 'Rossana',
     group: 'Diseño',
     displayName: 'Rossana (Diseño)'
+  },
+  carla: {
+    name: 'Carla',
+    group: 'Diseño',
+    displayName: 'Carla (Diseño)'
+  },
+  gabriela: {
+    name: 'Gabriela',
+    group: 'Diseño',
+    displayName: 'Gabriela (Diseño)'
+  },
+  thanya: {
+    name: 'Thanya',
+    group: 'Diseño',
+    displayName: 'Thanya (Diseño)'
+  },
+  grecia: {
+    name: 'Grecia',
+    group: 'Diseño',
+    displayName: 'Grecia (Diseño)'
+  },
+  cinthya: {
+    name: 'Cinthya',
+    group: 'Diseño',
+    displayName: 'Cinthya (Diseño)'
   }
 };
 
@@ -5012,7 +5042,7 @@ function generateImageInventoryTable() {
   }
 
   // Generar filas de datos - solo para imágenes con comentarios
-  let tableRows = [];
+  let tableRowsData = []; // Array temporal para ordenar
   let rowIndex = 0;
   let totalImagesWithComments = 0;
   
@@ -5049,29 +5079,34 @@ function generateImageInventoryTable() {
       const parsedComment = parseComment(directComment.trim());
       rowIndex++;
       totalImagesWithComments++;
-      tableRows.push(`
-        <tr class="inventory-row inventory-direct-comment" data-original-row="${originalIndex}">
-          <td class="inventory-cell">${rowIndex}</td>
-          <td class="inventory-cell">${escapeHtml(metadata.name)}</td>
-          <td class="inventory-cell">${escapeHtml(metadata.id)}</td>
-          <td class="inventory-cell inventory-item-group">${escapeHtml(metadata.itemGroupId)}</td>
-          <td class="inventory-cell">${escapeHtml(metadata.objectType)}</td>
-          <td class="inventory-cell">${escapeHtml(metadata.cms)}</td>
-          <td class="inventory-cell">${escapeHtml(metadata.marca)}</td>
-          <td class="inventory-cell">${escapeHtml(metadata.titulo)}</td>
-          <td class="inventory-cell">${escapeHtml(metadata.importancia)}</td>
-          <td class="inventory-cell inventory-field">WA_VIS_Comment</td>
-          <td class="inventory-cell inventory-image-empty">-</td>
-          <td class="inventory-cell inventory-analyst">${escapeHtml(parsedComment.analista)}</td>
-          <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.primeraFechaAnalista)}</td>
-          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${metadata.name}" data-item-id="${metadata.id}" data-comment-type="item" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioAnalista)}</td>
-          <td class="inventory-cell inventory-designer">${escapeHtml(parsedComment.diseñador)}</td>
-          <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.ultimaFechaDisenador)}</td>
-          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${metadata.name}" data-item-id="${metadata.id}" data-comment-type="item" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
-          <td class="inventory-cell inventory-type clickable-comment" data-item-name="${metadata.name}" data-item-id="${metadata.id}" data-comment-type="item" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoTipo)}</td>
-          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(metadata.itemGroupId)}" title="Click para navegar al Item Group">${escapeHtml(parsedComment.ultimoStatus)}</td>
-        </tr>
-      `);
+      
+      tableRowsData.push({
+        rowNumber: rowIndex,
+        name: metadata.name,
+        id: metadata.id,
+        itemGroupId: metadata.itemGroupId,
+        objectType: metadata.objectType,
+        cms: metadata.cms,
+        marca: metadata.marca,
+        titulo: metadata.titulo,
+        importancia: metadata.importancia,
+        campo: 'WA_VIS_Comment',
+        imagen: '-',
+        analista: parsedComment.analista,
+        primeraFechaAnalista: parsedComment.primeraFechaAnalista,
+        ultimoComentarioAnalista: parsedComment.ultimoComentarioAnalista,
+        diseñador: parsedComment.diseñador,
+        ultimaFechaDisenador: parsedComment.ultimaFechaDisenador,
+        ultimoComentarioDisenador: parsedComment.ultimoComentarioDisenador,
+        ultimoTipo: parsedComment.ultimoTipo,
+        ultimoStatus: parsedComment.ultimoStatus,
+        originalRowIndex: originalIndex,
+        rowType: 'direct-comment',
+        itemName: metadata.name,
+        itemId: metadata.id,
+        commentType: 'item',
+        sortDate: parsedComment.primeraFechaAnalista
+      });
     }
 
     // 2. SEGUNDO: Procesar cada columna de imagen para buscar comentarios en assets
@@ -5093,37 +5128,41 @@ function generateImageInventoryTable() {
             const parsedComment = parseComment(comment);
             rowIndex++;
             totalImagesWithComments++;
-            tableRows.push(`
-              <tr class="inventory-row inventory-image-comment" data-original-row="${originalIndex}">
-                <td class="inventory-cell">${rowIndex}</td>
-                <td class="inventory-cell">${escapeHtml(metadata.name)}</td>
-                <td class="inventory-cell">${escapeHtml(metadata.id)}</td>
-                <td class="inventory-cell inventory-item-group">${escapeHtml(metadata.itemGroupId)}</td>
-                <td class="inventory-cell">${escapeHtml(metadata.objectType)}</td>
-                <td class="inventory-cell">${escapeHtml(metadata.cms)}</td>
-                <td class="inventory-cell">${escapeHtml(metadata.marca)}</td>
-                <td class="inventory-cell">${escapeHtml(metadata.titulo)}</td>
-                <td class="inventory-cell">${escapeHtml(metadata.importancia)}</td>
-                <td class="inventory-cell inventory-field">${column}</td>
-                <td class="inventory-cell inventory-image">${escapeHtml(imageValue.trim())}</td>
-                <td class="inventory-cell inventory-analyst">${escapeHtml(parsedComment.analista)}</td>
-                <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.primeraFechaAnalista)}</td>
-                <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${imageValue.trim()}" data-comment-type="image" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioAnalista)}</td>
-                <td class="inventory-cell inventory-designer">${escapeHtml(parsedComment.diseñador)}</td>
-                <td class="inventory-cell inventory-date">${escapeHtml(parsedComment.ultimaFechaDisenador)}</td>
-                <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${imageValue.trim()}" data-comment-type="image" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoComentarioDisenador)}</td>
-                <td class="inventory-cell inventory-type clickable-comment" data-image-name="${imageValue.trim()}" data-comment-type="image" title="Click para ver historial completo">${escapeHtml(parsedComment.ultimoTipo)}</td>
-                <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(metadata.itemGroupId)}" title="Click para navegar al Item Group">${escapeHtml(parsedComment.ultimoStatus)}</td>
-              </tr>
-            `);
+            
+            tableRowsData.push({
+              rowNumber: rowIndex,
+              name: metadata.name,
+              id: metadata.id,
+              itemGroupId: metadata.itemGroupId,
+              objectType: metadata.objectType,
+              cms: metadata.cms,
+              marca: metadata.marca,
+              titulo: metadata.titulo,
+              importancia: metadata.importancia,
+              campo: column,
+              imagen: imageValue.trim(),
+              analista: parsedComment.analista,
+              primeraFechaAnalista: parsedComment.primeraFechaAnalista,
+              ultimoComentarioAnalista: parsedComment.ultimoComentarioAnalista,
+              diseñador: parsedComment.diseñador,
+              ultimaFechaDisenador: parsedComment.ultimaFechaDisenador,
+              ultimoComentarioDisenador: parsedComment.ultimoComentarioDisenador,
+              ultimoTipo: parsedComment.ultimoTipo,
+              ultimoStatus: parsedComment.ultimoStatus,
+              originalRowIndex: originalIndex,
+              rowType: 'image-comment',
+              imageName: imageValue.trim(),
+              commentType: 'image',
+              sortDate: parsedComment.primeraFechaAnalista
+            });
           }
         }
       }
     });
   });
 
-  // Si no hay imágenes con comentarios, mostrar mensaje
-  if (tableRows.length === 0) {
+  // Si no hay elementos con comentarios, mostrar mensaje
+  if (tableRowsData.length === 0) {
     return `
       <div class="image-inventory-container">
         <div class="inventory-header">
@@ -5139,13 +5178,86 @@ function generateImageInventoryTable() {
     `;
   }
 
+  // ORDENAR datos por fecha del analista (más antiguos primero)
+  tableRowsData.sort((a, b) => {
+    const dateA = a.sortDate ? new Date(a.sortDate) : new Date(0);
+    const dateB = b.sortDate ? new Date(b.sortDate) : new Date(0);
+    return dateA - dateB; // Orden ascendente (más antiguos primero)
+  });
+
+  // Renumerar las filas después del ordenamiento
+  tableRowsData.forEach((row, index) => {
+    row.rowNumber = index + 1;
+  });
+
+  // Convertir datos ordenados a HTML
+  const tableRows = tableRowsData.map(rowData => {
+    if (rowData.rowType === 'direct-comment') {
+      return `
+        <tr class="inventory-row inventory-direct-comment" data-original-row="${rowData.originalRowIndex}">
+          <td class="inventory-cell">${rowData.rowNumber}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
+          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
+          <td class="inventory-cell inventory-image-empty">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${escapeHtml(rowData.ultimoStatus)}</td>
+        </tr>
+      `;
+    } else {
+      return `
+        <tr class="inventory-row inventory-image-comment" data-original-row="${rowData.originalRowIndex}">
+          <td class="inventory-cell">${rowData.rowNumber}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
+          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
+          <td class="inventory-cell inventory-image">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${escapeHtml(rowData.ultimoStatus)}</td>
+        </tr>
+      `;
+    }
+  });
+
   // Generar HTML de la tabla
   const inventoryHTML = `
     <div class="image-inventory-container">
       <div class="inventory-header">
         <h3>Inventario de Elementos con Comentarios</h3>
-        <div class="inventory-stats">
-          Elementos con comentarios: <strong>${totalImagesWithComments}</strong>
+        <div class="inventory-actions">
+          <button id="assignDesignerBtn" class="btn btn-success">
+            <i class="fas fa-user-plus"></i> Asignar Diseñadora
+          </button>
+          <button id="openInventoryFilters" class="btn btn-secondary">
+            <i class="fas fa-filter"></i> Filtros
+          </button>
+          <div class="inventory-stats">
+            Elementos con comentarios: <strong>${totalImagesWithComments}</strong>
+          </div>
         </div>
       </div>
       <div class="inventory-table-wrapper">
@@ -5184,7 +5296,22 @@ function generateImageInventoryTable() {
   // Configurar event listeners para elementos clickeables después de insertar el HTML
   setTimeout(() => {
     setupInventoryClickListeners();
+    
+    // Configurar el botón de filtros
+    const filterButton = document.getElementById('openInventoryFilters');
+    if (filterButton) {
+      filterButton.onclick = openInventoryFiltersModal;
+    }
+    
+    // Configurar el botón de asignar diseñadora
+    const assignButton = document.getElementById('assignDesignerBtn');
+    if (assignButton) {
+      assignButton.onclick = openAssignDesignerModal;
+    }
   }, 100);
+
+  // Guardar datos originales para filtros
+  originalInventoryData = [...tableRowsData];
 
   return inventoryHTML;
 }
@@ -5373,3 +5500,421 @@ function getOriginalImageComment(imageName) {
   
   return asset && asset.WA_VIS_Comment ? asset.WA_VIS_Comment.trim() : '';
 }
+
+// ===== MODAL DE FILTROS DE INVENTARIO =====
+
+// Variable global para almacenar los datos originales del inventario
+let originalInventoryData = [];
+
+// Función para abrir el modal de filtros
+function openInventoryFiltersModal() {
+  const modal = document.getElementById('inventoryFiltersModal');
+  
+  // Poblar dropdowns con valores únicos de los datos
+  populateFilterDropdowns();
+  
+  // Mostrar modal
+  modal.style.display = 'flex';
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 10);
+}
+
+// Función para cerrar el modal de filtros
+function closeInventoryFiltersModal() {
+  const modal = document.getElementById('inventoryFiltersModal');
+  modal.classList.remove('show');
+  setTimeout(() => {
+    modal.style.display = 'none';
+  }, 300);
+}
+
+// Función para poblar los dropdowns con valores únicos
+function populateFilterDropdowns() {
+  if (!originalInventoryData || originalInventoryData.length === 0) return;
+  
+  // Analistas únicos (incluyendo vacíos)
+  const analistas = [...new Set(originalInventoryData.map(row => row.analista || ''))].sort();
+  const analistaSelect = document.getElementById('filterAnalista');
+  analistaSelect.innerHTML = '<option value="">Todos</option>' + 
+    analistas.map(analista => {
+      const displayValue = analista === '' ? '(Vacío)' : analista;
+      const optionValue = analista === '' ? 'EMPTY' : analista;
+      return `<option value="${escapeHtml(optionValue)}">${escapeHtml(displayValue)}</option>`;
+    }).join('');
+  
+  // Diseñadores únicos (incluyendo vacíos)
+  const disenadores = [...new Set(originalInventoryData.map(row => row.diseñador || ''))].sort();
+  const disenadorSelect = document.getElementById('filterDisenador');
+  disenadorSelect.innerHTML = '<option value="">Todos</option>' + 
+    disenadores.map(disenador => {
+      const displayValue = disenador === '' ? '(Vacío)' : disenador;
+      const optionValue = disenador === '' ? 'EMPTY' : disenador;
+      return `<option value="${escapeHtml(optionValue)}">${escapeHtml(displayValue)}</option>`;
+    }).join('');
+  
+  // Status únicos (incluyendo vacíos)
+  const statuses = [...new Set(originalInventoryData.map(row => row.ultimoStatus || ''))].sort();
+  const statusSelect = document.getElementById('filterStatus');
+  statusSelect.innerHTML = '<option value="">Todos</option>' + 
+    statuses.map(status => {
+      const displayValue = status === '' ? '(Vacío)' : status;
+      const optionValue = status === '' ? 'EMPTY' : status;
+      return `<option value="${escapeHtml(optionValue)}">${escapeHtml(displayValue)}</option>`;
+    }).join('');
+  
+  // Tipos únicos (incluyendo vacíos)
+  const tipos = [...new Set(originalInventoryData.map(row => row.ultimoTipo || ''))].sort();
+  const tipoSelect = document.getElementById('filterTipo');
+  tipoSelect.innerHTML = '<option value="">Todos</option>' + 
+    tipos.map(tipo => {
+      const displayValue = tipo === '' ? '(Vacío)' : tipo;
+      const optionValue = tipo === '' ? 'EMPTY' : tipo;
+      return `<option value="${escapeHtml(optionValue)}">${escapeHtml(displayValue)}</option>`;
+    }).join('');
+}
+
+// Función para limpiar filtros
+function clearInventoryFilters() {
+  document.getElementById('filterAnalista').value = '';
+  document.getElementById('filterDisenador').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterTipo').value = '';
+  
+  // Aplicar filtros vacíos (mostrar todo)
+  applyInventoryFilters();
+}
+
+// Función para aplicar filtros
+function applyInventoryFilters() {
+  const analistaFilter = document.getElementById('filterAnalista').value;
+  const disenadorFilter = document.getElementById('filterDisenador').value;
+  const statusFilter = document.getElementById('filterStatus').value;
+  const tipoFilter = document.getElementById('filterTipo').value;
+  
+  // Filtrar datos
+  let filteredData = originalInventoryData.filter(row => {
+    // Filtro de analista
+    const analistaMatch = !analistaFilter || 
+      (analistaFilter === 'EMPTY' ? (!row.analista || row.analista === '') : row.analista === analistaFilter);
+    
+    // Filtro de diseñador
+    const disenadorMatch = !disenadorFilter || 
+      (disenadorFilter === 'EMPTY' ? (!row.diseñador || row.diseñador === '') : row.diseñador === disenadorFilter);
+    
+    // Filtro de status
+    const statusMatch = !statusFilter || 
+      (statusFilter === 'EMPTY' ? (!row.ultimoStatus || row.ultimoStatus === '') : row.ultimoStatus === statusFilter);
+    
+    // Filtro de tipo
+    const tipoMatch = !tipoFilter || 
+      (tipoFilter === 'EMPTY' ? (!row.ultimoTipo || row.ultimoTipo === '') : row.ultimoTipo === tipoFilter);
+    
+    return analistaMatch && disenadorMatch && statusMatch && tipoMatch;
+  });
+  
+  // Ordenar datos filtrados por fecha (más antiguos primero)
+  filteredData.sort((a, b) => {
+    const dateA = a.sortDate ? new Date(a.sortDate) : new Date(0);
+    const dateB = b.sortDate ? new Date(b.sortDate) : new Date(0);
+    return dateA - dateB;
+  });
+  
+  // Regenerar la tabla con datos filtrados
+  regenerateInventoryTable(filteredData);
+  
+  // Cerrar modal
+  closeInventoryFiltersModal();
+}
+
+// Función para regenerar la tabla con datos filtrados
+function regenerateInventoryTable(filteredData) {
+  // Renumerar las filas filtradas
+  filteredData.forEach((row, index) => {
+    row.rowNumber = index + 1;
+  });
+  
+  // Convertir datos filtrados a HTML
+  const tableRows = filteredData.map(rowData => {
+    if (rowData.rowType === 'direct-comment') {
+      return `
+        <tr class="inventory-row inventory-direct-comment" data-original-row="${rowData.originalRowIndex}">
+          <td class="inventory-cell">${rowData.rowNumber}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
+          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
+          <td class="inventory-cell inventory-image-empty">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${escapeHtml(rowData.ultimoStatus)}</td>
+        </tr>
+      `;
+    } else {
+      return `
+        <tr class="inventory-row inventory-image-comment" data-original-row="${rowData.originalRowIndex}">
+          <td class="inventory-cell">${rowData.rowNumber}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
+          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
+          <td class="inventory-cell inventory-image">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${escapeHtml(rowData.ultimoStatus)}</td>
+        </tr>
+      `;
+    }
+  });
+  
+  // Actualizar la tabla en el DOM
+  const tbody = document.querySelector('.image-inventory-table tbody');
+  if (tbody) {
+    tbody.innerHTML = tableRows.join('');
+    
+    // Reconfigurar event listeners
+    setupInventoryClickListeners();
+    
+    // Actualizar stats
+    const statsElement = document.querySelector('.inventory-stats');
+    if (statsElement) {
+      statsElement.innerHTML = `Elementos con comentarios: <strong>${filteredData.length}</strong>`;
+    }
+  }
+}
+
+// ===== FUNCIONES PARA MODAL DE ASIGNACIÓN DE DISEÑADORAS =====
+
+// Modal de asignación de diseñadoras
+window.openAssignDesignerModal = function() {
+  const modal = document.getElementById('assignDesignerModal');
+  updateAssignmentSummary();
+  renderDesignersList();
+  modal.style.display = 'flex';
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 10);
+};
+
+window.closeAssignDesignerModal = function() {
+  const modal = document.getElementById('assignDesignerModal');
+  modal.classList.remove('show');
+  setTimeout(() => {
+    modal.style.display = 'none';
+  }, 300);
+};
+
+function updateAssignmentSummary() {
+  const totalComments = originalInventoryData.length;
+  const unassignedComments = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '').length;
+  
+  const unassignedCountElement = document.getElementById('unassignedCount');
+  unassignedCountElement.innerHTML = `Total de comentarios: <strong>${totalComments}</strong> | Sin asignar: <strong>${unassignedComments}</strong>`;
+}
+
+function renderDesignersList() {
+  const designersContainer = document.getElementById('designersList');
+  console.log('designersContainer:', designersContainer);
+  
+  const designers = Object.keys(USERS).filter(user => USERS[user].group === 'Diseño');
+  console.log('designers found:', designers);
+  console.log('USERS object:', USERS);
+  
+  if (!designersContainer) {
+    console.error('No se encontró el contenedor designersList');
+    return;
+  }
+  
+  designersContainer.innerHTML = '';
+  
+  if (designers.length === 0) {
+    designersContainer.innerHTML = '<p>No hay diseñadoras disponibles</p>';
+    return;
+  }
+  
+  designers.forEach(designer => {
+    const assignedCount = originalInventoryData.filter(row => row.diseñador === designer).length;
+    
+    const designerDiv = document.createElement('div');
+    designerDiv.className = 'designer-item';
+    designerDiv.innerHTML = `
+      <div class="designer-info">
+        <label class="exclude-checkbox">
+          <input type="checkbox" onchange="toggleDesignerExclusion('${designer}', this.checked)">
+          Excluir
+        </label>
+        <span class="designer-name">${USERS[designer].name}</span>
+      </div>
+      <div class="designer-controls">
+        <span>Asignados: ${assignedCount}</span>
+        <input type="number" 
+               class="assignment-input" 
+               id="assignment-${designer}"
+               value="0" 
+               min="0"
+               onchange="updateAssignmentInput('${designer}', this.value)">
+      </div>
+    `;
+    
+    designersContainer.appendChild(designerDiv);
+  });
+}
+
+window.toggleDesignerExclusion = function(designer, isExcluded) {
+  const designerItem = document.querySelector(`input[id="assignment-${designer}"]`).closest('.designer-item');
+  const assignmentInput = document.getElementById(`assignment-${designer}`);
+  
+  if (isExcluded) {
+    designerItem.classList.add('excluded');
+    assignmentInput.disabled = true;
+    assignmentInput.value = 0;
+  } else {
+    designerItem.classList.remove('excluded');
+    assignmentInput.disabled = false;
+  }
+};
+
+window.updateAssignmentInput = function(designer, value) {
+  // Esta función se puede usar para validar o calcular en tiempo real
+  console.log(`${designer} asignado: ${value} comentarios`);
+};
+
+window.distributeEqually = function() {
+  const designers = getActiveDesigners();
+  const unassignedComments = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '');
+  
+  if (designers.length === 0) {
+    alert('No hay diseñadoras activas seleccionadas para la distribución.');
+    return;
+  }
+  
+  const commentsPerDesigner = Math.floor(unassignedComments.length / designers.length);
+  const remainder = unassignedComments.length % designers.length;
+  
+  // Resetear valores de input
+  designers.forEach(designer => {
+    document.getElementById(`assignment-${designer}`).value = commentsPerDesigner;
+  });
+  
+  // Distribuir comentarios restantes a las primeras diseñadoras
+  for (let i = 0; i < remainder; i++) {
+    const currentValue = parseInt(document.getElementById(`assignment-${designers[i]}`).value);
+    document.getElementById(`assignment-${designers[i]}`).value = currentValue + 1;
+  }
+  
+  updateAssignmentSummary();
+};
+
+window.distributeRemaining = function() {
+  const designers = getActiveDesigners();
+  const unassignedComments = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '');
+  
+  if (designers.length === 0) {
+    alert('No hay diseñadoras activas seleccionadas para la distribución.');
+    return;
+  }
+  
+  // Calcular cuántos comentarios ya están planificados para asignar
+  let plannedAssignments = 0;
+  designers.forEach(designer => {
+    const inputValue = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
+    plannedAssignments += inputValue;
+  });
+  
+  const remainingToDistribute = unassignedComments.length - plannedAssignments;
+  
+  if (remainingToDistribute <= 0) {
+    alert('No hay comentarios restantes para distribuir.');
+    return;
+  }
+  
+  const additionalPerDesigner = Math.floor(remainingToDistribute / designers.length);
+  const finalRemainder = remainingToDistribute % designers.length;
+  
+  // Agregar comentarios adicionales
+  designers.forEach(designer => {
+    const currentValue = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
+    document.getElementById(`assignment-${designer}`).value = currentValue + additionalPerDesigner;
+  });
+  
+  // Distribuir el resto final
+  for (let i = 0; i < finalRemainder; i++) {
+    const currentValue = parseInt(document.getElementById(`assignment-${designers[i]}`).value);
+    document.getElementById(`assignment-${designers[i]}`).value = currentValue + 1;
+  }
+  
+  updateAssignmentSummary();
+};
+
+window.applyDesignerAssignments = function() {
+  const designers = getActiveDesigners();
+  const unassignedComments = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '');
+  
+  // Validar que la suma de asignaciones no exceda los comentarios sin asignar
+  let totalAssignments = 0;
+  designers.forEach(designer => {
+    const assignmentValue = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
+    totalAssignments += assignmentValue;
+  });
+  
+  if (totalAssignments > unassignedComments.length) {
+    alert(`Error: Estás intentando asignar ${totalAssignments} comentarios pero solo hay ${unassignedComments.length} sin asignar.`);
+    return;
+  }
+  
+  // Realizar las asignaciones
+  let commentIndex = 0;
+  designers.forEach(designer => {
+    const assignmentCount = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
+    
+    for (let i = 0; i < assignmentCount && commentIndex < unassignedComments.length; i++) {
+      const row = unassignedComments[commentIndex];
+      row.diseñador = designer;
+      commentIndex++;
+    }
+  });
+  
+  // Actualizar la tabla
+  populateInventoryTable();
+  populateFilterDropdowns();
+  
+  // Cerrar modal
+  closeAssignDesignerModal();
+  
+  alert(`Se asignaron ${commentIndex} comentarios exitosamente.`);
+};
+
+function getActiveDesigners() {
+  const designers = Object.keys(USERS).filter(user => USERS[user].group === 'Diseño');
+  return designers.filter(designer => {
+    const checkbox = document.querySelector(`input[onchange*="${designer}"]`);
+    return checkbox && !checkbox.checked; // No excluidos
+  });
+}
+
+// Event listener para cerrar el modal de asignación al hacer clic fuera de él
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('assignment-modal')) {
+    closeAssignDesignerModal();
+  }
+});

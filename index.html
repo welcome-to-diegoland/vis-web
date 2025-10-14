@@ -20,7 +20,13 @@
           <select id="userSelect" class="form-select user-select">
             <option value="usuario">Usuario</option>
             <option value="sandra">Sandra (Analistas)</option>
+            <option value="veronica">Verónica (Diseño)</option>
             <option value="rossana">Rossana (Diseño)</option>
+            <option value="carla">Carla (Diseño)</option>
+            <option value="gabriela">Gabriela (Diseño)</option>
+            <option value="thanya">Thanya (Diseño)</option>
+            <option value="grecia">Grecia (Diseño)</option>
+            <option value="cinthya">Cinthya (Diseño)</option>
           </select>
         </div>
         
@@ -68,6 +74,96 @@
       </article>
     </section>
   </main>
+
+  <!-- Modal de Filtros de Inventario -->
+  <div id="inventoryFiltersModal" class="inventory-filters-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Filtros de Inventario</h3>
+        <button class="modal-close-btn" onclick="closeInventoryFiltersModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="filter-group">
+          <label class="filter-label" for="filterAnalista">Analista</label>
+          <select id="filterAnalista" class="filter-select">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="filterDisenador">Diseñador</label>
+          <select id="filterDisenador" class="filter-select">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="filterStatus">Status</label>
+          <select id="filterStatus" class="filter-select">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="filterTipo">Tipo</label>
+          <select id="filterTipo" class="filter-select">
+            <option value="">Todos</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="clearInventoryFilters()">
+          <i class="fas fa-times"></i> Limpiar
+        </button>
+        <button class="btn btn-primary" onclick="applyInventoryFilters()">
+          <i class="fas fa-filter"></i> Aplicar Filtros
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Asignación de Diseñadoras -->
+  <div id="assignDesignerModal" class="assignment-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Asignar Diseñadoras</h3>
+        <button class="modal-close-btn" onclick="closeAssignDesignerModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="assignment-summary">
+          <div class="summary-stats">
+            <span class="unassigned-count">Comentarios sin diseñadora: <strong id="unassignedCount">0</strong></span>
+          </div>
+        </div>
+        
+        <div class="designers-list">
+          <h4>Diseñadoras Disponibles</h4>
+          <div id="designersList">
+            <!-- Se llena dinámicamente -->
+          </div>
+        </div>
+        
+        <div class="assignment-actions">
+          <button class="btn btn-primary" onclick="distributeEqually()">
+            <i class="fas fa-balance-scale"></i> Distribuir Equitativamente
+          </button>
+          <button class="btn btn-warning" onclick="distributeRemaining()">
+            <i class="fas fa-plus-circle"></i> Asignar Restantes
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAssignDesignerModal()">
+          <i class="fas fa-times"></i> Cancelar
+        </button>
+        <button class="btn btn-success" onclick="applyDesignerAssignments()">
+          <i class="fas fa-check"></i> Aplicar Asignaciones
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>
