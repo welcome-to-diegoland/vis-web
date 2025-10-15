@@ -6228,6 +6228,41 @@ html, body {
   background: #f8f9fa;
 }
 
+.stats-table .total-row {
+  background-color: #e9ecef !important;
+  border-top: 2px solid #495057;
+}
+
+.stats-table .total-row td {
+  background-color: #e9ecef !important;
+  color: #495057 !important;
+  font-weight: normal !important;
+  font-size: 12px !important;
+}
+
+.stats-table .total-row:hover {
+  background-color: #e9ecef !important;
+}
+
+/* Estilos para elementos clickeados/seleccionados */
+.stats-table .clickable-name.selected,
+.stats-table .clickable-stat.selected {
+  background-color: #007bff !important;
+  color: white !important;
+  font-weight: bold !important;
+}
+
+.stats-table .clickable-name,
+.stats-table .clickable-stat {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.stats-table .clickable-name:hover,
+.stats-table .clickable-stat:hover {
+  background-color: #f0f0f0 !important;
+}
+
 /* Reglas más específicas para sobrescribir otros estilos */
 #tree .stats-table th,
 #tree .stats-table td,

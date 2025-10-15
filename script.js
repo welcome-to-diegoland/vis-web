@@ -4998,13 +4998,13 @@ function toggleCleanView() {
   if (isCleanViewActive) {
     // Activar vista limpia - limpiar todos los boxes
     clearAllBoxes();
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Vista Limpia';
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Datos';
     toggleButton.className = 'btn btn-warning btn-compact';
     console.log('Vista limpia activada');
   } else {
-    // Restaurar vista normal
+    // Restaurar vista normal - mostrar árbol/inventario
     restoreNormalView();
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Datos';
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Visualizador';
     toggleButton.className = 'btn btn-secondary btn-compact';
     console.log('Vista normal restaurada');
   }
@@ -6253,44 +6253,12 @@ function generateDesignerStatsTable() {
         <tbody>
   `;
   
-  // Primero agregar la fila "Vacío" para elementos sin diseñador
-  const emptyItems = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
-  const emptyTotal = emptyItems.length;
-  
-  const emptyRevision = emptyItems.filter(row => {
-    if (!row.ultimoStatus) return false;
-    const status = row.ultimoStatus.toLowerCase();
-    return status.includes('revision') || status.includes('revisión') || status.includes('review');
-  }).length;
-  
-  const emptyDiseño = emptyItems.filter(row => {
-    if (!row.ultimoStatus) return false;
-    const status = row.ultimoStatus.toLowerCase();
-    return status.includes('diseño') || status.includes('diseno') || status.includes('design');
-  }).length;
-  
-  const emptyCancelado = emptyItems.filter(row => {
-    if (!row.ultimoStatus) return false;
-    const status = row.ultimoStatus.toLowerCase();
-    return status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel');
-  }).length;
-  
-  const emptyCompletado = emptyItems.filter(row => {
-    if (!row.ultimoStatus) return false;
-    const status = row.ultimoStatus.toLowerCase();
-    return status.includes('completado') || status.includes('completed') || status.includes('complete');
-  }).length;
-  
-  tableHTML += `
-    <tr>
-      <td class="clickable-name" data-user="" data-type="designer">Vacío</td>
-      <td class="clickable-stat" data-user="" data-status="" data-type="designer">${emptyTotal}</td>
-      <td class="clickable-stat" data-user="" data-status="revisión" data-type="designer">${emptyRevision}</td>
-      <td class="clickable-stat" data-user="" data-status="diseño" data-type="designer">${emptyDiseño}</td>
-      <td class="clickable-stat" data-user="" data-status="cancelado" data-type="designer">${emptyCancelado}</td>
-      <td class="clickable-stat" data-user="" data-status="completado" data-type="designer">${emptyCompletado}</td>
-    </tr>
-  `;
+  // Variables para calcular totales
+  let totalGeneral = 0;
+  let totalRevision = 0;
+  let totalDiseño = 0;
+  let totalCancelado = 0;
+  let totalCompletado = 0;
   
   designers.forEach(designer => {
     const assignedItems = originalInventoryData.filter(row => row.diseñador === designer);
@@ -6321,6 +6289,13 @@ function generateDesignerStatsTable() {
       return status.includes('completado') || status.includes('completed') || status.includes('complete');
     }).length;
     
+    // Acumular totales
+    totalGeneral += total;
+    totalRevision += revision;
+    totalDiseño += diseño;
+    totalCancelado += cancelado;
+    totalCompletado += completado;
+    
     tableHTML += `
       <tr>
         <td class="clickable-name" data-user="${designer}" data-type="designer">${USERS[designer].name}</td>
@@ -6332,6 +6307,60 @@ function generateDesignerStatsTable() {
       </tr>
     `;
   });
+  
+  // Agregar la fila "Vacío" para elementos sin diseñador
+  const emptyItems = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
+  const emptyTotal = emptyItems.length;
+  
+  const emptyRevision = emptyItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return status.includes('revision') || status.includes('revisión') || status.includes('review');
+  }).length;
+  
+  const emptyDiseño = emptyItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return status.includes('diseño') || status.includes('diseno') || status.includes('design');
+  }).length;
+  
+  const emptyCancelado = emptyItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel');
+  }).length;
+  
+  const emptyCompletado = emptyItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return status.includes('completado') || status.includes('completed') || status.includes('complete');
+  }).length;
+  
+  // Acumular totales incluyendo vacíos
+  totalGeneral += emptyTotal;
+  totalRevision += emptyRevision;
+  totalDiseño += emptyDiseño;
+  totalCancelado += emptyCancelado;
+  totalCompletado += emptyCompletado;
+  
+  tableHTML += `
+    <tr>
+      <td class="clickable-name" data-user="" data-type="designer">Vacío</td>
+      <td class="clickable-stat" data-user="" data-status="" data-type="designer">${emptyTotal}</td>
+      <td class="clickable-stat" data-user="" data-status="revisión" data-type="designer">${emptyRevision}</td>
+      <td class="clickable-stat" data-user="" data-status="diseño" data-type="designer">${emptyDiseño}</td>
+      <td class="clickable-stat" data-user="" data-status="cancelado" data-type="designer">${emptyCancelado}</td>
+      <td class="clickable-stat" data-user="" data-status="completado" data-type="designer">${emptyCompletado}</td>
+    </tr>
+    <tr class="total-row">
+      <td>Total</td>
+      <td class="clickable-stat" data-user="all" data-status="" data-type="designer">${totalGeneral}</td>
+      <td class="clickable-stat" data-user="all" data-status="revisión" data-type="designer">${totalRevision}</td>
+      <td class="clickable-stat" data-user="all" data-status="diseño" data-type="designer">${totalDiseño}</td>
+      <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="designer">${totalCancelado}</td>
+      <td class="clickable-stat" data-user="all" data-status="completado" data-type="designer">${totalCompletado}</td>
+    </tr>
+  `;
   
   tableHTML += `
         </tbody>
@@ -6362,6 +6391,13 @@ function generateAnalystStatsTable() {
         <tbody>
   `;
   
+  // Variables para calcular totales
+  let totalGeneral = 0;
+  let totalRevision = 0;
+  let totalDiseño = 0;
+  let totalCancelado = 0;
+  let totalCompletado = 0;
+  
   analysts.forEach(analyst => {
     const assignedItems = originalInventoryData.filter(row => row.analista === analyst);
     const total = assignedItems.length;
@@ -6391,6 +6427,13 @@ function generateAnalystStatsTable() {
       return status.includes('completado') || status.includes('completed') || status.includes('complete');
     }).length;
     
+    // Acumular totales
+    totalGeneral += total;
+    totalRevision += revision;
+    totalDiseño += diseño;
+    totalCancelado += cancelado;
+    totalCompletado += completado;
+    
     tableHTML += `
       <tr>
         <td class="clickable-name" data-user="${analyst}" data-type="analyst">${USERS[analyst].name}</td>
@@ -6402,6 +6445,58 @@ function generateAnalystStatsTable() {
       </tr>
     `;
   });
+  
+  // Calcular totales sin incluir vacíos para analistas
+  totalGeneral = analysts.reduce((sum, analyst) => {
+    return sum + originalInventoryData.filter(row => row.analista === analyst).length;
+  }, 0);
+  
+  totalRevision = analysts.reduce((sum, analyst) => {
+    const items = originalInventoryData.filter(row => row.analista === analyst);
+    return sum + items.filter(row => {
+      if (!row.ultimoStatus) return false;
+      const status = row.ultimoStatus.toLowerCase();
+      return status.includes('revision') || status.includes('revisión') || status.includes('review');
+    }).length;
+  }, 0);
+  
+  totalDiseño = analysts.reduce((sum, analyst) => {
+    const items = originalInventoryData.filter(row => row.analista === analyst);
+    return sum + items.filter(row => {
+      if (!row.ultimoStatus) return false;
+      const status = row.ultimoStatus.toLowerCase();
+      return status.includes('diseño') || status.includes('diseno') || status.includes('design');
+    }).length;
+  }, 0);
+  
+  totalCancelado = analysts.reduce((sum, analyst) => {
+    const items = originalInventoryData.filter(row => row.analista === analyst);
+    return sum + items.filter(row => {
+      if (!row.ultimoStatus) return false;
+      const status = row.ultimoStatus.toLowerCase();
+      return status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel');
+    }).length;
+  }, 0);
+  
+  totalCompletado = analysts.reduce((sum, analyst) => {
+    const items = originalInventoryData.filter(row => row.analista === analyst);
+    return sum + items.filter(row => {
+      if (!row.ultimoStatus) return false;
+      const status = row.ultimoStatus.toLowerCase();
+      return status.includes('completado') || status.includes('completed') || status.includes('complete');
+    }).length;
+  }, 0);
+  
+  tableHTML += `
+    <tr class="total-row">
+      <td>Total</td>
+      <td class="clickable-stat" data-user="all" data-status="" data-type="analyst">${totalGeneral}</td>
+      <td class="clickable-stat" data-user="all" data-status="revisión" data-type="analyst">${totalRevision}</td>
+      <td class="clickable-stat" data-user="all" data-status="diseño" data-type="analyst">${totalDiseño}</td>
+      <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="analyst">${totalCancelado}</td>
+      <td class="clickable-stat" data-user="all" data-status="completado" data-type="analyst">${totalCompletado}</td>
+    </tr>
+  `;
   
   tableHTML += `
         </tbody>
@@ -6416,6 +6511,12 @@ function setupStatsTableListeners() {
   // Event listeners para nombres clickeables
   document.querySelectorAll('.clickable-name').forEach(element => {
     element.addEventListener('click', function() {
+      // Limpiar selecciones anteriores
+      clearStatsTableSelections();
+      
+      // Marcar como seleccionado
+      this.classList.add('selected');
+      
       const user = this.dataset.user;
       const type = this.dataset.type;
       filterInventoryByUser(user, type);
@@ -6425,6 +6526,12 @@ function setupStatsTableListeners() {
   // Event listeners para estadísticas clickeables
   document.querySelectorAll('.clickable-stat').forEach(element => {
     element.addEventListener('click', function() {
+      // Limpiar selecciones anteriores
+      clearStatsTableSelections();
+      
+      // Marcar como seleccionado
+      this.classList.add('selected');
+      
       const user = this.dataset.user;
       const status = this.dataset.status;
       const type = this.dataset.type;
@@ -6433,16 +6540,34 @@ function setupStatsTableListeners() {
   });
 }
 
+function clearStatsTableSelections() {
+  // Limpiar todas las selecciones anteriores
+  document.querySelectorAll('.clickable-name.selected, .clickable-stat.selected').forEach(element => {
+    element.classList.remove('selected');
+  });
+}
+
 function filterInventoryByUser(user, type) {
   // Filtrar por usuario (analista o diseñador) siempre desde datos originales
   let filteredData;
   
-  if (type === 'designer') {
-    // Filtrar por diseñador
-    filteredData = originalInventoryData.filter(row => row.diseñador === user);
+  if (user === 'all') {
+    // Mostrar todos los datos para todos los usuarios
+    filteredData = originalInventoryData;
+  } else if (type === 'designer') {
+    // Filtrar por diseñador específico o vacío
+    if (user === '') {
+      filteredData = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
+    } else {
+      filteredData = originalInventoryData.filter(row => row.diseñador === user);
+    }
   } else if (type === 'analyst') {
-    // Filtrar por analista
-    filteredData = originalInventoryData.filter(row => row.analista === user);
+    // Filtrar por analista específico o vacío
+    if (user === '') {
+      filteredData = originalInventoryData.filter(row => !row.analista || row.analista === '');
+    } else {
+      filteredData = originalInventoryData.filter(row => row.analista === user);
+    }
   }
   
   updateInventoryDisplay(filteredData);
@@ -6453,9 +6578,15 @@ function filterInventoryByUserAndStatus(user, status, type) {
   
   let filteredData;
   
-  // Manejar caso especial de "Vacío" (elementos sin diseñador asignado)
-  if (user === '' && type === 'designer') {
+  // Manejar caso especial de "all" (todos los usuarios)
+  if (user === 'all') {
+    filteredData = [...originalInventoryData]; // Usar todos los datos
+  } else if (user === '' && type === 'designer') {
+    // Manejar caso especial de "Vacío" (elementos sin diseñador asignado)
     filteredData = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
+  } else if (user === '' && type === 'analyst') {
+    // Manejar caso especial de "Vacío" (elementos sin analista asignado)
+    filteredData = originalInventoryData.filter(row => !row.analista || row.analista === '');
   } else {
     // Filtrar por usuario específico
     if (type === 'designer') {
@@ -6509,6 +6640,9 @@ function clearInventoryFilter() {
   document.getElementById('filterDesigner').value = '';
   document.getElementById('filterStatus').value = '';
   document.getElementById('filterItemGroup').value = '';
+  
+  // Limpiar selecciones de las tablas de stats
+  clearStatsTableSelections();
   
   // Mostrar todos los datos originales
   updateInventoryDisplay(originalInventoryData);
