@@ -128,6 +128,42 @@ html, body {
   font-size: 0.85rem !important;
 }
 
+/* Estilos para botones compactos */
+.btn-compact {
+  padding: 6px 12px !important;
+  font-size: 0.85rem !important;
+  min-width: auto !important;
+  white-space: nowrap;
+}
+
+/* Botones de carga de archivos */
+#loadExcelBtn {
+  min-width: 110px;
+}
+
+#loadLocalBtn {
+  min-width: 80px;
+  margin-left: 5px;
+}
+
+#cleanViewToggle {
+  min-width: 120px;
+  margin-left: 10px;
+}
+
+.btn-compact {
+  padding: 6px 12px;
+  font-size: 14px;
+  min-width: 120px;
+  height: 38px;
+}
+
+#loadLocalBtn:hover {
+  background-color: #0056b3;
+  border-color: #004085;
+  color: white;
+}
+
 /* Estandarizar tamaño de fuente para el dropdown del header */
 .main-header .form-select {
   font-size: 0.85rem !important;

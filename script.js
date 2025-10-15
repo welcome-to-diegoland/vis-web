@@ -419,6 +419,226 @@ function initHorizontalDrag(e, topBoxId, bottomBoxId) {
   e.preventDefault();
 }
 
+// Función para cargar archivo desde SharePoint público
+async function loadFromSharePoint() {
+  const loadButton = document.getElementById('loadExcelBtn');
+  const originalText = loadButton.innerHTML;
+  
+  try {
+    // Mostrar estado de carga
+    loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando';
+    loadButton.disabled = true;
+    
+    console.log('🔄 Cargando archivo público desde SharePoint...');
+    
+    // URLs públicas de SharePoint para el archivo con permisos de "cualquiera con el enlace"
+    const publicSharePointUrls = [
+      // URL principal con download=1
+      'https://traversmexico-my.sharepoint.com/:x:/g/personal/diego_medel_travers_com_mx/EROdt2NwWp5CvlNKmw8FiAwB_Dgag44EnFb5MDOriRXHNw?e=UFkZ25&download=1',
+      // URL sin parámetros adicionales
+      'https://traversmexico-my.sharepoint.com/:x:/g/personal/diego_medel_travers_com_mx/EROdt2NwWp5CvlNKmw8FiAwB_Dgag44EnFb5MDOriRXHNw?download=1',
+      // URL directa de descarga
+      'https://traversmexico-my.sharepoint.com/personal/diego_medel_travers_com_mx/_layouts/15/download.aspx?share=EROdt2NwWp5CvlNKmw8FiAwB_Dgag44EnFb5MDOriRXHNw'
+    ];
+    
+    for (let i = 0; i < publicSharePointUrls.length; i++) {
+      const url = publicSharePointUrls[i];
+      console.log(`🔄 Intentando URL pública ${i + 1}/${publicSharePointUrls.length}...`);
+      
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+          headers: {
+            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*'
+          }
+        });
+        
+        console.log(`📊 Respuesta URL ${i + 1}: Status ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
+        
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          
+          if (contentType && (
+            contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+            contentType.includes('application/vnd.ms-excel') ||
+            contentType.includes('application/octet-stream')
+          )) {
+            console.log('✅ Archivo Excel válido encontrado, descargando...');
+            
+            const arrayBuffer = await response.arrayBuffer();
+            
+            if (arrayBuffer.byteLength > 0) {
+              console.log(`📁 Archivo descargado: ${arrayBuffer.byteLength} bytes`);
+              
+              // Usar la misma lógica que handleCombinedExcel
+              const data = new Uint8Array(arrayBuffer);
+              const workbook = XLSX.read(data, { type: "array" });
+              
+              // Procesar como si fuera un archivo cargado localmente
+              processWorkbook(workbook);
+              
+              console.log('✅ Archivo cargado exitosamente desde SharePoint público');
+              return;
+            } else {
+              console.log(`❌ URL ${i + 1}: Archivo vacío`);
+            }
+          } else {
+            console.log(`❌ URL ${i + 1}: Tipo de contenido incorrecto: ${contentType}`);
+          }
+        } else {
+          console.log(`❌ URL ${i + 1} falló: ${response.status} ${response.statusText}`);
+        }
+      } catch (urlError) {
+        console.log(`❌ Error con URL ${i + 1}:`, urlError.message);
+      }
+    }
+    
+    throw new Error('No se pudo acceder al archivo público de SharePoint con ninguna de las URLs probadas');
+    
+  } catch (error) {
+    console.error('❌ Error cargando desde SharePoint público:', error);
+    
+    const helpMessage = `❌ No se pudo cargar automáticamente desde SharePoint.
+
+🔧 VERIFICACIONES NECESARIAS:
+
+1️⃣ PERMISOS DEL ARCHIVO:
+   • Abre el archivo en SharePoint
+   • Clic en "Compartir" → "Cualquiera con el enlace puede ver"
+   • Copia el enlace público generado
+
+2️⃣ URL CORRECTA:
+   • El enlace debe terminar con ?download=1
+   • Ejemplo: ...archivo.xlsx?download=1
+
+3️⃣ PRUEBA MANUAL:
+   • Abre el enlace en una pestaña privada
+   • Debe descargar automáticamente sin login
+
+Error técnico: ${error.message}
+
+¿Quieres cargar un archivo local mientras verificas los permisos?`;
+    
+    const useLocalFile = confirm(helpMessage);
+    
+    if (useLocalFile) {
+      document.getElementById('combinedFile')?.click();
+    }
+  } finally {
+    loadButton.innerHTML = originalText;
+    loadButton.disabled = false;
+  }
+}
+
+// Función auxiliar para procesar workbook (extraída de handleCombinedExcel)
+function processWorkbook(workbook) {
+  try {
+    // Guarda todas las hojas originales
+    originalExcelSheets = {};
+    workbook.SheetNames.forEach(sheetName => {
+      const sheet = workbook.Sheets[sheetName];
+      originalExcelSheets[sheetName] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    });
+    
+    console.log('📊 Hojas encontradas:', Object.keys(originalExcelSheets));
+    console.log('🗂️ originalExcelSheets guardado:', originalExcelSheets);
+    
+    // Columnas esperadas (igual que en handleCombinedExcel)
+    const expectedColumns = [
+      'ID_Imagen', 'ID_Asset', 'Asset_Num', 'Asset_Name_ES', 'Asset_Name_EN', 'Description_ES', 'Description_EN',
+      'Asset_Group', 'Supplier', 'Manufacturer', 'Model', 'Serial_Number', 'Location', 'Responsible',
+      'Installation_Date', 'Warranty_Date', 'Service_Schedule', 'Last_Service', 'Service_Notes',
+      'Condition', 'Criticality', 'Cost_Center', 'Purchase_Cost', 'Current_Value', 'Depreciation_Rate',
+      'Status', 'Comments', 'Tech_Specs', 'Documentation', 'QR_Code', 'Barcode', 'RFID_Tag',
+      'GPS_Coordinates', 'Floor_Plan_Location', 'Category', 'Subcategory', 'Brand', 'Color',
+      'Dimensions', 'Weight', 'Material', 'Capacity', 'Power_Rating', 'Voltage', 'Frequency',
+      'Operating_Temperature', 'Operating_Humidity', 'Certification', 'Safety_Class',
+      ...Array.from({length: 22}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
+      ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
+    ];
+    
+    // Procesar hoja VIS_AG_Library_Structure (igual que en handleCombinedExcel)
+    if (originalExcelSheets['VIS_AG_Library_Structure']) {
+      // Usar XLSX.utils.sheet_to_json para convertir directamente 
+      const assetSheet = workbook.Sheets["VIS_AG_Library_Structure"];
+      if (assetSheet) {
+        allLibraryData = XLSX.utils.sheet_to_json(assetSheet, { defval: "" });
+        console.log(`✅ VIS_AG_Library_Structure cargado: ${allLibraryData.length} registros`);
+        console.log('📊 Muestra de datos:', allLibraryData.slice(0, 2));
+      }
+    }
+    
+    // Procesar hoja VIS_AG_Asset_Structure para comentarios (igual que en handleCombinedExcel)
+    if (originalExcelSheets['VIS_AG_Asset_Structure']) {
+      const assetCommentsSheet = workbook.Sheets["VIS_AG_Asset_Structure"];
+      if (assetCommentsSheet) {
+        currentAssetComments = XLSX.utils.sheet_to_json(assetCommentsSheet, { defval: "" });
+        console.log(`✅ VIS_AG_Asset_Structure cargado: ${currentAssetComments.length} registros`);
+      }
+    }
+    
+    // Procesar hoja asset_groups para galerías (igual que en handleCombinedExcel)
+    if (originalExcelSheets['asset_groups']) {
+      const assetGroupsSheet = workbook.Sheets["asset_groups"];
+      if (assetGroupsSheet) {
+        currentAssetGroups = XLSX.utils.sheet_to_json(assetGroupsSheet, { defval: "" });
+        console.log(`✅ asset_groups cargado: ${currentAssetGroups.length} registros`);
+      }
+    }
+    
+    // Filtrar SOLO los campos necesarios para el trabajo (igual que en handleCombinedExcel)
+    const columnsToRead = [
+      "NamePath", "Name", "IdPath", "Id", "Object Type", "CMS", "Marca", "Página de Catálogo", "Título", "WA Importancia", "WA_VIS_Comment", "WA_VIS_Approved", "Vis_color", "filtro_color",
+      "WA_Cover_Image_01", "WA_Cover_Image_02", "WA_Cover_Image_03", "WA_Cover_Image_04", "WA_Cover_Image_05",
+      ...Array.from({length: 22}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
+      ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
+    ];
+    
+    const assetRows = allLibraryData.map(row => {
+      const filtered = {};
+      columnsToRead.forEach(col => {
+        filtered[col] = row[col] ?? "";
+      });
+      return filtered;
+    });
+    
+    // Guardar datos globalmente
+    currentWorkingData = [...assetRows];
+    currentColumnsOrder = [...columnsToRead];
+    
+    // Renderizar el árbol usando las columnas filtradas
+    const treeContainer = document.getElementById('tree');
+    if (treeContainer && allLibraryData && allLibraryData.length > 0) {
+      console.log('🔄 Iniciando renderizado del árbol...');
+      try {
+        renderAssetLibraryTree(assetRows, treeContainer);
+        console.log('✅ Árbol renderizado exitosamente');
+      } catch (treeError) {
+        console.error('❌ Error renderizando árbol:', treeError);
+        // Continuar sin fallar todo el proceso
+      }
+    }
+    
+    // Reinicializar Box 3 con el sistema de galerías y limpiar Box 4
+    console.log('🔄 Iniciando reinitializeBoxContents...');
+    try {
+      reinitializeBoxContents();
+      console.log('✅ reinitializeBoxContents completado');
+    } catch (reinitError) {
+      console.error('❌ Error en reinitializeBoxContents:', reinitError);
+      // Continuar sin fallar todo el proceso
+    }
+    
+    console.log('✅ Procesamiento completo exitoso');
+    
+  } catch (error) {
+    console.error("❌ Error procesando workbook:", error);
+    throw new Error(`Error procesando archivo: ${error.message}`);
+  }
+}
+
 // Función para manejar archivos Excel y construir el árbol
 function handleCombinedExcel(event) {
   const file = event.target.files[0];
@@ -4778,14 +4998,14 @@ function toggleCleanView() {
   if (isCleanViewActive) {
     // Activar vista limpia - limpiar todos los boxes
     clearAllBoxes();
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Vista Normal';
-    toggleButton.className = 'btn btn-warning';
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Vista Limpia';
+    toggleButton.className = 'btn btn-warning btn-compact';
     console.log('Vista limpia activada');
   } else {
     // Restaurar vista normal
     restoreNormalView();
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Vista Limpia';
-    toggleButton.className = 'btn btn-secondary';
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Datos';
+    toggleButton.className = 'btn btn-secondary btn-compact';
     console.log('Vista normal restaurada');
   }
 }
