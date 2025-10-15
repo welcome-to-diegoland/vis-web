@@ -6230,7 +6230,7 @@ html, body {
 
 .stats-table .total-row {
   background-color: #e9ecef !important;
-  border-top: 2px solid #495057;
+  border-top: 1px solid #495057;
 }
 
 .stats-table .total-row td {
@@ -6238,6 +6238,10 @@ html, body {
   color: #495057 !important;
   font-weight: normal !important;
   font-size: 12px !important;
+}
+
+.stats-table .total-row td:first-child {
+  text-align: left !important;
 }
 
 .stats-table .total-row:hover {

@@ -5865,6 +5865,9 @@ function clearInventoryFilters() {
   document.getElementById('filterStatus').value = '';
   document.getElementById('filterTipo').value = '';
   
+  // Limpiar selecciones de las tablas de stats
+  clearStatsTableSelections();
+  
   // Aplicar filtros vacíos (mostrar todo)
   applyInventoryFilters();
 }
@@ -6745,6 +6748,9 @@ function updateInventoryTableDirectly(filteredData) {
 }
 
 window.clearInventoryFilter = function() {
+  // Limpiar selecciones de las tablas de stats
+  clearStatsTableSelections();
+  
   // Restaurar la vista original del inventario regenerando la tabla completa
   // Buscar la tabla de inventario
   const inventoryTable = document.querySelector('.image-inventory-table tbody');
