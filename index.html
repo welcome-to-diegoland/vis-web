@@ -19,14 +19,18 @@
           <i class="fa-solid fa-user user-icon me-1"></i>
           <select id="userSelect" class="form-select user-select">
             <option value="usuario">Usuario</option>
-            <option value="sandra">Sandra (Analistas)</option>
-            <option value="veronica">Verónica (Diseño)</option>
-            <option value="rossana">Rossana (Diseño)</option>
-            <option value="carla">Carla (Diseño)</option>
-            <option value="gabriela">Gabriela (Diseño)</option>
-            <option value="thanya">Thanya (Diseño)</option>
-            <option value="grecia">Grecia (Diseño)</option>
-            <option value="cinthya">Cinthya (Diseño)</option>
+            <option value="Sandra">Sandra (Analistas)</option>
+            <option value="Victor">Victor (Analistas)</option>
+            <option value="Ximena">Ximena (Analistas)</option>
+            <option value="Carlos">Carlos (Analistas)</option>
+            <option value="Kalem">Kalem (Analistas)</option>
+            <option value="Veronica">Verónica (Diseño)</option>
+            <option value="Rossana">Rossana (Diseño)</option>
+            <option value="Carla">Carla (Diseño)</option>
+            <option value="Gabriela">Gabriela (Diseño)</option>
+            <option value="Thanya">Thanya (Diseño)</option>
+            <option value="Grecia">Grecia (Diseño)</option>
+            <option value="Cinthya">Cinthya (Diseño)</option>
           </select>
         </div>
         
@@ -143,17 +147,14 @@
             <!-- Se llena dinámicamente -->
           </div>
         </div>
-        
-        <div class="assignment-actions">
-          <button class="btn btn-primary" onclick="distributeEqually()">
-            <i class="fas fa-balance-scale"></i> Distribuir Equitativamente
-          </button>
-          <button class="btn btn-warning" onclick="distributeRemaining()">
-            <i class="fas fa-plus-circle"></i> Asignar Restantes
-          </button>
-        </div>
       </div>
       <div class="modal-footer">
+        <button class="btn btn-primary" onclick="distributeEqually()">
+          <i class="fas fa-balance-scale"></i> Repartir
+        </button>
+        <button class="btn btn-warning" onclick="distributeRemaining()">
+          <i class="fas fa-plus-circle"></i> Restantes
+        </button>
         <button class="btn btn-secondary" onclick="closeAssignDesignerModal()">
           <i class="fas fa-times"></i> Cancelar
         </button>

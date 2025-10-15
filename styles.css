@@ -2012,6 +2012,8 @@ html, body {
 #tree, .category-tree-list, #box3-content {
   max-height: 100%;
   overflow-y: auto;
+  font-family: inherit;
+  font-size: 11px;
 }
 
 
@@ -5873,7 +5875,26 @@ html, body {
 .inventory-actions {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 8px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+/* Botones de acción del inventario */
+.btn-inventory-action {
+  font-size: 0.85rem !important;
+  padding: 6px 12px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  white-space: nowrap !important;
+}
+
+.inventory-stats {
+  margin-left: auto;
+  font-size: 0.9rem;
+  color: #495057;
 }
 
 /* ===== MODAL DE ASIGNACIÓN DE DISEÑADORAS ===== */
@@ -5990,8 +6011,8 @@ html, body {
   background: white;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 10px;
+  padding: 10px 15px;
+  margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -6006,7 +6027,7 @@ html, body {
 .designer-info {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 }
 
 .designer-name {
@@ -6021,12 +6042,13 @@ html, body {
 }
 
 .exclude-checkbox {
-  margin-right: 10px;
+  margin-right: 5px;
+  font-size: 14px;
 }
 
 .assignment-input {
-  width: 80px;
-  padding: 5px 8px;
+  width: 70px;
+  padding: 4px 6px;
   border: 1px solid #ced4da;
   border-radius: 4px;
   text-align: center;
@@ -6039,20 +6061,14 @@ html, body {
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 
-.assignment-actions {
-  margin-top: 25px;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-
 .assignment-modal .modal-footer {
   background: #f8f9fa;
-  padding: 20px;
+  padding: 15px 20px;
   border-top: 1px solid #dee2e6;
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .assignment-modal .btn {
@@ -6099,4 +6115,131 @@ html, body {
 
 .assignment-modal .btn-success:hover {
   background: #218838;
+}
+
+/* ===== TABLAS DE ESTADÍSTICAS ===== */
+
+.stats-table-container {
+  padding: 15px;
+  height: 100%;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+.stats-table-container h4 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 16px !important;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Regla específica para h4 en box1 y box3 para stats tables */
+#tree .stats-table-container h4,
+#box3-content .stats-table-container h4 {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #495057 !important;
+  text-align: center !important;
+  margin: 0 0 15px 0 !important;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px !important;
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stats-table thead {
+  background: #f8f9fa;
+}
+
+.stats-table th {
+  padding: 8px 6px;
+  text-align: center;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  border-right: 1px solid #dee2e6;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+
+.stats-table th:last-child {
+  border-right: none;
+}
+
+.stats-table td {
+  padding: 6px;
+  text-align: center;
+  border-bottom: 1px solid #dee2e6;
+  border-right: 1px solid #dee2e6;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+
+.stats-table td:last-child {
+  border-right: none;
+}
+
+.stats-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+/* Reglas más específicas para sobrescribir otros estilos */
+#tree .stats-table th,
+#tree .stats-table td,
+#box3-content .stats-table th,
+#box3-content .stats-table td {
+  font-size: 12px !important;
+  padding: 6px !important;
+}
+
+.clickable-name {
+  cursor: pointer;
+  color: #007bff;
+  font-weight: 600;
+  text-align: left !important;
+  padding-left: 8px !important;
+  font-size: 12px !important;
+}
+
+.clickable-name:hover {
+  color: #0056b3;
+  text-decoration: underline;
+}
+
+.clickable-stat {
+  cursor: pointer;
+  color: #28a745;
+  font-weight: 500;
+  font-size: 12px !important;
+}
+
+.clickable-stat:hover {
+  background: #e7f3ff;
+  color: #0056b3;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+  font-style: italic;
+  font-size: 14px !important;
+}
+
+/* Estilos para el botón de limpiar filtro */
+.inventory-stats .btn-sm {
+  font-size: 11px !important;
+  padding: 2px 8px;
+  margin-left: 10px;
+}
+
+.inventory-stats .btn-sm:hover {
+  transform: scale(1.05);
 }
