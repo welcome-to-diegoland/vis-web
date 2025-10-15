@@ -5425,11 +5425,11 @@ html, body {
 }
 
 .inventory-header-cell {
-  padding: 12px 8px;
+  padding: 6px 6px;
   text-align: left;
   font-weight: 600;
   border-right: 1px solid #495057;
-  white-space: nowrap;
+  text-align: center;
 }
 
 .inventory-header-cell:last-child {
@@ -5455,6 +5455,7 @@ html, body {
   border-right: 1px solid #e9ecef;
   vertical-align: top;
   line-height: 1.4;
+  
 }
 
 .inventory-cell:last-child {
@@ -5482,7 +5483,7 @@ html, body {
 }
 
 .inventory-item-group { /* Item Group (columna 4) */
-  min-width: 200px;
+  min-width: 100px;
   max-width: 250px;
   font-weight: 500;
   color: #495057;
@@ -5532,7 +5533,8 @@ html, body {
 }
 
 .inventory-cell:nth-child(9) { /* WA Importancia */
-  min-width: 80px;
+  min-width: 40px;
+  max-width: 40px !important;
   text-align: center;
 }
 

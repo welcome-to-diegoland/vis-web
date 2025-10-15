@@ -5288,24 +5288,24 @@ function generateImageInventoryTable() {
           <thead>
             <tr class="inventory-header-row">
               <th class="inventory-header-cell">#</th>
-              <th class="inventory-header-cell">Name</th>
+              <th class="inventory-header-cell">Nombre</th>
               <th class="inventory-header-cell">Id</th>
-              <th class="inventory-header-cell">Item Group ID</th>
+              <th class="inventory-header-cell">Item Group</th>
               <th class="inventory-header-cell">Object Type</th>
               <th class="inventory-header-cell">CMS</th>
               <th class="inventory-header-cell">Marca</th>
               <th class="inventory-header-cell">Título</th>
-              <th class="inventory-header-cell">WA Importancia</th>
+              <th class="inventory-header-cell">Imp</th>
               <th class="inventory-header-cell">Campo</th>
-              <th class="inventory-header-cell">Nombre de Imagen</th>
+              <th class="inventory-header-cell">Imagen</th>
               <th class="inventory-header-cell">Analista</th>
-              <th class="inventory-header-cell">Primera Fecha Analista</th>
+              <th class="inventory-header-cell">Primera Fecha</th>
               <th class="inventory-header-cell">Último Comentario Analista</th>
               <th class="inventory-header-cell">Diseñador</th>
-              <th class="inventory-header-cell">Última Fecha Diseñador</th>
+              <th class="inventory-header-cell">Fecha Diseñador</th>
               <th class="inventory-header-cell">Último Comentario Diseñador</th>
-              <th class="inventory-header-cell">Último Tipo</th>
-              <th class="inventory-header-cell">Último Status</th>
+              <th class="inventory-header-cell">Tipo</th>
+              <th class="inventory-header-cell">Status</th>
             </tr>
           </thead>
           <tbody>
