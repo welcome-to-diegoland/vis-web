@@ -22,6 +22,20 @@ let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 let savedItemGroups = new Set(); // Set para trackear Item Groups guardados
 let isCleanViewActive = false; // Estado del toggle de vista limpia
 
+// Configuración para Google Apps Script
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNHLEg0zipYBpd7G7ZTCURdhFhQiB2-wQSiMiRMJDI89G_heWtEFv428aHmz1ghQlo/exec';
+
+// Lista de atributos WA válidos
+const WA_ATTRIBUTES = [
+  'WA_VIS_Comment', 'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
+  'WA_Gallery_01', 'WA_Gallery_02', 'WA_Gallery_03', 'WA_Gallery_04', 'WA_Gallery_05', 'WA_Gallery_06', 'WA_Gallery_07', 'WA_Gallery_08', 'WA_Gallery_09', 'WA_Gallery_10',
+  'WA_Gallery_11', 'WA_Gallery_12', 'WA_Gallery_13', 'WA_Gallery_14', 'WA_Gallery_15', 'WA_Gallery_16', 'WA_Gallery_17', 'WA_Gallery_18', 'WA_Gallery_19', 'WA_Gallery_20',
+  'WA_Gallery_21', 'WA_Gallery_22', 'WA_Gallery_23', 'WA_Gallery_24', 'WA_Gallery_25',
+  'WA_Rest_01', 'WA_Rest_02', 'WA_Rest_03', 'WA_Rest_04', 'WA_Rest_05', 'WA_Rest_06', 'WA_Rest_07', 'WA_Rest_08', 'WA_Rest_09', 'WA_Rest_10',
+  'WA_Rest_11', 'WA_Rest_12', 'WA_Rest_13', 'WA_Rest_14', 'WA_Rest_15', 'WA_Rest_16', 'WA_Rest_17', 'WA_Rest_18', 'WA_Rest_19', 'WA_Rest_20',
+  'WA_Rest_21', 'WA_Rest_22', 'WA_Rest_23', 'WA_Rest_24', 'WA_Rest_25'
+];
+
 // Función para marcar automáticamente un Item Group como modificado
 function markItemGroupAsModified(itemGroupId = null, itemGroupName = null) {
   const groupId = itemGroupId || (currentItemGroup ? currentItemGroup['Id'] : null);
@@ -320,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const exportBtn = document.getElementById('exportBtn');
   
   if (saveChangesBtn) {
-    saveChangesBtn.addEventListener('click', saveToLocalStorage);
+    saveChangesBtn.addEventListener('click', saveToGoogleSheets);
   }
   
   // Event listener para botón de limpiar Item Groups guardados
@@ -1218,10 +1232,18 @@ function loadImageGridInBox4(itemGroupPath) {
 
   // IMPORTANTE: Guardar el Item Group actual globalmente para otras funciones
   currentItemGroup = itemGroup;
+  
+  console.log(`🎯 ITEM GROUP SELECCIONADO: ${itemGroup ? itemGroup['Name'] : 'null'}`);
+  console.log(`📝 Item Group ID: ${itemGroup ? itemGroup['Id'] : 'null'}`);
 
   // Buscar todos los Item Codes que pertenecen a este Item Group
   const itemCodes = currentWorkingData.filter(item => {
     return item['Object Type'] === 'Item Code' && item.NamePath.startsWith(itemGroupPath + '/');
+  });
+  
+  console.log(`📦 ITEM CODES ENCONTRADOS: ${itemCodes.length} items`);
+  itemCodes.forEach(code => {
+    console.log(`   - ${code['Id']} (${code['Name']})`);
   });
 
   if (itemCodes.length === 0) {
@@ -1239,6 +1261,9 @@ function loadImageGridInBox4(itemGroupPath) {
   // Guardar datos actuales para regeneración
   currentItemCodes = [...itemCodes];
   currentImageColumns = [...imageColumns];
+  
+  console.log(`🔧 CONFIGURANDO GRID CON ${itemCodes.length} ITEM CODES`);
+  console.log(`📊 Columnas de imagen disponibles: ${imageColumns.length}`);
 
   // Crear la retícula
   const gridHtml = createImageGrid(itemCodes, imageColumns, itemGroup);
@@ -1821,20 +1846,49 @@ function setupImageSystemEventListeners() {
       event.preventDefault();
       event.stopPropagation();
       
+      console.log('🎯 Alt+Cmd+Click detectado');
+      
       // Determinar qué tipo de elemento se clickeó
       const imageCell = event.target.closest('.image-cell');
       const itemCodeCell = event.target.closest('.item-code-cell');
       const itemGroupImage = event.target.closest('.item-group-image');
+      const itemGroupContainer = event.target.closest('.item-group-container');
+      const itemGroupHeader = event.target.closest('.item-group-header');
       const imageThumbnail = event.target.closest('.image-thumbnail');
       const emptyImageCell = event.target.closest('.empty-image-cell');
       
-      if (imageThumbnail && imageCell) {
+      console.log('🔍 Elementos detectados:', {
+        imageCell: !!imageCell,
+        itemCodeCell: !!itemCodeCell, 
+        itemGroupImage: !!itemGroupImage,
+        itemGroupContainer: !!itemGroupContainer,
+        itemGroupHeader: !!itemGroupHeader,
+        imageThumbnail: !!imageThumbnail,
+        emptyImageCell: !!emptyImageCell
+      });
+      
+      // PRIORIZAR Item Group antes que image cells
+      if (itemGroupImage || itemGroupContainer || itemGroupHeader) {
+        // Click en imagen/espacio del item group
+        console.log('💬 Abriendo comentario de Item Group');
+        if (currentItemGroup) {
+          const commentText = currentItemGroup['WA_VIS_Comment'] || '';
+          const itemGroupId = currentItemGroup['ID'] || currentItemGroup['Item Group ID'] || currentItemGroup['Id'] || '';
+          const itemGroupName = currentItemGroup['Name'] || 'Item Group';
+          const contextInfo = `${itemGroupName} (${itemGroupId})`;
+          openCommentModal('Comentario del Item Group', contextInfo, commentText, 'group', null);
+        } else {
+          console.log('❌ No hay currentItemGroup disponible');
+        }
+      } else if (imageThumbnail && imageCell) {
         // Click en imagen del grid
+        console.log('💬 Abriendo comentario de imagen del grid');
         const imageName = imageThumbnail.alt;
         const commentText = getImageComments(imageName);
         openCommentModal('Comentario de la Imagen', imageName, commentText || '', 'image', imageName);
       } else if ((emptyImageCell || imageCell) && !imageThumbnail) {
         // Click en espacio vacío en celda de imagen - buscar item code desde la celda
+        console.log('💬 Abriendo comentario de item code desde celda vacía');
         const cell = imageCell || emptyImageCell.closest('.image-cell');
         if (cell) {
           const itemCode = cell.getAttribute('data-item-code');
@@ -1849,6 +1903,7 @@ function setupImageSystemEventListeners() {
         }
       } else if (itemCodeCell) {
         // Click en celda de item code
+        console.log('💬 Abriendo comentario de item code');
         const itemCode = itemCodeCell.getAttribute('data-item-code');
         const itemCodeData = currentWorkingData.find(item => 
           item['Object Type'] === 'Item Code' && item.Name === itemCode
@@ -1856,13 +1911,10 @@ function setupImageSystemEventListeners() {
         const commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
         const fullContext = generateItemCodeContext(itemCode);
         openCommentModal('Comentario del Item Code', fullContext, commentText, 'item', null);
-      } else if (itemGroupImage && currentItemGroup) {
-        // Click en imagen/espacio del item group
-        const commentText = currentItemGroup['WA_VIS_Comment'] || '';
-        const itemGroupId = currentItemGroup['ID'] || currentItemGroup['Item Group ID'] || '';
-        const itemGroupName = currentItemGroup['Name'] || 'Item Group';
-        const contextInfo = `${itemGroupName} (${itemGroupId})`;
-        openCommentModal('Comentario del Item Group', contextInfo, commentText);
+      } else {
+        console.log('❌ No se detectó ningún elemento válido para comentario');
+        console.log('Target:', event.target);
+        console.log('Target classes:', event.target.className);
       }
       
       return false;
@@ -3064,6 +3116,12 @@ function handleItemGroupImageClick(event) {
     return; // Dejar que el botón de basura maneje su propio click
   }
   
+  // NO interceptar Alt+Cmd+Click - dejar que lo maneje el event listener de comentarios
+  if (event.metaKey && event.altKey && !event.shiftKey) {
+    console.log('🎯 Alt+Cmd+Click en Item Group - delegando al handler de comentarios');
+    return; // No interceptar, dejar que pase al handler de comentarios
+  }
+  
   event.preventDefault();
   event.stopPropagation();
   
@@ -4258,19 +4316,14 @@ function setupScrollSynchronization() {
   const masterScrollContainer = document.getElementById('masterScrollContainer');
   
   if (!masterScrollContainer) {
-    console.log('No se encontró el contenedor master de scroll');
     return;
   }
 
-  console.log('Configurando scroll master unificado con sincronización horizontal');
-  
   // El scroll vertical ya es naturalmente sincronizado porque todas las secciones
   // están en el mismo contenedor
   
   // Ahora configuramos la sincronización horizontal por sección
   setupHorizontalScrollSynchronization();
-  
-  console.log('Scroll master configurado exitosamente - estructura unificada');
 }
 
 // ===== FUNCIÓN DE LIMPIEZA INTELIGENTE GAL =====
@@ -4366,7 +4419,6 @@ function compactGalleryRow(rowIndex) {
   });
 }
 
-// Función para sincronizar scroll horizontal por sección
 function setupHorizontalScrollSynchronization() {
   // NUEVA SINCRONIZACIÓN: headers scrollable-headers con contenido horizontal-scrollable
   const sections = ['cov', 'gallery', 'rest'];
@@ -4376,8 +4428,6 @@ function setupHorizontalScrollSynchronization() {
     const headerContainer = document.querySelector(`.scrollable-headers[data-section="${sectionName}"]`);
     
     if (contentContainer && headerContainer) {
-      console.log(`Configurando sincronización scroll para sección: ${sectionName}`);
-      
       // Cuando el contenido hace scroll horizontal, mover el header
       contentContainer.addEventListener('scroll', () => {
         headerContainer.scrollLeft = contentContainer.scrollLeft;
@@ -4387,10 +4437,6 @@ function setupHorizontalScrollSynchronization() {
       headerContainer.addEventListener('scroll', () => {
         contentContainer.scrollLeft = headerContainer.scrollLeft;
       });
-      
-      console.log(`Scroll horizontal sincronizado para sección: ${sectionName}`);
-    } else {
-      console.log(`No se encontraron contenedores para sección: ${sectionName}`);
     }
   });
 }
@@ -6791,4 +6837,540 @@ function updateStatsTablesOnDataChange() {
   setTimeout(() => {
     setupStatsTableListeners();
   }, 100);
+}
+
+// ===== FUNCIONES PARA GUARDAR EN GOOGLE SHEETS =====
+
+// Función de prueba simple
+async function testConnection() {
+  try {
+    const testData = {
+      user: 'Sandra',
+      records: [{
+        id: 'TEST001',
+        objectType: 'Test',
+        attribute: 'WA_Test',
+        value: 'test-value',
+        date: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        user: 'Sandra'
+      }]
+    };
+    
+    const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(testData)
+    });
+    
+    alert('✅ Petición enviada! Revisa tu Google Sheet para confirmar que llegaron los datos.');
+    
+  } catch (error) {
+    if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+      try {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = GOOGLE_APPS_SCRIPT_URL;
+        form.target = '_blank';
+        form.style.display = 'none';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'data';
+        input.value = JSON.stringify(testData);
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+        
+        alert('✅ Datos enviados usando método alternativo. Revisa la nueva pestaña y tu Google Sheet.');
+        
+      } catch (formError) {
+        alert(`❌ Error: ${error.message}\n\nPuedes probar abriendo la URL manualmente en el navegador.`);
+      }
+    } else {
+      alert(`❌ Error: ${error.message}`);
+    }
+  }
+}
+
+async function saveToGoogleSheets() {
+  try {
+    // Verificar que tengamos la URL del Apps Script
+    if (GOOGLE_APPS_SCRIPT_URL === 'TU_URL_DE_APPS_SCRIPT_AQUI') {
+      alert('Error: URL de Google Apps Script no configurada. Contacta al administrador.');
+      return;
+    }
+    
+    // Obtener usuario actual
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      alert('Error: No hay usuario seleccionado');
+      return;
+    }
+    
+    // Recopilar datos visibles
+    const visibleData = collectVisibleData();
+    
+    if (visibleData.length === 0) {
+      alert('No hay datos para guardar');
+      return;
+    }
+    
+    // Mostrar progreso
+    const saveBtn = document.getElementById('saveChangesBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+    saveBtn.disabled = true;
+    
+    // Dividir en lotes de 100 registros
+    const batchSize = 100;
+    const batches = [];
+    for (let i = 0; i < visibleData.length; i += batchSize) {
+      batches.push(visibleData.slice(i, i + batchSize));
+    }
+    
+    let totalSaved = 0;
+    
+    // Enviar cada lote
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      
+      saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Guardando lote ${i + 1}/${batches.length}...`;
+      
+      try {
+        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user: currentUser,
+            records: batch
+          })
+        });
+        
+        totalSaved += batch.length;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (error) {
+        if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+          console.log(`� Intentando método alternativo para lote ${i + 1}...`);
+          
+          // Crear formulario para este lote
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = GOOGLE_APPS_SCRIPT_URL;
+          form.target = '_blank';
+          form.style.display = 'none';
+          
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'postData';
+          input.value = JSON.stringify({
+            user: currentUser,
+            records: batch
+          });
+          
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+          document.body.removeChild(form);
+          
+          totalSaved += batch.length;
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          throw new Error(`Error en lote ${i + 1}: ${error.message}`);
+        }
+      }
+    }
+    
+    alert(`✅ ¡Todos los datos guardados exitosamente!\n${totalSaved} registros guardados en ${batches.length} lotes`);
+    
+  } catch (error) {
+    alert(`❌ Error al guardar: ${error.message}`);
+  } finally {
+    // Restaurar botón
+    const saveBtn = document.getElementById('saveChangesBtn');
+    saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar cambios';
+    saveBtn.disabled = false;
+  }
+}
+
+function getCurrentUser() {
+  const userSelect = document.getElementById('userSelect');
+  const selectedValue = userSelect?.value;
+  
+  // Mapeo de valores del select a nombres de usuario
+  const userMap = {
+    'Sandra': 'Sandra',
+    'Victor': 'Victor',
+    'Ximena': 'Ximena',
+    'Carlos': 'Carlos',
+    'Kalem': 'Kalem',
+    'Veronica': 'Veronica',
+    'Rossana': 'Rossana',
+    'Carla': 'Carla',
+    'Gabriela': 'Gabriela',
+    'Thanya': 'Thanya',
+    'Grecia': 'Grecia',
+    'Cinthya': 'Cinthya'
+  };
+  
+  return userMap[selectedValue] || null;
+}
+
+function collectVisibleData() {
+  const records = [];
+  const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const currentUser = getCurrentUser();
+  
+  console.log('=== INICIANDO RECOPILACIÓN DE DATOS VISIBLES ===');
+  
+  // PASO 1: Recopilar datos del Item Group actual
+  if (currentItemGroup) {
+    const itemGroupId = currentItemGroup['Id'];
+    const itemGroupName = currentItemGroup['Name'];
+    
+    console.log(`\n🏷️ Procesando Item Group: ${itemGroupName} (ID: ${itemGroupId})`);
+    
+    let groupRecordCount = 0;
+    
+    // Recopilar campos WA del Item Group
+    WA_ATTRIBUTES.forEach(attribute => {
+      if (currentItemGroup[attribute] !== undefined && currentItemGroup[attribute] !== null) {
+        const value = currentItemGroup[attribute].toString().trim();
+        if (value && 
+            value !== '' && 
+            value !== '-' && 
+            !value.includes('logo_img_blank') &&
+            !value.includes('prod_img_blank')) {
+          
+          groupRecordCount++;
+          
+          if (attribute.includes('Comment')) {
+            console.log(`💬 Item Group Comentario: ${attribute} = "${value}"`);
+          } else {
+            console.log(`🖼️ Item Group Imagen: ${attribute} = "${value}"`);
+          }
+          
+          records.push({
+            id: itemGroupId,
+            objectType: 'Item Group',
+            attribute: attribute,
+            value: value,
+            date: currentDate,
+            user: currentUser
+          });
+        }
+      }
+    });
+    
+    console.log(`✅ Item Group ${itemGroupName}: ${groupRecordCount} registros recopilados`);
+  }
+  
+  // PASO 2: Recopilar datos de Item Codes visibles
+  if (!currentItemCodes || currentItemCodes.length === 0) {
+    console.log('❌ No hay currentItemCodes disponibles');
+    return records;
+  }
+  
+  console.log(`\n🔍 Item Codes a procesar: ${currentItemCodes.length}`);
+  
+  // Procesar cada Item Code visible
+  currentItemCodes.forEach(itemData => {
+    const itemId = itemData['Id'];
+    const itemCodeName = itemData['Name']; // Ej: "61-251-105"
+    const objectType = itemData['Object Type'] || 'Unknown';
+    
+    console.log(`\n📋 Procesando Item Code: ${itemCodeName} (ID: ${itemId})`);
+    
+    if (itemId) {
+      let itemRecordCount = 0;
+      
+      // Recopilar TODOS los campos WA que tengan cualquier valor
+      WA_ATTRIBUTES.forEach(attribute => {
+        if (itemData[attribute] !== undefined && itemData[attribute] !== null) {
+          const value = itemData[attribute].toString().trim();
+          if (value && 
+              value !== '' && 
+              value !== '-' && 
+              !value.includes('logo_img_blank') &&
+              !value.includes('prod_img_blank')) {
+            
+            itemRecordCount++;
+            
+            if (attribute.includes('Comment')) {
+              console.log(`💬 Item Code Comentario: ${attribute} = "${value}"`);
+            } else {
+              console.log(`🖼️ Item Code Imagen: ${attribute} = "${value}"`);
+            }
+            
+            records.push({
+              id: itemId,
+              objectType: objectType,
+              attribute: attribute,
+              value: value,
+              date: currentDate,
+              user: currentUser
+            });
+          }
+        }
+      });
+      
+      console.log(`✅ ${itemCodeName}: ${itemRecordCount} registros recopilados`);
+    }
+  });
+  
+  // PASO 3: Recopilar comentarios de imágenes desde currentAssetComments
+  if (currentAssetComments && currentAssetComments.length > 0) {
+    console.log(`\n💬 Procesando comentarios de imágenes: ${currentAssetComments.length} assets con comentarios`);
+    
+    let commentRecordCount = 0;
+    let assetsWithComments = 0;
+    
+    // Primero, buscar assets que tengan la imagen específica que sabemos que tiene comentarios
+    const targetImage = '61-251-105.jpg';
+    const targetAsset = currentAssetComments.find(asset => asset.Name === targetImage);
+    
+    if (targetAsset) {
+      console.log(`🎯 Asset objetivo encontrado (${targetImage}):`, targetAsset);
+      console.log(`   ID del asset: ${targetAsset.ID}`);
+      console.log(`   Tiene comentarios?:`, !!targetAsset.comentarios);
+      console.log(`   Tipo de comentarios:`, typeof targetAsset.comentarios);
+      console.log(`   Comentarios:`, targetAsset.comentarios);
+      
+      // Buscar comentarios usando el ID del asset
+      const assetId = targetAsset.ID.toString();
+      console.log(`🔍 Buscando comentarios para asset ID: ${assetId}`);
+      
+      // Buscar en currentAssetComments por ID
+      const assetWithComments = currentAssetComments.find(asset => asset.ID.toString() === assetId);
+      if (assetWithComments && assetWithComments.comentarios) {
+        console.log(`✅ Encontrado asset con comentarios por ID:`, assetWithComments.comentarios);
+      }
+    } else {
+      console.log(`❌ No se encontró asset para ${targetImage}`);
+      // Mostrar algunos nombres de assets para debug
+      console.log(`🔍 Primeros 10 assets:`, currentAssetComments.slice(0, 10).map(a => a.Name));
+    }
+    
+    // Buscar específicamente imágenes visibles en el grid actual
+    const visibleImageNames = [];
+    
+    // Agregar imágenes del Item Group
+    if (currentItemGroup) {
+      WA_ATTRIBUTES.forEach(attr => {
+        if (currentItemGroup[attr] && 
+            !currentItemGroup[attr].includes('logo_img_blank') &&
+            !currentItemGroup[attr].includes('¦') && // No incluir comentarios
+            currentItemGroup[attr].includes('.')) { // Solo archivos con extensión
+          visibleImageNames.push(currentItemGroup[attr]);
+        }
+      });
+    }
+    
+    // Agregar imágenes de Item Codes visibles
+    if (currentItemCodes) {
+      currentItemCodes.forEach(itemCode => {
+        WA_ATTRIBUTES.forEach(attr => {
+          if (itemCode[attr] && 
+              !itemCode[attr].includes('logo_img_blank') &&
+              !itemCode[attr].includes('¦') && // No incluir comentarios
+              itemCode[attr].includes('.')) { // Solo archivos con extensión
+            visibleImageNames.push(itemCode[attr]);
+          }
+        });
+      });
+    }
+    
+    console.log(`🔍 Imágenes visibles a buscar comentarios:`, [...new Set(visibleImageNames)]); // Eliminar duplicados
+    
+    // Eliminar duplicados de la lista de imágenes
+    const uniqueImageNames = [...new Set(visibleImageNames)];
+    
+    // Buscar comentarios solo para imágenes visibles
+    uniqueImageNames.forEach(imageName => {
+      // Filtrar solo nombres de imágenes válidos (no comentarios que se filtraron por error)
+      if (!imageName.includes('¦') && imageName.includes('.')) {
+        // Buscar el asset por nombre
+        const asset = currentAssetComments.find(a => a.Name === imageName);
+        
+        if (asset) {
+          console.log(`📸 Procesando imagen visible: ${imageName} (ID: ${asset.ID})`);
+          
+          // Los comentarios están en WA_VIS_Comment como string, no en asset.comentarios como array
+          if (asset.WA_VIS_Comment && asset.WA_VIS_Comment.trim() !== '') {
+            assetsWithComments++;
+            console.log(`💬 Asset con comentarios: ${imageName} - Comentario: "${asset.WA_VIS_Comment}"`);
+            
+            commentRecordCount++;
+            
+            console.log(`   ✅ Comentario válido: "${asset.WA_VIS_Comment}"`);
+            
+            // Crear un registro con el formato correcto
+            records.push({
+              id: asset.ID, // Usar el ID del asset, no el nombre
+              objectType: asset.ObjectTypeName || 'Image', // Usar el tipo real del asset
+              attribute: 'WA_VIS_Comment', // Usar el atributo correcto
+              value: asset.WA_VIS_Comment, // Usar el valor original sin reformatear
+              date: currentDate,
+              user: currentUser
+            });
+          } else {
+            console.log(`   ❌ Asset ${imageName} no tiene comentarios válidos`);
+          }
+        } else {
+          console.log(`   ❌ No se encontró asset para imagen: ${imageName}`);
+        }
+      } else {
+        console.log(`   ⚠️ Ignorando elemento que no es imagen: ${imageName}`);
+      }
+    });
+    
+    console.log(`✅ Comentarios de imágenes: ${commentRecordCount} registros recopilados de ${assetsWithComments} assets`);
+  } else {
+    console.log(`💬 No hay currentAssetComments disponibles o está vacío`);
+    console.log(`   currentAssetComments:`, currentAssetComments ? `array con ${currentAssetComments.length} items` : 'null/undefined');
+  }
+  
+  console.log(`\n📊 RESUMEN FINAL: ${records.length} registros totales para guardar`);
+  console.log('=== FIN RECOPILACIÓN ===\n');
+  
+  return records;
+}
+
+function collectImageAssignments(gridItem, itemId, objectType, currentDate, currentUser, records) {
+  // Buscar todas las imágenes asignadas en el grid item
+  const imageSlots = gridItem.querySelectorAll('.image-slot, .gallery-slot, .cover-slot, .rest-slot, img[src]');
+  
+  imageSlots.forEach(slot => {
+    let img = slot;
+    let slotAttribute = '';
+    
+    // Si el slot contiene una imagen, obtenerla
+    if (slot.tagName !== 'IMG') {
+      img = slot.querySelector('img');
+      slotAttribute = slot.dataset.attribute || slot.dataset.slot || slot.className;
+    }
+    
+    if (img && img.src && !img.src.includes('placeholder') && !img.src.includes('blank') && !img.src.includes('logo_img_blank')) {
+      // Intentar obtener el atributo del slot o del elemento padre
+      if (!slotAttribute) {
+        slotAttribute = img.dataset.attribute || img.dataset.slot;
+        if (!slotAttribute) {
+          // Buscar en elementos padre
+          let parent = img.parentElement;
+          while (parent && !slotAttribute && parent !== gridItem) {
+            slotAttribute = parent.dataset.attribute || parent.dataset.slot;
+            parent = parent.parentElement;
+          }
+        }
+      }
+      
+      // Si encontramos un atributo WA válido
+      if (slotAttribute && WA_ATTRIBUTES.includes(slotAttribute)) {
+        const imageName = extractImageName(img.src);
+        
+        records.push({
+          id: itemId,
+          objectType: objectType,
+          attribute: slotAttribute,
+          value: imageName,
+          date: currentDate,
+          user: currentUser
+        });
+      }
+    }
+  });
+}
+
+function collectVisibleCommentsAndImages(gridItem, itemData, itemId, objectType, currentDate, currentUser, records) {
+  // Solo recopilar datos de campos que tengan valores y no sean placeholders
+  WA_ATTRIBUTES.forEach(attribute => {
+    if (itemData[attribute]) {
+      const value = itemData[attribute].toString().trim();
+      if (value && value !== '' && value !== '-' && !value.includes('logo_img_blank')) {
+        records.push({
+          id: itemId,
+          objectType: objectType,
+          attribute: attribute,
+          value: value,
+          date: currentDate,
+          user: currentUser
+        });
+      }
+    }
+  });
+}
+
+function collectCommentsAndImages(itemData, itemId, objectType, currentDate, currentUser, records) {
+  // Esta función mantiene compatibilidad pero sin logs
+  WA_ATTRIBUTES.forEach(attribute => {
+    if (itemData[attribute]) {
+      const value = itemData[attribute].toString().trim();
+      if (value && value !== '' && value !== '-' && !value.includes('logo_img_blank')) {
+        records.push({
+          id: itemId,
+          objectType: objectType,
+          attribute: attribute,
+          value: value,
+          date: currentDate,
+          user: currentUser
+        });
+      }
+    }
+  });
+}
+
+function collectComments(itemData, itemId, objectType, currentDate, currentUser, records) {
+  // Buscar campos de comentarios en los datos del item
+  WA_ATTRIBUTES.forEach(attribute => {
+    if (attribute.includes('Comment') && itemData[attribute]) {
+      const commentValue = itemData[attribute].toString().trim();
+      if (commentValue && commentValue !== '' && commentValue !== '-') {
+        records.push({
+          id: itemId,
+          objectType: objectType,
+          attribute: attribute,
+          value: commentValue,
+          date: currentDate,
+          user: currentUser
+        });
+      }
+    }
+  });
+  
+  // También buscar imágenes asignadas en los datos actuales
+  WA_ATTRIBUTES.forEach(attribute => {
+    if (!attribute.includes('Comment') && itemData[attribute]) {
+      const imageValue = itemData[attribute].toString().trim();
+      if (imageValue && imageValue !== '' && imageValue !== '-' && !imageValue.includes('logo_img_blank')) {
+        records.push({
+          id: itemId,
+          objectType: objectType,
+          attribute: attribute,
+          value: imageValue,
+          date: currentDate,
+          user: currentUser
+        });
+      }
+    }
+  });
+}
+
+function extractImageName(imageSrc) {
+  // Extraer solo el nombre del archivo de la URL
+  try {
+    const url = new URL(imageSrc);
+    const pathname = url.pathname;
+    return pathname.split('/').pop() || imageSrc;
+  } catch (error) {
+    // Si no es una URL válida, usar el src completo
+    return imageSrc.split('/').pop() || imageSrc;
+  }
 }
