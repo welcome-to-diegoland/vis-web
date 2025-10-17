@@ -5479,7 +5479,11 @@ html, body {
 }
 
 .inventory-row:nth-child(even) {
-  background-color: #f8f9fa;
+  background-color: #f8f9fa; /* Gris claro */
+}
+
+.inventory-row:nth-child(odd) {
+  background-color: #ffffff; /* Blanco */
 }
 
 .inventory-row:hover {
@@ -5523,7 +5527,6 @@ html, body {
   max-width: 250px;
   font-weight: 500;
   color: #495057;
-  background-color: rgba(13, 202, 240, 0.1);
   font-size: 11px;
   
   /* Permitir wrap a múltiples líneas con máximo 4 líneas */
@@ -5576,17 +5579,13 @@ html, body {
 
 .inventory-field { /* Campo (columna 10) */
   min-width: 120px;
-  font-family: monospace;
   font-size: 11px;
-  background-color: rgba(0, 123, 255, 0.1);
   font-weight: 500;
 }
 
 .inventory-image { /* Nombre de Imagen (columna 11) */
   min-width: 150px;
-  font-family: monospace;
   font-size: 11px;
-  background-color: rgba(40, 167, 69, 0.1);
   font-weight: 500;
   word-break: break-all;
 }
@@ -5596,35 +5595,48 @@ html, body {
   text-align: center;
   color: #6c757d;
   font-style: italic;
-  background-color: rgba(108, 117, 125, 0.1);
 }
 
-.inventory-analyst { /* Analista (columna 12) */
-  min-width: 100px;
-  font-weight: 500;
-  background-color: rgba(13, 110, 253, 0.1);
-  color: #0d6efd;
+/* Columnas con colores específicos - Analista (naranja claro) */
+.inventory-cell:nth-child(12), /* Analista */
+.inventory-cell:nth-child(13), /* Primera Fecha Analista */
+.inventory-cell:nth-child(14) { /* Último Comentario Analista */
+  background-color: rgba(255, 165, 0, 0.15); /* Naranja claro */
 }
 
-.inventory-designer { /* Diseñador (columna 15) */
-  min-width: 100px;
-  font-weight: 500;
-  background-color: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
+/* Columnas con colores específicos - Diseñador (morado claro) */
+.inventory-cell:nth-child(15), /* Diseñador */
+.inventory-cell:nth-child(16), /* Fecha Diseñador */
+.inventory-cell:nth-child(17) { /* Último Comentario Diseñador */
+  background-color: rgba(147, 112, 219, 0.15); /* Morado claro */
 }
 
-.inventory-date { /* Fechas (columnas 13 y 16) */
-  min-width: 130px;
-  font-family: monospace;
-  font-size: 11px;
-  color: #6c757d;
+/* Columna Tipo (gris) */
+.inventory-cell:nth-child(18) { /* Tipo */
+  background-color: rgba(108, 117, 125, 0.1); /* Gris */
 }
 
-.inventory-comment-text { /* Comentarios (columnas 14 y 17) */
+/* Columna Status (gris blanco) */
+.inventory-cell:nth-child(19) { /* Status */
+  background-color: rgba(248, 249, 250, 0.8); /* Gris blanco */
+}
+
+/* Estilos específicos por columna - TEXTOS EN NEGRO Y BOLD */
+.inventory-cell:nth-child(12), /* Analista */
+.inventory-cell:nth-child(15), /* Diseñador */
+.inventory-cell:nth-child(18) { /* Tipo */
+  color: #000000; /* Negro */
+  font-weight: 600; /* Bold restaurado */
+}
+
+/* Comentarios clickeables - SIN recuadros internos, SIN padding */
+.inventory-cell:nth-child(14), /* Último Comentario Analista */
+.inventory-cell:nth-child(17) { /* Último Comentario Diseñador */
+  cursor: pointer;
+  transition: background-color 0.2s ease;
   min-width: 160px;
   max-width: 220px;
   font-size: 12px;
-  line-height: 1.3;
   
   /* Permitir wrap a múltiples líneas con máximo 4 líneas */
   white-space: normal;
@@ -5635,24 +5647,68 @@ html, body {
   -webkit-box-orient: vertical;
   word-wrap: break-word;
   word-break: break-word;
+  line-height: 1.3;
   
-  background-color: rgba(255, 193, 7, 0.05);
-  padding: 6px 8px;
+  /* QUITAR padding para eliminar recuadros internos */
+  padding: 0 !important;
 }
 
-.inventory-type { /* Tipo (columna 18) */
-  min-width: 120px;
-  font-weight: 500;
-  background-color: rgba(111, 66, 193, 0.1);
-  color: #6f42c1;
-  text-align: center;
+/* Hover para comentarios - toda la celda */
+.inventory-cell:nth-child(14):hover,
+.inventory-cell:nth-child(17):hover {
+  background-color: rgba(108, 117, 125, 0.1) !important; /* Hover gris suave */
 }
 
-.inventory-status { /* Status (columna 19) */
-  min-width: 100px;
+/* Botones de status estilo modal - rectangulares con esquinas redondeadas */
+.status-tag {
+  display: inline-block;
+  width: 90px; /* Ancho estándar para todos */
+  padding: 6px 12px;
+  border-radius: 6px; /* Esquinas redondeadas como modales */
+  font-size: 12px;
   font-weight: 600;
   text-align: center;
-  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: capitalize;
+  line-height: 1.2;
+  border: none;
+  
+  /* Centrado perfecto en la celda */
+  margin: 0 auto;
+  vertical-align: middle;
+}
+
+.status-tag.revision {
+  background-color: #ff6b35; /* Naranja como modales */
+  color: white;
+}
+
+.status-tag.diseno {
+  background-color: #8e44ad; /* Morado como modales */
+  color: white;
+}
+
+.status-tag.cancelado {
+  background-color: #6c757d; /* Gris como modales */
+  color: white;
+}
+
+.status-tag.completado {
+  background-color: #28a745; /* Verde como modales */
+  color: white;
+}
+
+.status-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Asegurar centrado en celda de status */
+.inventory-cell:nth-child(19) {
+  text-align: center;
+  vertical-align: middle;
+  padding: 8px;
 }
 
 /* Estilos específicos para diferentes status */
@@ -5702,18 +5758,6 @@ html, body {
   background-color: rgba(40, 167, 69, 0.1);
 }
 
-.inventory-comment { /* Comentario */
-  min-width: 250px;
-  max-width: 400px;
-  font-size: 12px;
-  background-color: rgba(255, 193, 7, 0.1);
-  color: #495057;
-  line-height: 1.4;
-  padding: 8px 12px;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-}
-
 .inventory-empty-state {
   display: flex;
   align-items: center;
@@ -5729,6 +5773,30 @@ html, body {
 .inventory-empty-state p {
   margin: 0;
   font-style: italic;
+}
+
+/* Clases de compatibilidad para código legacy - TEMPORAL */
+.inventory-comment-text {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  min-width: 160px;
+  max-width: 220px;
+  font-size: 12px;
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  word-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.3;
+  /* QUITAR padding para eliminar recuadros internos */
+  padding: 0 !important;
+}
+
+.inventory-comment-text:hover {
+  background-color: rgba(108, 117, 125, 0.1) !important;
 }
 
 /* Clase de utilidad para wrap de 4 líneas - aplicable a cualquier elemento */
