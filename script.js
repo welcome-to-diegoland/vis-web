@@ -22,18 +22,12 @@ let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 let savedItemGroups = new Set(); // Set para trackear Item Groups guardados
 let isCleanViewActive = false; // Estado del toggle de vista limpia
 
-// Estado de la vista de inventario para persistencia
+// Sistema de gestión de estado para scroll y filtros
 let inventoryViewState = {
   scrollPosition: 0,
   scrollPositionX: 0,
-  activeFilters: {
-    analista: '',
-    disenador: '',
-    status: '',
-    tipo: ''
-  },
-  lastView: 'visualizer', // 'data', 'visualizer'
-  sortOrder: 'date-asc'
+  activeFilters: {},
+  lastFilteredData: null
 };
 
 // Configuración para Google Apps Script
@@ -204,24 +198,23 @@ function generateImageContext(imageName) {
 
 // Función para navegar a un Item Group específico desde la tabla de inventario
 function navigateToItemGroup(itemGroupId) {
-  console.log('🎯 Navegando a Item Group:', itemGroupId);
+  console.log('Navegando a Item Group:', itemGroupId);
   
   if (!itemGroupId || !allLibraryData) {
     console.error('ID de Item Group no válido o datos no cargados');
     return;
   }
   
-  // 1. Guardar estado actual COMPLETO antes de cambiar vista
+  // 0. Guardar estado antes de navegar
   saveInventoryViewState();
-  console.log('📁 Estado guardado antes de navegar');
   
-  // 2. Cambiar a vista VISUALIZADOR si estamos en DATOS
+  // 1. Desactivar vista limpia si está activa
   if (isCleanViewActive) {
-    console.log('🔄 Cambiando de vista DATOS a VISUALIZADOR');
-    toggleCleanView(); // Esto cambiará isCleanViewActive a false y mostrará el visualizador
+    console.log('Desactivando vista limpia...');
+    toggleCleanView();
   }
   
-  // 3. Buscar el Item Group en TODOS los datos de la library
+  // 2. Buscar el Item Group en TODOS los datos de la library
   const itemGroup = allLibraryData.find(item => {
     return item['Object Type'] === 'Item Group' && (item.Id === itemGroupId || String(item.Id) === String(itemGroupId));
   });
@@ -238,20 +231,13 @@ function navigateToItemGroup(itemGroupId) {
     return;
   }
   
-  console.log('✅ Item Group encontrado:', itemGroup.Name);
+  console.log('Item Group encontrado:', itemGroup);
   
-  // 4. Actualizar el botón para reflejar que estamos en VISUALIZADOR
-  const toggleButton = document.getElementById('cleanViewToggle');
-  if (toggleButton) {
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Visualizador';
-    toggleButton.className = 'btn btn-secondary btn-compact';
-  }
-  
-  // 5. Expandir el árbol hasta el path del Item Group y navegarle
+  // 3. Expandir el árbol hasta el path del Item Group
   if (itemGroup.NamePath) {
     expandTreeToPath(itemGroup.NamePath, true);
     
-    // 6. Seleccionar el Item Group en el árbol después de expandir
+    // 4. Seleccionar el Item Group en el árbol después de expandir
     setTimeout(() => {
       const treeContainer = document.getElementById('tree');
       if (treeContainer) {
@@ -260,7 +246,7 @@ function navigateToItemGroup(itemGroupId) {
           el.classList.remove('selected');
         });
         
-        // Seleccionar el nuevo Item Group
+        // Seleccionar el nuevo Item Group - usar un método más robusto para evitar problemas con comillas
         let targetElement = null;
         const allLabels = treeContainer.querySelectorAll('.category-tree-label[data-path]');
         for (const label of allLabels) {
@@ -269,130 +255,22 @@ function navigateToItemGroup(itemGroupId) {
             break;
           }
         }
-        
         if (targetElement) {
           targetElement.classList.add('selected');
-          console.log('✅ Item Group seleccionado en el árbol');
+          console.log('Item Group seleccionado en el árbol');
           
-          // 7. Cargar el Item Group en el Box 4
+          // 5. Cargar el Item Group en el Box 4
           loadImageGridInBox4(itemGroup.NamePath);
-          console.log('✅ Item Group cargado en Box 4');
+          console.log('Item Group cargado en Box 4');
           
-          // 8. Hacer scroll al Item Group seleccionado
+          // 6. Hacer scroll al Item Group seleccionado
           targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-          console.error('❌ No se pudo encontrar el elemento en el árbol:', itemGroup.NamePath);
+          console.error('No se pudo encontrar el elemento en el árbol:', itemGroup.NamePath);
         }
       }
     }, 1000); // Dar tiempo para que el árbol se expanda
   }
-}
-
-// Funciones para manejo del estado de la vista de inventario
-function saveInventoryViewState() {
-  try {
-    // Guardar posición de scroll vertical Y horizontal de la tabla de inventario
-    const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
-    if (inventoryWrapper) {
-      inventoryViewState.scrollPosition = inventoryWrapper.scrollTop;
-      inventoryViewState.scrollPositionX = inventoryWrapper.scrollLeft;
-    }
-    
-    // Guardar filtros activos del modal de filtros
-    const analistaFilter = document.getElementById('analistaFilter');
-    const disenadorFilter = document.getElementById('disenadorFilter');
-    const statusFilter = document.getElementById('statusFilter');
-    const tipoFilter = document.getElementById('tipoFilter');
-    
-    if (analistaFilter) inventoryViewState.activeFilters.analista = analistaFilter.value;
-    if (disenadorFilter) inventoryViewState.activeFilters.disenador = disenadorFilter.value;
-    if (statusFilter) inventoryViewState.activeFilters.status = statusFilter.value;
-    if (tipoFilter) inventoryViewState.activeFilters.tipo = tipoFilter.value;
-    
-    // Guardar en localStorage para persistencia entre sesiones
-    localStorage.setItem('inventoryViewState', JSON.stringify(inventoryViewState));
-    
-    console.log('📁 Estado de vista guardado:', inventoryViewState);
-  } catch (error) {
-    console.error('Error guardando estado de vista:', error);
-  }
-}
-
-function restoreInventoryViewState() {
-  try {
-    // Cargar estado desde localStorage
-    const savedState = localStorage.getItem('inventoryViewState');
-    if (savedState) {
-      inventoryViewState = { ...inventoryViewState, ...JSON.parse(savedState) };
-    }
-    
-    // Restaurar filtros activos y aplicarlos si es necesario
-    setTimeout(() => {
-      const analistaFilter = document.getElementById('analistaFilter');
-      const disenadorFilter = document.getElementById('disenadorFilter');
-      const statusFilter = document.getElementById('statusFilter');
-      const tipoFilter = document.getElementById('tipoFilter');
-      
-      let needsFiltering = false;
-      
-      if (analistaFilter && inventoryViewState.activeFilters.analista) {
-        analistaFilter.value = inventoryViewState.activeFilters.analista;
-        needsFiltering = true;
-      }
-      if (disenadorFilter && inventoryViewState.activeFilters.disenador) {
-        disenadorFilter.value = inventoryViewState.activeFilters.disenador;
-        needsFiltering = true;
-      }
-      if (statusFilter && inventoryViewState.activeFilters.status) {
-        statusFilter.value = inventoryViewState.activeFilters.status;
-        needsFiltering = true;
-      }
-      if (tipoFilter && inventoryViewState.activeFilters.tipo) {
-        tipoFilter.value = inventoryViewState.activeFilters.tipo;
-        needsFiltering = true;
-      }
-      
-      // Aplicar filtros si había alguno activo
-      if (needsFiltering) {
-        applyInventoryFilters();
-        
-        // Restaurar scroll después de aplicar filtros
-        setTimeout(() => {
-          const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
-          if (inventoryWrapper) {
-            if (inventoryViewState.scrollPosition > 0) {
-              inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
-            }
-            if (inventoryViewState.scrollPositionX > 0) {
-              inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
-            }
-            console.log('📁 Scroll restaurado después de filtros - V:', inventoryViewState.scrollPosition, 'H:', inventoryViewState.scrollPositionX);
-          }
-        }, 100);
-      } else {
-        // Restaurar scroll inmediatamente si no hay filtros
-        const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
-        if (inventoryWrapper) {
-          if (inventoryViewState.scrollPosition > 0) {
-            inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
-          }
-          if (inventoryViewState.scrollPositionX > 0) {
-            inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
-          }
-          console.log('📁 Scroll restaurado - V:', inventoryViewState.scrollPosition, 'H:', inventoryViewState.scrollPositionX);
-        }
-      }
-    }, 200);
-    
-    console.log('📁 Estado de vista restaurado:', inventoryViewState);
-  } catch (error) {
-    console.error('Error restaurando estado de vista:', error);
-  }
-}
-
-function setCurrentView(viewName) {
-  inventoryViewState.lastView = viewName;
-  saveInventoryViewState();
 }
 
 // Función para determinar el status automático basado en el grupo del usuario
@@ -443,7 +321,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Limpiar localStorage automáticamente al cargar la página
   console.clear();
   localStorage.clear();
-  console.log('🧹 localStorage limpiado automáticamente al cargar la página');
   
   setupDragAndDrop();
   
@@ -1761,9 +1638,6 @@ function regenerateImageGrid() {
     console.log('No hay datos para regenerar la grilla');
     return;
   }
-  
-  // Marcar que estamos en la vista del visualizador
-  setCurrentView('visual');
   
   const box4Content = document.getElementById('box4-content');
   if (!box4Content) {
@@ -5172,80 +5046,31 @@ function clearGalleryGrid() {
   }
 }
 
-// Función para toggle entre Datos y Visualizador
+// Función para toggle de vista limpia
 function toggleCleanView() {
+  // GUARDAR ESTADO ANTES DE CAMBIAR VISTA
+  saveInventoryViewState();
+  
   isCleanViewActive = !isCleanViewActive;
   const toggleButton = document.getElementById('cleanViewToggle');
   
   if (isCleanViewActive) {
-    // Activar vista de DATOS - mostrar inventario y stats
-    showDataView();
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Datos'; // Muestra que ESTÁS en Datos
+    // Activar vista limpia - limpiar todos los boxes
+    clearAllBoxes();
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Datos';
     toggleButton.className = 'btn btn-warning btn-compact';
-    inventoryViewState.lastView = 'data';
-    console.log('Vista de DATOS activada');
+    console.log('Vista limpia activada');
   } else {
-    // Activar vista VISUALIZADOR - mostrar árbol, galerías, grid
-    showVisualizerView();
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Visualizador'; // Muestra que ESTÁS en Visualizador
+    // Restaurar vista normal - mostrar árbol/inventario
+    restoreNormalView();
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Visualizador';
     toggleButton.className = 'btn btn-secondary btn-compact';
-    inventoryViewState.lastView = 'visualizer';
-    console.log('Vista VISUALIZADOR activada');
-  }
-  
-  saveInventoryViewState();
-}
-
-// Función para mostrar vista de DATOS (inventario + stats)
-function showDataView() {
-  // Guardar estado actual antes de cambiar
-  saveInventoryViewState();
-  
-  // Limpiar Box 1 (Árbol)
-  const treeContainer = document.getElementById('tree');
-  if (treeContainer) {
-    treeContainer.innerHTML = '<div class="empty-box-message">Box 1 - Árbol (Oculto en vista Datos)</div>';
-  }
-  
-  // Limpiar Box 3 (Galerías)
-  const box3Content = document.getElementById('box3-content');
-  if (box3Content) {
-    box3Content.innerHTML = '<div class="empty-box-message">Box 3 - Galerías (Ocultas en vista Datos)</div>';
-  }
-  
-  // Mostrar tabla de inventario en Box 4
-  const box4Content = document.getElementById('box4-content');
-  if (box4Content) {
-    if (currentWorkingData && currentWorkingData.length > 0) {
-      box4Content.innerHTML = generateImageInventoryTable();
-      
-      // Configurar event listeners para la tabla recién generada
-      setTimeout(() => {
-        setupInventoryClickListeners();
-      }, 50);
-      
-      // Restaurar estado después de que se genere la tabla
-      setTimeout(() => {
-        restoreInventoryViewState();
-      }, 100);
-    } else {
-      box4Content.innerHTML = '<div class="empty-box-message">Cargar Excel para ver inventario de imágenes</div>';
-    }
+    console.log('Vista normal restaurada');
   }
 }
 
-// Función para mostrar vista VISUALIZADOR (árbol + galerías + grid)
-function showVisualizerView() {
-  restoreNormalView();
-}
-
-// Función legacy - mantener compatibilidad
+// Función para limpiar todos los boxes
 function clearAllBoxes() {
-  showDataView();
-}
-
-// Función legacy original
-function clearAllBoxesOriginal() {
   // Limpiar Box 1 (Árbol)
   const treeContainer = document.getElementById('tree');
   if (treeContainer) {
@@ -5263,6 +5088,10 @@ function clearAllBoxesOriginal() {
   if (box4Content) {
     if (currentWorkingData && currentWorkingData.length > 0) {
       box4Content.innerHTML = generateImageInventoryTable();
+      // Restaurar estado después de generar la tabla
+      setTimeout(() => {
+        restoreInventoryViewState();
+      }, 200);
     } else {
       box4Content.innerHTML = '<div class="empty-box-message">Box 4 - Cargar Excel para ver inventario de imágenes</div>';
     }
@@ -5284,8 +5113,8 @@ function restoreNormalView() {
     // Restaurar Box 3 (Galerías)
     initializeGallerySystem();
     
-    // Verificar si hay un Item Group activo y no se debe mostrar la vista de datos
-    if (currentItemGroup && inventoryViewState.lastView !== 'data') {
+    // Restaurar Box 4 (Grid principal) si hay un Item Group seleccionado
+    if (currentItemGroup) {
       // Regenerar el grid de imágenes si hay un item group activo
       regenerateImageGrid();
     } else {
@@ -5295,6 +5124,11 @@ function restoreNormalView() {
         box4Content.innerHTML = '<div class="empty-state">Selecciona un Item Group del árbol para ver el grid</div>';
       }
     }
+    
+    // Restaurar estado de inventario después de restaurar la vista
+    setTimeout(() => {
+      restoreInventoryViewState();
+    }, 200);
     
   } else {
     // Si no hay datos, mostrar mensajes de estado inicial
@@ -5320,8 +5154,6 @@ function generateImageInventoryTable() {
   if (!currentWorkingData || currentWorkingData.length === 0) {
     return '<div class="empty-box-message">No hay datos para mostrar</div>';
   }
-
-  // NO llamar setCurrentView aquí, se maneja en showDataView()
 
   // Función para obtener el Item Group ID de una fila
   function getItemGroupId(row) {
@@ -5539,14 +5371,9 @@ function generateImageInventoryTable() {
       importancia: row['WA Importancia'] || ''
     };
 
-    // Debug: log algunos items para verificar datos
+    // Debug: log algunos items para verificar datos (solo los primeros 3)
     if (originalIndex < 3) {
-      console.log(`📋 Debug inventario row ${originalIndex}:`, { 
-        name: metadata.name, 
-        id: metadata.id, 
-        objectType: metadata.objectType,
-        hasDirectComment: !!(row['WA_VIS_Comment'] && row['WA_VIS_Comment'].trim())
-      });
+      // console.log para debug deshabilitado - demasiado verbose
     }
 
     // 1. PRIMERO: Verificar si la fila tiene comentario directo en WA_VIS_Comment
@@ -5665,27 +5492,9 @@ function generateImageInventoryTable() {
   tableRowsData.forEach((row, index) => {
     row.rowNumber = index + 1;
   });
-}
 
-// Función UNIFICADA para crear filas de la tabla (usada tanto para tabla inicial como filtrada)
-function createTableRows(tableRowsData) {
-  // Función helper para crear el tag de status
-  const createStatusTag = (status) => {
-    if (!status || status === '') return '<span class="status-tag">-</span>';
-    
-    const statusLower = status.toLowerCase().trim();
-    let statusClass = '';
-    
-    if (statusLower.includes('revision')) statusClass = 'revision';
-    else if (statusLower.includes('diseño') || statusLower.includes('diseno')) statusClass = 'diseno';
-    else if (statusLower.includes('cancelado')) statusClass = 'cancelado';
-    else if (statusLower.includes('completado')) statusClass = 'completado';
-    else statusClass = 'revision'; // default
-    
-    return `<span class="status-tag ${statusClass}">${escapeHtml(status)}</span>`;
-  };
-
-  return tableRowsData.map(rowData => {
+  // Convertir datos ordenados a HTML
+  const tableRows = tableRowsData.map(rowData => {
     if (rowData.rowType === 'direct-comment') {
       return `
         <tr class="inventory-row inventory-direct-comment" data-original-row="${rowData.originalRowIndex}">
@@ -5700,14 +5509,20 @@ function createTableRows(tableRowsData) {
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
           <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
           <td class="inventory-cell inventory-image-empty">${escapeHtml(rowData.imagen)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.analista)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.primeraFechaAnalista)}</td>
-          <td class="inventory-cell clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.diseñador)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
-          <td class="inventory-cell clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.ultimoTipo)}</td>
-          <td class="inventory-cell clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
+          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
         </tr>
       `;
     } else {
@@ -5724,22 +5539,24 @@ function createTableRows(tableRowsData) {
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
           <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
           <td class="inventory-cell inventory-image">${escapeHtml(rowData.imagen)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.analista)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.primeraFechaAnalista)}</td>
-          <td class="inventory-cell clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.diseñador)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
-          <td class="inventory-cell clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.ultimoTipo)}</td>
-          <td class="inventory-cell clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
+          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
         </tr>
       `;
     }
   });
-}
-
-  // Usar la función unificada para crear las filas
-  const tableRows = createTableRows(tableRowsData);
 
   // Generar HTML de la tabla
   const inventoryHTML = `
@@ -5784,6 +5601,13 @@ function createTableRows(tableRowsData) {
               <th class="inventory-header-cell">Último Comentario Diseñador</th>
               <th class="inventory-header-cell">Tipo</th>
               <th class="inventory-header-cell">Status</th>
+              <!-- NUEVAS COLUMNAS SIN ESTILOS PROBLEMÁTICOS -->
+              <th class="inventory-header-cell">Analista Clean</th>
+              <th class="inventory-header-cell">Comentario Analista Clean</th>
+              <th class="inventory-header-cell">Diseñador Clean</th>
+              <th class="inventory-header-cell">Comentario Diseñador Clean</th>
+              <th class="inventory-header-cell">Tipo Clean</th>
+              <th class="inventory-header-cell">Status Clean</th>
             </tr>
           </thead>
           <tbody>
@@ -5809,23 +5633,6 @@ function createTableRows(tableRowsData) {
     if (assignButton) {
       assignButton.onclick = openAssignDesignerModal;
     }
-    
-    // Configurar event listener para guardar posición de scroll vertical Y horizontal
-    const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
-    if (inventoryWrapper) {
-      inventoryWrapper.addEventListener('scroll', () => {
-        inventoryViewState.scrollPosition = inventoryWrapper.scrollTop;
-        inventoryViewState.scrollPositionX = inventoryWrapper.scrollLeft;
-        // Guardar estado cada 500ms para no saturar el localStorage
-        clearTimeout(inventoryWrapper.scrollTimeout);
-        inventoryWrapper.scrollTimeout = setTimeout(() => {
-          saveInventoryViewState();
-        }, 500);
-      });
-    }
-    
-    // Restaurar posición de scroll si existe
-    restoreInventoryViewState();
   }, 100);
 
   // Guardar datos originales para filtros
@@ -5852,8 +5659,14 @@ function setupInventoryClickListeners() {
   const clickableComments = document.querySelectorAll('.clickable-comment');
   const clickableStatuses = document.querySelectorAll('.clickable-status');
   
+  // NUEVAS CLASES LIMPIAS
+  const clickableCommentsClean = document.querySelectorAll('.clickable-comment-clean');
+  const clickableStatusesClean = document.querySelectorAll('.clickable-status-clean');
+  
   console.log(`🔗 Configurando ${clickableComments.length} elementos clickeables de comentarios`);
   console.log(`� Configurando ${clickableStatuses.length} elementos clickeables de status`);
+  console.log(`🧹 Configurando ${clickableCommentsClean.length} elementos clickeables de comentarios LIMPIOS`);
+  console.log(`🧹 Configurando ${clickableStatusesClean.length} elementos clickeables de status LIMPIOS`);
   console.log(`�📊 Datos disponibles: currentWorkingData=${currentWorkingData?.length || 0}, allLibraryData=${allLibraryData?.length || 0}`);
   
   if (!allLibraryData || allLibraryData.length === 0) {
@@ -6045,6 +5858,101 @@ function setupInventoryClickListeners() {
     });
     cell.style.cursor = 'pointer';
   });
+  
+  // EVENT LISTENERS PARA NUEVAS CLASES LIMPIAS
+  
+  // Event listeners para comentarios clickeables LIMPIOS
+  clickableCommentsClean.forEach((cell, index) => {
+    cell.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const commentType = this.getAttribute('data-comment-type');
+      const imageName = this.getAttribute('data-image-name');
+      const itemName = this.getAttribute('data-item-name');
+      const itemId = this.getAttribute('data-item-id');
+      
+      console.log(`🧹 Debug click LIMPIO ${index}:`, { commentType, imageName, itemName, itemId });
+      
+      // Lógica específica para comentarios limpios
+      if (commentType && commentType.includes('-clean')) {
+        // Para comentarios de imagen
+        if (imageName && imageName !== '-') {
+          const originalComment = getOriginalImageComment(imageName);
+          const modalTitle = `Historial de Comentarios - Imagen: ${imageName}`;
+          console.log('📸 Abriendo modal de imagen LIMPIO:', { imageName, originalComment });
+          openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
+        }
+        // Para comentarios directos (item-based)
+        else if (itemName && itemId) {
+          console.log(`🔍 Buscando item LIMPIO en allLibraryData:`, { itemName, itemId });
+          
+          const itemData = allLibraryData.find(item => {
+            const nameMatch = (item.Name && item.Name.trim()) === (itemName && itemName.trim());
+            const idMatch = item.Id === itemId || String(item.Id) === String(itemId) || Number(item.Id) === Number(itemId);
+            return nameMatch && idMatch;
+          });
+          
+          if (itemData) {
+            const originalComment = itemData['WA_VIS_Comment'] || '';
+            const contextInfo = `${itemData.Name} (${itemData.Id})`;
+            const modalTitle = itemData['Object Type'] === 'Item Group' 
+              ? `Historial de Comentarios - Item Group: ${itemData.Name}`
+              : `Historial de Comentarios - Item Code: ${itemData.Name}`;
+            
+            console.log('📝 Abriendo modal de item LIMPIO:', { 
+              itemName, 
+              itemId, 
+              originalComment: originalComment ? originalComment.substring(0, 100) + '...' : 'VACÍO', 
+              objectType: itemData['Object Type'],
+              hasComment: !!originalComment,
+              commentLength: originalComment.length
+            });
+            
+            openCommentModal(modalTitle, contextInfo, originalComment, 'item', null);
+          } else {
+            console.warn('❌ No se encontró item LIMPIO:', { itemName, itemId });
+            
+            // Buscar solo por ID como fallback
+            const itemDataById = allLibraryData.find(item => 
+              item.Id === itemId || String(item.Id) === String(itemId) || Number(item.Id) === Number(itemId)
+            );
+            
+            if (itemDataById) {
+              console.log(`✅ Encontrado por ID solamente (LIMPIO):`, { Name: itemDataById.Name, Id: itemDataById.Id });
+              const originalComment = itemDataById['WA_VIS_Comment'] || '';
+              const contextInfo = `${itemDataById.Name} (${itemDataById.Id})`;
+              const modalTitle = itemDataById['Object Type'] === 'Item Group' 
+                ? `Historial de Comentarios - Item Group: ${itemDataById.Name}`
+                : `Historial de Comentarios - Item Code: ${itemDataById.Name}`;
+              
+              openCommentModal(modalTitle, contextInfo, originalComment, 'item', null);
+            }
+          }
+        }
+      }
+    });
+    cell.style.cursor = 'pointer';
+  });
+  
+  // Event listeners para status clickeables LIMPIOS
+  clickableStatusesClean.forEach((cell, index) => {
+    cell.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const itemGroupId = this.getAttribute('data-item-group-id');
+      
+      if (!itemGroupId || itemGroupId.trim() === '') {
+        console.warn('❌ No se encontró Item Group ID en status LIMPIO');
+        return;
+      }
+      
+      console.log(`🧹 Click en status LIMPIO, navegando a Item Group:`, itemGroupId);
+      navigateToItemGroup(itemGroupId);
+    });
+    cell.style.cursor = 'pointer';
+  });
 }
 
 // Función auxiliar para obtener comentario original completo de imagen
@@ -6149,10 +6057,10 @@ function clearInventoryFilters() {
 
 // Función para aplicar filtros
 function applyInventoryFilters() {
-  const analistaFilter = document.getElementById('analistaFilter').value;
-  const disenadorFilter = document.getElementById('disenadorFilter').value;
-  const statusFilter = document.getElementById('statusFilter').value;
-  const tipoFilter = document.getElementById('tipoFilter').value;
+  const analistaFilter = document.getElementById('filterAnalista').value;
+  const disenadorFilter = document.getElementById('filterDisenador').value;
+  const statusFilter = document.getElementById('filterStatus').value;
+  const tipoFilter = document.getElementById('filterTipo').value;
   
   // Filtrar datos
   let filteredData = originalInventoryData.filter(row => {
@@ -6185,6 +6093,11 @@ function applyInventoryFilters() {
   // Regenerar la tabla con datos filtrados
   regenerateInventoryTable(filteredData);
   
+  // Guardar estado después de aplicar filtros
+  setTimeout(() => {
+    saveInventoryViewState();
+  }, 100);
+  
   // Cerrar modal
   closeInventoryFiltersModal();
 }
@@ -6196,8 +6109,73 @@ function regenerateInventoryTable(filteredData) {
     row.rowNumber = index + 1;
   });
   
-  // Usar la MISMA función unificada para crear filas
-  const tableRows = createTableRows(filteredData);
+  // Convertir datos filtrados a HTML
+  const tableRows = filteredData.map(rowData => {
+    if (rowData.rowType === 'direct-comment') {
+      return `
+        <tr class="inventory-row inventory-direct-comment" data-original-row="${rowData.originalRowIndex}">
+          <td class="inventory-cell">${rowData.rowNumber}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
+          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
+          <td class="inventory-cell inventory-image-empty">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <!-- NUEVAS CELDAS SIN ESTILOS PROBLEMÁTICOS - CASO 1 REGENERATE -->
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
+          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+        </tr>
+      `;
+    } else {
+      return `
+        <tr class="inventory-row inventory-image-comment" data-original-row="${rowData.originalRowIndex}">
+          <td class="inventory-cell">${rowData.rowNumber}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
+          <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
+          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
+          <td class="inventory-cell inventory-image">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista)}</td>
+          <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador)}</td>
+          <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador)}</td>
+          <td class="inventory-cell inventory-comment-text clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador)}</td>
+          <td class="inventory-cell inventory-type clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
+          <td class="inventory-cell inventory-status">SIMPLE_STATUS_TEST</td>
+          <td class="inventory-cell inventory-status">SIMPLE_STATUS_TEST</td>
+          <!-- NUEVAS CELDAS SIN ESTILOS PROBLEMÁTICOS - CASO 2 REGENERATE -->
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
+          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+        </tr>
+      `;
+    }
+  });
   
   // Actualizar la tabla en el DOM
   const tbody = document.querySelector('.image-inventory-table tbody');
@@ -6739,6 +6717,8 @@ function setupStatsTableListeners() {
   // Event listeners para nombres clickeables
   document.querySelectorAll('.clickable-name').forEach(element => {
     element.addEventListener('click', function() {
+      console.log('📊 Click en tabla de stats - Nombre:', { user: this.dataset.user, type: this.dataset.type, id: this.id });
+      
       // Limpiar selecciones anteriores
       clearStatsTableSelections();
       
@@ -6754,6 +6734,8 @@ function setupStatsTableListeners() {
   // Event listeners para estadísticas clickeables
   document.querySelectorAll('.clickable-stat').forEach(element => {
     element.addEventListener('click', function() {
+      console.log('📊 Click en tabla de stats - Stat:', { user: this.dataset.user, status: this.dataset.status, type: this.dataset.type, id: this.id });
+      
       // Limpiar selecciones anteriores
       clearStatsTableSelections();
       
@@ -6776,6 +6758,8 @@ function clearStatsTableSelections() {
 }
 
 function filterInventoryByUser(user, type) {
+  console.log('🔍 Filtrando por usuario:', { user, type });
+  
   // Filtrar por usuario (analista o diseñador) siempre desde datos originales
   let filteredData;
   
@@ -6799,6 +6783,7 @@ function filterInventoryByUser(user, type) {
   }
   
   updateInventoryDisplay(filteredData);
+  saveInventoryViewState(); // Guardar estado después del filtro
 }
 
 function filterInventoryByUserAndStatus(user, status, type) {
@@ -6858,6 +6843,7 @@ function filterInventoryByUserAndStatus(user, status, type) {
   
   console.log('✅ Datos finales filtrados:', filteredData.length);
   updateInventoryDisplay(filteredData);
+  saveInventoryViewState(); // Guardar estado después del filtro
 }
 
 function clearInventoryFilter() {
@@ -6886,7 +6872,7 @@ function updateInventoryDisplay(filteredData) {
   if (!filteredData || filteredData.length === 0) {
     const inventoryTable = document.querySelector('.image-inventory-table tbody');
     if (inventoryTable) {
-      inventoryTable.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No hay datos que coincidan con el filtro actual</td></tr>';
+      inventoryTable.innerHTML = '<tr><td colspan="25" style="text-align: center; color: #666;">No hay datos que coincidan con el filtro actual</td></tr>';
     }
     console.log('❌ Sin datos para mostrar');
     return;
@@ -6894,7 +6880,102 @@ function updateInventoryDisplay(filteredData) {
   
   // NO modificar originalInventoryData, solo usar los datos filtrados para mostrar
   console.log('✅ Actualizando tabla con', filteredData.length, 'filas');
-  regenerateInventoryTable(filteredData);
+  updateInventoryTableDirectly(filteredData);
+  
+  // Limpiar los filtros del estado guardado
+  inventoryViewState.dropdownFilters = {
+    analista: '',
+    disenador: '',
+    status: '',
+    tipo: ''
+  };
+  
+  // Guardar estado después de actualizar el display
+  setTimeout(() => {
+    saveInventoryViewState();
+  }, 100);
+}
+
+function updateInventoryTableDirectly(filteredData) {
+  // Buscar la tabla de inventario existente
+  const inventoryTable = document.querySelector('.image-inventory-table tbody');
+  
+  if (!inventoryTable) {
+    console.log('No se encontró la tabla de inventario');
+    return;
+  }
+  
+  // Limpiar contenido actual
+  inventoryTable.innerHTML = '';
+  
+  if (!filteredData || filteredData.length === 0) {
+    inventoryTable.innerHTML = '<tr><td colspan="25" class="no-data">No hay datos que coincidan con el filtro seleccionado.</td></tr>';
+    return;
+  }
+  
+  // Regenerar filas usando la misma lógica que la tabla original
+  filteredData.forEach((rowData, index) => {
+    const row = document.createElement('tr');
+    row.className = 'inventory-row';
+    row.setAttribute('data-original-row', rowData.originalRowIndex || index);
+    
+    row.innerHTML = `
+      <td class="inventory-cell">${index + 1}</td>
+      <td class="inventory-cell">${escapeHtml(rowData.name || '')}</td>
+      <td class="inventory-cell">${escapeHtml(rowData.id || '')}</td>
+      <td class="inventory-cell inventory-item-group clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId || '')}">${escapeHtml(rowData.itemGroupId || '')}</td>
+      <td class="inventory-cell">${escapeHtml(rowData.objectType || '')}</td>
+      <td class="inventory-cell">${escapeHtml(rowData.cms || '')}</td>
+      <td class="inventory-cell">${escapeHtml(rowData.marca || '')}</td>
+      <td class="inventory-cell">${escapeHtml(rowData.titulo || '')}</td>
+      <td class="inventory-cell">${escapeHtml(rowData.importancia || '')}</td>
+      <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo || '')}</td>
+      <td class="inventory-cell inventory-image">${escapeHtml(rowData.imagen || '')}</td>
+      <td class="inventory-cell inventory-analyst">${escapeHtml(rowData.analista || '')}</td>
+      <td class="inventory-cell inventory-date">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
+      <td class="inventory-cell inventory-comment-text clickable-comment" 
+          data-comment-type="analista" 
+          data-image-name="${escapeHtml(rowData.imagen || '')}" 
+          data-item-name="${escapeHtml(rowData.name || '')}" 
+          data-item-id="${escapeHtml(rowData.id || '')}" 
+          title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
+      <td class="inventory-cell inventory-designer">${escapeHtml(rowData.diseñador || '')}</td>
+      <td class="inventory-cell inventory-date">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
+      <td class="inventory-cell inventory-comment-text clickable-comment" 
+          data-comment-type="diseñador" 
+          data-image-name="${escapeHtml(rowData.imagen || '')}" 
+          data-item-name="${escapeHtml(rowData.name || '')}" 
+          data-item-id="${escapeHtml(rowData.id || '')}" 
+          title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
+      <td class="inventory-cell inventory-type clickable-comment" 
+          data-comment-type="tipo" 
+          data-image-name="${escapeHtml(rowData.imagen || '')}" 
+          data-item-name="${escapeHtml(rowData.name || '')}" 
+          data-item-id="${escapeHtml(rowData.id || '')}" 
+          title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
+      <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId || '')}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+      <!-- NUEVAS CELDAS SIN ESTILOS PROBLEMÁTICOS -->
+      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="analista-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="analista-comment-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="diseñador-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="diseñador-comment-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="tipo-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
+      <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || '')}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+    `;
+    
+    inventoryTable.appendChild(row);
+  });
+  
+  // Actualizar estadísticas
+  const statsElement = document.querySelector('.inventory-stats');
+  if (statsElement) {
+    statsElement.innerHTML = `Comentarios visibles: <strong>${filteredData.length}</strong>`;
+  }
+  
+  // Reconfigurar event listeners
+  setTimeout(() => {
+    setupInventoryClickListeners();
+  }, 100);
 }
 
 window.clearInventoryFilter = function() {
@@ -6910,12 +6991,26 @@ window.clearInventoryFilter = function() {
   }
   
   // Restaurar todos los datos originales
-  regenerateInventoryTable(originalInventoryData);
+  updateInventoryTableDirectly(originalInventoryData);
   
   // Restaurar estadísticas originales
   const statsElement = document.querySelector('.inventory-stats');
   if (statsElement) {
     statsElement.innerHTML = `Comentarios visibles: <strong>${originalInventoryData.length}</strong>`;
+  }
+  
+  // ✅ GUARDAR ESTADO SIN FILTROS - Limpiar filtros activos
+  console.log('🧹 Guardando estado SIN filtros');
+  if (inventoryViewState) {
+    inventoryViewState.activeFilters = null;
+    inventoryViewState.dropdownFilters = null;
+    // Mantener posición de scroll pero limpiar filtros
+    inventoryViewState.scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+    inventoryViewState.scrollPositionX = window.pageXOffset || document.documentElement.scrollLeft;
+    
+    // Guardar estado limpio en localStorage
+    saveInventoryViewState();
+    console.log('✅ Estado sin filtros guardado:', inventoryViewState);
   }
 };
 
@@ -6940,7 +7035,85 @@ function updateStatsTablesOnDataChange() {
   // Configurar event listeners
   setTimeout(() => {
     setupStatsTableListeners();
+    
+    // Restaurar filtros DESPUÉS de que las tablas y event listeners estén configurados
+    setTimeout(() => {
+      restoreStatsTableFilters();
+    }, 200);
   }, 100);
+}
+
+function restoreStatsTableFilters() {
+  try {
+    const savedState = localStorage.getItem('inventoryViewState');
+    if (!savedState) return;
+    
+    const inventoryViewState = JSON.parse(savedState);
+    
+    if (inventoryViewState.activeFilters && Object.keys(inventoryViewState.activeFilters).length > 0) {
+      console.log('🔧 RESTAURANDO filtros de tablas de stats:', inventoryViewState.activeFilters);
+      
+      // Restaurar filtro de analista
+      if (inventoryViewState.activeFilters.analista) {
+        console.log('🔍 Buscando elementos de analista:', inventoryViewState.activeFilters.analista);
+        const analistaElements = document.querySelectorAll('[data-type="analyst"][data-user="' + inventoryViewState.activeFilters.analista + '"]');
+        console.log('📊 Elementos de analista encontrados:', analistaElements.length);
+        
+        analistaElements.forEach((element, index) => {
+          console.log(`📊 Elemento ${index}:`, {
+            user: element.dataset.user,
+            status: element.dataset.status,
+            type: element.dataset.type,
+            hasStatus: !!inventoryViewState.activeFilters.analistaStatus,
+            expectedStatus: inventoryViewState.activeFilters.analistaStatus,
+            isClickableName: element.classList.contains('clickable-name'),
+            isClickableStat: element.classList.contains('clickable-stat')
+          });
+          
+          // Si hay status específico, buscar el elemento con ese status
+          if (inventoryViewState.activeFilters.analistaStatus && element.dataset.status === inventoryViewState.activeFilters.analistaStatus) {
+            console.log('✅ RESTAURANDO filtro de analista con status:', element.dataset.user, element.dataset.status);
+            element.click();
+          } else if (!inventoryViewState.activeFilters.analistaStatus && element.classList.contains('clickable-name')) {
+            console.log('✅ RESTAURANDO filtro de analista:', element.dataset.user);
+            element.click();
+          }
+        });
+      }
+      
+      // Restaurar filtro de diseñador
+      if (inventoryViewState.activeFilters.diseñador) {
+        console.log('🔍 Buscando elementos de diseñador:', inventoryViewState.activeFilters.diseñador);
+        const designerElements = document.querySelectorAll('[data-type="designer"][data-user="' + inventoryViewState.activeFilters.diseñador + '"]');
+        console.log('📊 Elementos de diseñador encontrados:', designerElements.length);
+        
+        designerElements.forEach((element, index) => {
+          console.log(`📊 Elemento ${index}:`, {
+            user: element.dataset.user,
+            status: element.dataset.status,
+            type: element.dataset.type,
+            hasStatus: !!inventoryViewState.activeFilters.diseñadorStatus,
+            expectedStatus: inventoryViewState.activeFilters.diseñadorStatus,
+            isClickableName: element.classList.contains('clickable-name'),
+            isClickableStat: element.classList.contains('clickable-stat')
+          });
+          
+          // Si hay status específico, buscar el elemento con ese status
+          if (inventoryViewState.activeFilters.diseñadorStatus && element.dataset.status === inventoryViewState.activeFilters.diseñadorStatus) {
+            console.log('✅ RESTAURANDO filtro de diseñador con status:', element.dataset.user, element.dataset.status);
+            element.click();
+          } else if (!inventoryViewState.activeFilters.diseñadorStatus && element.classList.contains('clickable-name')) {
+            console.log('✅ RESTAURANDO filtro de diseñador:', element.dataset.user);
+            element.click();
+          }
+        });
+      }
+    } else {
+      console.log('ℹ️ No hay filtros de tablas para restaurar');
+    }
+  } catch (error) {
+    console.error('❌ Error restaurando filtros de tablas:', error);
+  }
 }
 
 // ===== FUNCIONES PARA GUARDAR EN GOOGLE SHEETS =====
@@ -7476,5 +7649,193 @@ function extractImageName(imageSrc) {
   } catch (error) {
     // Si no es una URL válida, usar el src completo
     return imageSrc.split('/').pop() || imageSrc;
+  }
+}
+function createStatusTag(status) {
+  if (!status) return "<span class=\"status-tag\">-</span>";
+  
+  const s = status.toLowerCase();
+  let c = "revision";
+  
+  if (s.includes("diseño")) c = "diseno";
+  else if (s.includes("cancelado")) c = "cancelado";
+  else if (s.includes("completado")) c = "completado";
+  
+  return `<span class="status-tag ${c}">${status}</span>`;
+}
+
+// Funciones para guardar y restaurar estado de scroll y filtros
+function saveInventoryViewState() {
+  try {
+    console.log('💾 Guardando estado del inventario...');
+    
+    const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
+    if (inventoryWrapper) {
+      inventoryViewState.scrollPosition = inventoryWrapper.scrollTop;
+      inventoryViewState.scrollPositionX = inventoryWrapper.scrollLeft;
+      console.log('📍 Scroll guardado:', inventoryViewState.scrollPosition, inventoryViewState.scrollPositionX);
+    }
+    
+    // Guardar filtros de dropdown
+    const dropdownFilters = {
+      analista: '',
+      disenador: '',
+      status: '',
+      tipo: ''
+    };
+    
+    const analistaFilter = document.getElementById('filterAnalista');
+    const disenadorFilter = document.getElementById('filterDisenador');
+    const statusFilter = document.getElementById('filterStatus');
+    const tipoFilter = document.getElementById('filterTipo');
+    
+    // Solo actualizar si los elementos existen (modal abierto)
+    if (analistaFilter) {
+      dropdownFilters.analista = analistaFilter.value;
+    } else if (inventoryViewState.dropdownFilters) {
+      // Mantener valores previos si el modal no está abierto
+      dropdownFilters.analista = inventoryViewState.dropdownFilters.analista || '';
+    }
+    
+    if (disenadorFilter) {
+      dropdownFilters.disenador = disenadorFilter.value;
+    } else if (inventoryViewState.dropdownFilters) {
+      dropdownFilters.disenador = inventoryViewState.dropdownFilters.disenador || '';
+    }
+    
+    if (statusFilter) {
+      dropdownFilters.status = statusFilter.value;
+    } else if (inventoryViewState.dropdownFilters) {
+      dropdownFilters.status = inventoryViewState.dropdownFilters.status || '';
+    }
+    
+    if (tipoFilter) {
+      dropdownFilters.tipo = tipoFilter.value;
+    } else if (inventoryViewState.dropdownFilters) {
+      dropdownFilters.tipo = inventoryViewState.dropdownFilters.tipo || '';
+    }
+    
+    inventoryViewState.dropdownFilters = dropdownFilters;
+    console.log('🔧 Filtros dropdown guardados:', dropdownFilters);
+    
+    // Guardar filtros de tablas de estadísticas
+    let activeFilters = {};
+    
+    // Buscar elementos seleccionados usando las clases
+    const selectedElements = document.querySelectorAll('.clickable-name.selected, .clickable-stat.selected');
+    console.log('🔍 Elementos seleccionados encontrados:', selectedElements.length);
+    
+    if (selectedElements.length > 0) {
+      // Si hay elementos seleccionados actualmente, usar esos
+      selectedElements.forEach(element => {
+        const user = element.dataset.user;
+        const status = element.dataset.status;
+        const type = element.dataset.type;
+        
+        console.log('💾 Guardando filtro activo actual:', { user, status, type, element: element.textContent });
+        
+        if (type === 'analyst') {
+          activeFilters.analista = user;
+          if (status) activeFilters.analistaStatus = status;
+        } else if (type === 'designer') {
+          activeFilters.diseñador = user;
+          if (status) activeFilters.diseñadorStatus = status;
+        }
+      });
+    } else if (inventoryViewState.activeFilters && Object.keys(inventoryViewState.activeFilters).length > 0) {
+      // Si no hay elementos seleccionados pero había filtros previos, preservarlos
+      activeFilters = { ...inventoryViewState.activeFilters };
+      console.log('💾 Preservando filtros activos previos:', activeFilters);
+    }
+    
+    inventoryViewState.activeFilters = activeFilters;
+    console.log('📊 Filtros de tablas guardados:', activeFilters);
+    
+    localStorage.setItem('inventoryViewState', JSON.stringify(inventoryViewState));
+    console.log('✅ Estado guardado exitosamente');
+  } catch (error) {
+    console.error('❌ Error guardando estado:', error);
+  }
+}
+
+function restoreInventoryViewState() {
+  try {
+    const savedState = localStorage.getItem('inventoryViewState');
+    if (savedState) {
+      inventoryViewState = JSON.parse(savedState);
+      
+      // Restaurar scroll positions
+      setTimeout(() => {
+        const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
+        if (inventoryWrapper && inventoryViewState.scrollPosition > 0) {
+          inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
+        }
+        if (inventoryWrapper && inventoryViewState.scrollPositionX > 0) {
+          inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
+        }
+      }, 100);
+      
+      // Restaurar filtros dropdown
+      setTimeout(() => {
+        if (inventoryViewState.dropdownFilters) {
+          console.log('🔧 Restaurando filtros dropdown:', inventoryViewState.dropdownFilters);
+          
+          const analistaFilter = document.getElementById('filterAnalista');
+          const disenadorFilter = document.getElementById('filterDisenador');
+          const statusFilter = document.getElementById('filterStatus');
+          const tipoFilter = document.getElementById('filterTipo');
+          
+          if (analistaFilter && inventoryViewState.dropdownFilters.analista) {
+            analistaFilter.value = inventoryViewState.dropdownFilters.analista;
+            console.log('✅ Filtro Analista restaurado:', analistaFilter.value);
+          }
+          if (disenadorFilter && inventoryViewState.dropdownFilters.disenador) {
+            disenadorFilter.value = inventoryViewState.dropdownFilters.disenador;
+            console.log('✅ Filtro Diseñador restaurado:', disenadorFilter.value);
+          }
+          if (statusFilter && inventoryViewState.dropdownFilters.status) {
+            statusFilter.value = inventoryViewState.dropdownFilters.status;
+            console.log('✅ Filtro Status restaurado:', statusFilter.value);
+          }
+          if (tipoFilter && inventoryViewState.dropdownFilters.tipo) {
+            tipoFilter.value = inventoryViewState.dropdownFilters.tipo;
+            console.log('✅ Filtro Tipo restaurado:', tipoFilter.value);
+          }
+          
+          // Aplicar los filtros después de restaurarlos SOLO SI HAY FILTROS
+          const hasFilters = inventoryViewState.dropdownFilters.analista || 
+                           inventoryViewState.dropdownFilters.disenador || 
+                           inventoryViewState.dropdownFilters.status || 
+                           inventoryViewState.dropdownFilters.tipo;
+          
+          if (hasFilters) {
+            console.log('🔄 Aplicando filtros restaurados...');
+            applyInventoryFilters();
+          } else {
+            console.log('ℹ️ No hay filtros activos, manteniendo tabla original');
+          }
+        } else if (inventoryViewState.dropdownFilters === null) {
+          // Caso especial: filtros fueron limpiados explícitamente
+          console.log('🧹 Los filtros fueron limpiados, asegurando que la tabla esté sin filtrar');
+          // Limpiar cualquier filtro en los dropdowns
+          const analistaFilter = document.getElementById('filterAnalista');
+          const disenadorFilter = document.getElementById('filterDisenador');
+          const statusFilter = document.getElementById('filterStatus');
+          const tipoFilter = document.getElementById('filterTipo');
+          
+          if (analistaFilter) analistaFilter.value = '';
+          if (disenadorFilter) disenadorFilter.value = '';
+          if (statusFilter) statusFilter.value = '';
+          if (tipoFilter) tipoFilter.value = '';
+          
+          // Asegurar que se muestre la tabla completa
+          updateInventoryTableDirectly(originalInventoryData);
+        } else {
+          console.log('❌ No hay filtros dropdown para restaurar');
+        }
+      }, 150);
+    }
+  } catch (error) {
+    console.error('Error restaurando estado:', error);
   }
 }

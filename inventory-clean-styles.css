@@ -1,0 +1,57 @@
+/* ===== ESTILOS PARA COLUMNAS LIMPIAS DE INVENTARIO ===== */
+
+/* Estilos base para las celdas limpias */
+.inventory-cell-clean {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  vertical-align: top;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+  text-align: left;
+  max-width: 200px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Hover para las celdas limpias */
+.inventory-cell-clean:hover {
+  background-color: #f8f9fa;
+}
+
+/* Asegurarse de que el contenido sea visible */
+.inventory-cell-clean * {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: inline !important;
+}
+
+/* Para status tags dentro de celdas limpias */
+.inventory-cell-clean .status-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Evitar cualquier override problemático */
+.inventory-cell-clean {
+  box-sizing: border-box !important;
+}
+
+/* Sin padding interno problemático */
+.inventory-cell-clean * {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Texto visible siempre */
+.inventory-cell-clean {
+  opacity: 1 !important;
+  visibility: visible !important;
+}

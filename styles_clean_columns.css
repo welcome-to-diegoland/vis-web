@@ -1,0 +1,28 @@
+/* Estilos para las nuevas columnas limpias */
+.inventory-cell-clean {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  font-size: 12px;
+  text-align: left;
+  vertical-align: top;
+  cursor: text;
+  word-wrap: break-word;
+  max-width: 200px;
+}
+
+/* Sin padding interno problemático */
+.inventory-cell-clean:hover {
+  background-color: #f8f9fa;
+}
+
+/* Status tags en columnas limpias */
+.inventory-cell-clean .status-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
