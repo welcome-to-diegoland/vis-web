@@ -5518,8 +5518,10 @@ function generateImageInventoryTable() {
           <td class="inventory-cell inventory-type clickable-comment" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
           <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+          <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
@@ -5548,8 +5550,10 @@ function generateImageInventoryTable() {
           <td class="inventory-cell inventory-type clickable-comment" data-image-name="${rowData.imageName}" data-comment-type="${rowData.commentType}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo)}</td>
           <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+          <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
@@ -5603,8 +5607,10 @@ function generateImageInventoryTable() {
               <th class="inventory-header-cell">Status</th>
               <!-- NUEVAS COLUMNAS SIN ESTILOS PROBLEMÁTICOS -->
               <th class="inventory-header-cell">Analista Clean</th>
+              <th class="inventory-header-cell">Primera Fecha Clean</th>
               <th class="inventory-header-cell">Comentario Analista Clean</th>
               <th class="inventory-header-cell">Diseñador Clean</th>
+              <th class="inventory-header-cell">Fecha Diseñador Clean</th>
               <th class="inventory-header-cell">Comentario Diseñador Clean</th>
               <th class="inventory-header-cell">Tipo Clean</th>
               <th class="inventory-header-cell">Status Clean</th>
@@ -6135,8 +6141,10 @@ function regenerateInventoryTable(filteredData) {
           <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
           <!-- NUEVAS CELDAS SIN ESTILOS PROBLEMÁTICOS - CASO 1 REGENERATE -->
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+          <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
@@ -6167,8 +6175,10 @@ function regenerateInventoryTable(filteredData) {
           <td class="inventory-cell inventory-status">SIMPLE_STATUS_TEST</td>
           <!-- NUEVAS CELDAS SIN ESTILOS PROBLEMÁTICOS - CASO 2 REGENERATE -->
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+          <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
@@ -6956,8 +6966,10 @@ function updateInventoryTableDirectly(filteredData) {
       <td class="inventory-cell inventory-status clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId || '')}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
       <!-- NUEVAS CELDAS SIN ESTILOS PROBLEMÁTICOS -->
       <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="analista-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+      <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="analista-comment-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="diseñador-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+      <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="diseñador-comment-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="tipo-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
       <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || '')}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
