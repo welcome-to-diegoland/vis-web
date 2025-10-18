@@ -5616,8 +5616,13 @@ function generateImageInventoryTable() {
     }
   }, 100);
 
-  // Guardar datos originales para filtros
-  originalInventoryData = [...tableRowsData];
+  // Guardar datos originales para filtros SOLO si no existen ya (para preservar asignaciones)
+  if (originalInventoryData.length === 0) {
+    originalInventoryData = [...tableRowsData];
+    console.log('🔄 Inicializando originalInventoryData por primera vez con', tableRowsData.length, 'elementos');
+  } else {
+    console.log('🔄 Preservando originalInventoryData existente con', originalInventoryData.length, 'elementos');
+  }
 
   // Actualizar las tablas de estadísticas
   setTimeout(() => {
@@ -6342,15 +6347,25 @@ window.distributeRemaining = function() {
 };
 
 window.applyDesignerAssignments = function() {
+  console.log('🔄 === INICIANDO PROCESO DE ASIGNACIONES ===');
+  
   const designers = getActiveDesigners();
+  console.log('👥 Diseñadores activos:', designers);
+  
   const unassignedComments = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '');
+  console.log('📊 Comentarios sin asignar ANTES:', unassignedComments.length);
+  console.log('📊 Total datos originalInventoryData:', originalInventoryData.length);
   
   // Validar que la suma de asignaciones no exceda los comentarios sin asignar
   let totalAssignments = 0;
   designers.forEach(designer => {
-    const assignmentValue = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
+    const input = document.getElementById(`assignment-${designer}`);
+    const assignmentValue = parseInt(input?.value) || 0;
     totalAssignments += assignmentValue;
+    console.log(`👤 ${designer}: input="${input?.value}", parsed=${assignmentValue}`);
   });
+  
+  console.log('📊 Total asignaciones a hacer:', totalAssignments);
   
   if (totalAssignments > unassignedComments.length) {
     alert(`Error: Estás intentando asignar ${totalAssignments} comentarios pero solo hay ${unassignedComments.length} sin asignar.`);
@@ -6358,38 +6373,125 @@ window.applyDesignerAssignments = function() {
   }
   
   // Realizar las asignaciones
+  console.log('🔄 Aplicando asignaciones...');
   let commentIndex = 0;
   designers.forEach(designer => {
     const assignmentCount = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
+    console.log(`🔄 Procesando ${assignmentCount} asignaciones para ${designer}`);
     
     for (let i = 0; i < assignmentCount && commentIndex < unassignedComments.length; i++) {
       const row = unassignedComments[commentIndex];
-      row.diseñador = designer; // Mantener el nombre original
+      console.log(`📝 ANTES Row ${commentIndex}: diseñador="${row.diseñador}", name="${row.name}"`);
+      row.diseñador = designer;
+      console.log(`📝 DESPUÉS Row ${commentIndex}: diseñador="${row.diseñador}"`);
       commentIndex++;
     }
   });
   
+  console.log(`✅ Total asignaciones procesadas: ${commentIndex}`);
+  
+  // SINCRONIZAR currentWorkingData con originalInventoryData
+  console.log('🔄 Sincronizando currentWorkingData con originalInventoryData...');
+  console.log('📊 currentWorkingData antes:', currentWorkingData.length);
+  
+  // Actualizar currentWorkingData con las asignaciones hechas en originalInventoryData
+  currentWorkingData.forEach(workingRow => {
+    const matchingOriginalRow = originalInventoryData.find(originalRow => 
+      originalRow.name === workingRow.name && originalRow.id === workingRow.id
+    );
+    if (matchingOriginalRow && matchingOriginalRow.diseñador !== workingRow.diseñador) {
+      console.log(`🔄 Actualizando ${workingRow.name}: "${workingRow.diseñador}" -> "${matchingOriginalRow.diseñador}"`);
+      workingRow.diseñador = matchingOriginalRow.diseñador;
+    }
+  });
+  
+  console.log('📊 currentWorkingData después:', currentWorkingData.length);
+  
+  // Verificar el estado después de las asignaciones
+  const assignedAfter = originalInventoryData.filter(row => row.diseñador && row.diseñador.trim() !== '');
+  const unassignedAfter = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '');
+  
+  console.log('📊 Comentarios asignados DESPUÉS:', assignedAfter.length);
+  console.log('📊 Comentarios sin asignar DESPUÉS:', unassignedAfter.length);
+  
   // Actualizar la tabla
-  populateInventoryTable();
-  populateFilterDropdowns();
+  console.log('🔄 Actualizando tabla del visualizer usando la misma lógica que clearInventoryFilter...');
   
-  // Actualizar las tablas de estadísticas
+  // Usar EXACTAMENTE la misma lógica que clearInventoryFilter que SÍ funciona
+  const inventoryTable = document.querySelector('.image-inventory-table tbody');
+  if (inventoryTable) {
+    console.log('📊 Tabla encontrada, aplicando updateInventoryTableDirectly...');
+    updateInventoryTableDirectly(originalInventoryData);
+    
+    // Actualizar estadísticas de la tabla
+    const statsElement = document.querySelector('.inventory-stats');
+    if (statsElement) {
+      statsElement.innerHTML = `Comentarios visibles: <strong>${originalInventoryData.length}</strong>`;
+    }
+    console.log('✅ Tabla del visualizer actualizada correctamente');
+  } else {
+    console.log('❌ No se encontró la tabla del inventario');
+  }
+  
+  console.log('🔄 Actualizando estadísticas...');
+  const box1 = document.getElementById('tree');
+  const box3 = document.getElementById('box3-content');
+  
+  // Forzar regeneración múltiple para asegurar que toma los nuevos datos
   setTimeout(() => {
-    updateStatsTablesOnDataChange();
-  }, 200);
+    console.log('🔄 Primera actualización de estadísticas (10ms)...');
+    if (box1) {
+      box1.innerHTML = generateDesignerStatsTable();
+    }
+    
+    if (box3) {
+      box3.innerHTML = generateAnalystStatsTable();
+    }
+    
+    setupStatsTableListeners();
+  }, 10);
   
-  // Cerrar modal
+  setTimeout(() => {
+    console.log('🔄 Segunda actualización de estadísticas (300ms)...');
+    if (box1) {
+      box1.innerHTML = generateDesignerStatsTable();
+    }
+    
+    if (box3) {
+      box3.innerHTML = generateAnalystStatsTable();
+    }
+    
+    setupStatsTableListeners();
+  }, 300);
+  
+  // Verificar que las asignaciones se mantuvieron
+  console.log('🔍 VERIFICACIÓN FINAL - Comentarios sin asignar después de todo:', 
+    originalInventoryData.filter(row => !row.diseñador || row.diseñador === '').length);
+  
+  // Log de algunos diseñadores asignados para verificar
+  const assignedRows = originalInventoryData.filter(row => row.diseñador && row.diseñador !== '');
+  console.log('🔍 VERIFICACIÓN - Primeros 5 comentarios con diseñador asignado:', 
+    assignedRows.slice(0, 5).map(row => ({name: row.name, diseñador: row.diseñador})));
+  
+  console.log('🔄 === PROCESO DE ASIGNACIONES COMPLETADO ===');
+  
+  // Cerrar el modal
   closeAssignDesignerModal();
-  
-  alert(`Se asignaron ${commentIndex} comentarios exitosamente.`);
 };
 
 function getActiveDesigners() {
+  console.log('🔍 Buscando diseñadores activos...');
   const designers = Object.keys(USERS).filter(user => USERS[user].group === 'Diseño');
-  return designers.filter(designer => {
+  console.log('👥 Todos los diseñadores disponibles:', designers);
+  
+  const activeDesigners = designers.filter(designer => {
     const checkbox = document.querySelector(`input[onchange*="${designer}"]`);
+    console.log(`👤 ${designer}: checkbox found=${!!checkbox}, checked=${checkbox?.checked}`);
     return checkbox && checkbox.checked; // Incluidos (checked = true)
   });
+  
+  console.log('✅ Diseñadores activos finales:', activeDesigners);
+  return activeDesigners;
 }
 
 // Event listener para cerrar el modal de asignación al hacer clic fuera de él
@@ -6410,7 +6512,7 @@ function generateDesignerStatsTable() {
   
   let tableHTML = `
     <div class="stats-table-container">
-      <h4>Estadísticas Diseño</h4>
+      <h4>Resumen Diseño</h4>
       <table class="stats-table">
         <thead>
           <tr>
@@ -6548,7 +6650,7 @@ function generateAnalystStatsTable() {
   
   let tableHTML = `
     <div class="stats-table-container">
-      <h4>Estadísticas Analistas</h4>
+      <h4>Resumen Analistas</h4>
       <table class="stats-table">
         <thead>
           <tr>
