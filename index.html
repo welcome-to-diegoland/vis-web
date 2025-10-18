@@ -131,7 +131,7 @@
   <div id="assignDesignerModal" class="assignment-modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 class="modal-title">Asignar Diseñadoras</h3>
+        <h3 class="modal-title">Asignar Comentarios</h3>
         <button class="modal-close-btn" onclick="closeAssignDesignerModal()">
           <i class="fas fa-times"></i>
         </button>
@@ -139,12 +139,11 @@
       <div class="modal-body">
         <div class="assignment-summary">
           <div class="summary-stats">
-            <span class="unassigned-count">Comentarios sin diseñadora: <strong id="unassignedCount">0</strong></span>
+            <span class="unassigned-count">Comentarios sin asignar: <strong id="unassignedCount">0</strong></span>
           </div>
         </div>
         
         <div class="designers-list">
-          <h4>Diseñadoras Disponibles</h4>
           <div id="designersList">
             <!-- Se llena dinámicamente -->
           </div>
@@ -152,16 +151,13 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" onclick="distributeEqually()">
-          <i class="fas fa-balance-scale"></i> Repartir
-        </button>
-        <button class="btn btn-warning" onclick="distributeRemaining()">
-          <i class="fas fa-plus-circle"></i> Restantes
+          <i class="fas fa-plus-circle"></i> Repartir
         </button>
         <button class="btn btn-secondary" onclick="closeAssignDesignerModal()">
           <i class="fas fa-times"></i> Cancelar
         </button>
         <button class="btn btn-success" onclick="applyDesignerAssignments()">
-          <i class="fas fa-check"></i> Aplicar Asignaciones
+          <i class="fas fa-check"></i> Aplicar
         </button>
       </div>
     </div>

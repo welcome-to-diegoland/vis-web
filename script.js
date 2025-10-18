@@ -44,6 +44,21 @@ const WA_ATTRIBUTES = [
   'WA_Rest_21', 'WA_Rest_22', 'WA_Rest_23', 'WA_Rest_24', 'WA_Rest_25'
 ];
 
+// Event listener global para cerrar modales con ESC
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    console.log('ESC presionado globalmente, intentando cerrar modales...');
+    const modalClosed = closeAllModals();
+    if (modalClosed) {
+      console.log('Modal cerrado exitosamente');
+      event.preventDefault();
+      event.stopPropagation();
+    } else {
+      console.log('No se encontraron modales abiertos para cerrar');
+    }
+  }
+});
+
 // Función para marcar automáticamente un Item Group como modificado
 function markItemGroupAsModified(itemGroupId = null, itemGroupName = null) {
   const groupId = itemGroupId || (currentItemGroup ? currentItemGroup['Id'] : null);
@@ -148,6 +163,40 @@ function getCurrentUser() {
 function getCurrentUserInfo() {
   const currentUserId = getCurrentUser();
   return USERS[currentUserId] || USERS.usuario;
+}
+
+// ===== SISTEMA GENERAL DE GESTIÓN DE MODALES =====
+// Función general para cerrar todos los modales abiertos
+function closeAllModals() {
+  const modals = [
+    { id: 'commentModal', closeFunction: closeCommentModal },
+    { id: 'imagePreviewModal', closeFunction: closeImagePreviewModal },
+    { id: 'assignDesignerModal', closeFunction: closeAssignDesignerModal },
+    { id: 'inventoryFiltersModal', closeFunction: closeInventoryFiltersModal }
+  ];
+
+  let modalClosed = false;
+  
+  modals.forEach(modal => {
+    const element = document.getElementById(modal.id);
+    if (element) {
+      const isVisible = element.classList.contains('show') || 
+                       element.style.display === 'flex' || 
+                       element.style.display === 'block' ||
+                       (window.getComputedStyle(element).display !== 'none' && 
+                        window.getComputedStyle(element).visibility !== 'hidden');
+      
+      console.log(`Modal ${modal.id}: exists=${!!element}, isVisible=${isVisible}, classList=${Array.from(element.classList)}, display=${element.style.display}`);
+      
+      if (isVisible) {
+        console.log(`Cerrando modal: ${modal.id}`);
+        modal.closeFunction();
+        modalClosed = true;
+      }
+    }
+  });
+
+  return modalClosed;
 }
 
 // Función para generar el contexto completo para comentarios de Item Code
@@ -1859,16 +1908,8 @@ function setupImageSystemEventListeners() {
   const container = document.getElementById('imageGridContainer');
   if (!container) return;
 
-  // Event listener para detectar teclas presionadas (modo visual)
+  // Event listener para el modo visual de asignación
   document.addEventListener('keydown', function(event) {
-    // Cerrar modal con tecla Escape
-    if (event.key === 'Escape') {
-      const modal = document.getElementById('commentModal');
-      if (modal && modal.classList.contains('show')) {
-        closeCommentModal();
-      }
-    }
-    
     if (event.metaKey && event.altKey && event.shiftKey) {
       container.classList.add('itemgroup-assignment-mode');
     }
@@ -2408,6 +2449,11 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     
     // Actualizar burbujas de comentarios en la UI
     updateCommentBubbles(type, contextForData, imageName);
+    
+    // Cerrar modal automáticamente después de agregar el comentario exitosamente
+    setTimeout(() => {
+      closeCommentModal();
+    }, 500); // Pequeño delay para que el usuario vea el éxito
   });
 }
 
@@ -2465,6 +2511,11 @@ function setupStatusControl(modal, context, type = 'item', imageName = null, com
     
     // Actualizar burbujas de comentarios en la UI
     updateCommentBubbles(type, contextForData, imageName);
+    
+    // Cerrar modal automáticamente después de cambiar el status exitosamente
+    setTimeout(() => {
+      closeCommentModal();
+    }, 500); // Pequeño delay para que el usuario vea el éxito
   });
 }
 
@@ -2976,15 +3027,6 @@ function openImagePreviewModal(imageName, imageSrc) {
   
   // Prevenir scroll del body
   document.body.style.overflow = 'hidden';
-  
-  // Agregar listener para cerrar con Escape
-  const escapeHandler = function(event) {
-    if (event.key === 'Escape') {
-      closeImagePreviewModal();
-      document.removeEventListener('keydown', escapeHandler);
-    }
-  };
-  document.addEventListener('keydown', escapeHandler);
 }
 
 // Función para cerrar el modal de vista previa
@@ -6222,11 +6264,27 @@ window.closeAssignDesignerModal = function() {
 };
 
 function updateAssignmentSummary() {
-  const totalComments = originalInventoryData.length;
-  const unassignedComments = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '').length;
+  const totalUnassigned = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '').length;
+  
+  // Calcular asignaciones planificadas
+  const designers = Object.keys(USERS).filter(user => USERS[user].group === 'Diseño');
+  let plannedAssignments = 0;
+  designers.forEach(designer => {
+    const input = document.getElementById(`assignment-${designer}`);
+    if (input && !input.disabled) {
+      plannedAssignments += parseInt(input.value) || 0;
+    }
+  });
+  
+  const remainingUnassigned = totalUnassigned - plannedAssignments;
   
   const unassignedCountElement = document.getElementById('unassignedCount');
-  unassignedCountElement.innerHTML = `Total de comentarios: <strong>${totalComments}</strong> | Sin asignar: <strong>${unassignedComments}</strong>`;
+  unassignedCountElement.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span>Total: <strong>${totalUnassigned}</strong></span>
+      <span>Sin asignar: <strong style="color: ${remainingUnassigned < 0 ? '#dc3545' : '#28a745'}">${remainingUnassigned < 0 ? remainingUnassigned : remainingUnassigned}</strong></span>
+    </div>
+  `;
 }
 
 function renderDesignersList() {
@@ -6253,8 +6311,7 @@ function renderDesignersList() {
     designerDiv.innerHTML = `
       <div class="designer-info">
         <label class="exclude-checkbox">
-          <input type="checkbox" checked onchange="toggleDesignerExclusion('${designer}', this.checked)">
-          Incluir
+          <input type="checkbox" checked onchange="toggleDesignerExclusion('${designer}', this.checked)" id="checkbox-${designer}">
         </label>
         <span class="designer-name">${USERS[designer].name}</span>
       </div>
@@ -6265,9 +6322,23 @@ function renderDesignersList() {
                id="assignment-${designer}"
                value="0" 
                min="0"
-               onchange="updateAssignmentInput('${designer}', this.value)">
+               onchange="updateAssignmentInput('${designer}', this.value)"
+               oninput="updateAssignmentInput('${designer}', this.value)">
       </div>
     `;
+    
+    // Hacer clickeable todo el box excepto el input
+    designerDiv.addEventListener('click', function(e) {
+      // No hacer nada si se clickea en el input de números
+      if (e.target.classList.contains('assignment-input')) {
+        return;
+      }
+      
+      // Toggle del checkbox
+      const checkbox = document.getElementById(`checkbox-${designer}`);
+      checkbox.checked = !checkbox.checked;
+      toggleDesignerExclusion(designer, checkbox.checked);
+    });
     
     designersContainer.appendChild(designerDiv);
   });
@@ -6285,6 +6356,9 @@ window.toggleDesignerExclusion = function(designer, isIncluded) {
     designerItem.classList.remove('excluded');
     assignmentInput.disabled = false;
   }
+  
+  // Actualizar el resumen dinámicamente
+  updateAssignmentSummary();
 };
 
 window.updateAssignmentInput = function(designer, value) {
@@ -6292,6 +6366,9 @@ window.updateAssignmentInput = function(designer, value) {
   if (value < 0) {
     document.getElementById(`assignment-${designer}`).value = 0;
   }
+  
+  // Actualizar el resumen dinámicamente
+  updateAssignmentSummary();
 };
 
 window.distributeEqually = function() {
@@ -6313,47 +6390,6 @@ window.distributeEqually = function() {
   
   // Distribuir comentarios restantes a las primeras diseñadoras
   for (let i = 0; i < remainder; i++) {
-    const currentValue = parseInt(document.getElementById(`assignment-${designers[i]}`).value);
-    document.getElementById(`assignment-${designers[i]}`).value = currentValue + 1;
-  }
-  
-  updateAssignmentSummary();
-};
-
-window.distributeRemaining = function() {
-  const designers = getActiveDesigners();
-  const unassignedComments = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '');
-  
-  if (designers.length === 0) {
-    alert('No hay diseñadoras activas seleccionadas para la distribución.');
-    return;
-  }
-  
-  // Calcular cuántos comentarios ya están planificados para asignar
-  let plannedAssignments = 0;
-  designers.forEach(designer => {
-    const inputValue = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
-    plannedAssignments += inputValue;
-  });
-  
-  const remainingToDistribute = unassignedComments.length - plannedAssignments;
-  
-  if (remainingToDistribute <= 0) {
-    alert('No hay comentarios restantes para distribuir.');
-    return;
-  }
-  
-  const additionalPerDesigner = Math.floor(remainingToDistribute / designers.length);
-  const finalRemainder = remainingToDistribute % designers.length;
-  
-  // Agregar comentarios adicionales
-  designers.forEach(designer => {
-    const currentValue = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
-    document.getElementById(`assignment-${designer}`).value = currentValue + additionalPerDesigner;
-  });
-  
-  // Distribuir el resto final
-  for (let i = 0; i < finalRemainder; i++) {
     const currentValue = parseInt(document.getElementById(`assignment-${designers[i]}`).value);
     document.getElementById(`assignment-${designers[i]}`).value = currentValue + 1;
   }
