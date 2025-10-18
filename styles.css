@@ -6421,8 +6421,8 @@ html, body {
   border-right: none;
 }
 
-/* Analista Clean - Columna 20 */
-.inventory-cell-clean:nth-child(20) {
+/* Analista Clean - Columna 12 */
+.inventory-cell-clean:nth-child(12) {
   background-color: rgba(255, 165, 0, 0.15);
   min-width: 120px;
   width: 120px;
@@ -6430,8 +6430,8 @@ html, body {
   font-weight: 600;
 }
 
-/* Primera Fecha Analista Clean - Columna 21 */
-.inventory-cell-clean:nth-child(21) {
+/* Primera Fecha Analista Clean - Columna 13 */
+.inventory-cell-clean:nth-child(13) {
   background-color: rgba(255, 165, 0, 0.15);
   min-width: 100px;
   width: 100px;
@@ -6439,8 +6439,8 @@ html, body {
   text-align: center;
 }
 
-/* Comentario Analista Clean - Columna 22 */
-.inventory-cell-clean:nth-child(22) {
+/* Comentario Analista Clean - Columna 14 */
+.inventory-cell-clean:nth-child(14) {
   background-color: rgba(255, 165, 0, 0.15);
   min-width: 170px;
   width: 170px;
@@ -6448,12 +6448,12 @@ html, body {
   transition: background-color 0.2s ease;
 }
 
-.inventory-cell-clean:nth-child(22):hover {
+.inventory-cell-clean:nth-child(14):hover {
   background-color: rgba(255, 165, 0, 0.25);
 }
 
-/* Diseñador Clean - Columna 23 */
-.inventory-cell-clean:nth-child(23) {
+/* Diseñador Clean - Columna 15 */
+.inventory-cell-clean:nth-child(15) {
   background-color: rgba(147, 112, 219, 0.15);
   min-width: 120px;
   width: 120px;
@@ -6461,8 +6461,8 @@ html, body {
   font-weight: 600;
 }
 
-/* Fecha Diseñador Clean - Columna 24 */
-.inventory-cell-clean:nth-child(24) {
+/* Fecha Diseñador Clean - Columna 16 */
+.inventory-cell-clean:nth-child(16) {
   background-color: rgba(147, 112, 219, 0.15);
   min-width: 100px;
   width: 100px;
@@ -6470,8 +6470,8 @@ html, body {
   text-align: center;
 }
 
-/* Comentario Diseñador Clean - Columna 25 */
-.inventory-cell-clean:nth-child(25) {
+/* Comentario Diseñador Clean - Columna 17 */
+.inventory-cell-clean:nth-child(17) {
   background-color: rgba(147, 112, 219, 0.15);
   min-width: 170px;
   width: 170px;
@@ -6479,12 +6479,12 @@ html, body {
   transition: background-color 0.2s ease;
 }
 
-.inventory-cell-clean:nth-child(25):hover {
+.inventory-cell-clean:nth-child(17):hover {
   background-color: rgba(147, 112, 219, 0.25);
 }
 
-/* Tipo Clean - Columna 26 */
-.inventory-cell-clean:nth-child(26) {
+/* Tipo Clean - Columna 18 */
+.inventory-cell-clean:nth-child(18) {
   background-color: rgba(108, 117, 125, 0.1);
   min-width: 110px;
   width: 110px;
@@ -6494,12 +6494,12 @@ html, body {
   transition: background-color 0.2s ease;
 }
 
-.inventory-cell-clean:nth-child(26):hover {
+.inventory-cell-clean:nth-child(18):hover {
   background-color: rgba(108, 117, 125, 0.2);
 }
 
-/* Status Clean - Columna 27 */
-.inventory-cell-clean:nth-child(27) {
+/* Status Clean - Columna 19 */
+.inventory-cell-clean:nth-child(19) {
   background-color: rgba(248, 249, 250, 0.8);
   min-width: 120px;
   width: 120px;
@@ -6508,7 +6508,7 @@ html, body {
   transition: background-color 0.2s ease;
 }
 
-.inventory-cell-clean:nth-child(27):hover {
+.inventory-cell-clean:nth-child(19):hover {
   background-color: rgba(108, 117, 125, 0.1);
 }
 
@@ -6532,7 +6532,7 @@ html, body {
 
 /* Tabla ampliada para nuevas columnas */
 .image-inventory-table {
-  min-width: 3200px;
+  min-width: 2400px;
   width: 100%;
 }
 
