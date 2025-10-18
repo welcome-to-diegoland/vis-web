@@ -342,10 +342,10 @@ function getImageColumnValue(rowData) {
 
 // Función auxiliar para determinar qué mostrar en Object Type
 function getObjectTypeValue(rowData) {
-  // Solo mostrar "Imagen" si el valor de imagen contiene .jpg
+  // Solo mostrar "Image" si el valor de imagen contiene .jpg
   const imageValue = getImageColumnValue(rowData);
   if (imageValue && String(imageValue).toLowerCase().includes('.jpg')) {
-    return 'Imagen';
+    return 'Image';
   }
   
   // Si no, mantener el Object Type original
@@ -5304,6 +5304,49 @@ function generateImageInventoryTable() {
     return asset && asset.WA_VIS_Comment ? asset.WA_VIS_Comment.trim() : '';
   }
 
+  // Función para obtener el ID del asset basado en el nombre de la imagen
+  function getAssetId(imageName) {
+    if (!currentAssetComments || !imageName || imageName.trim() === '') {
+      console.log(`❌ getAssetId: No hay currentAssetComments o imageName vacío. imageName: "${imageName}"`);
+      return '';
+    }
+    
+    const searchName = imageName.trim();
+    console.log(`🔍 getAssetId: Buscando imagen "${searchName}" en ${currentAssetComments.length} assets`);
+    
+    const asset = currentAssetComments.find(asset => 
+      asset.Name === searchName
+    );
+    
+    if (asset) {
+      console.log(`✅ getAssetId: Encontrado asset para "${searchName}":`, {
+        Name: asset.Name,
+        ID: asset.ID,
+        Id: asset.Id,
+        NamePath: asset.NamePath,
+        IdPath: asset.IdPath
+      });
+      
+      // Usar el campo ID (mayúscula) que contiene el ID específico de la imagen
+      const result = asset.ID;
+      console.log(`📋 getAssetId: Retornando ID "${result}" para "${searchName}"`);
+      return result ? result.toString().trim() : '';
+    } else {
+      console.log(`❌ getAssetId: No se encontró asset para "${searchName}"`);
+      
+      // Mostrar algunos ejemplos de los assets disponibles para debug
+      if (currentAssetComments.length > 0) {
+        console.log(`📋 Primeros 3 assets disponibles:`, currentAssetComments.slice(0, 3).map(a => ({
+          Name: a.Name,
+          ID: a.ID,
+          Id: a.Id
+        })));
+      }
+      
+      return '';
+    }
+  }
+
   // Función para parsear comentarios estructurados
   function parseComment(commentText) {
     // Inicializar estructura de respuesta
@@ -5504,10 +5547,14 @@ function generateImageInventoryTable() {
             rowIndex++;
             totalImagesWithComments++;
             
+            // Determinar si será una fila de tipo 'Image' 
+            const isImageType = imageValue && String(imageValue).toLowerCase().includes('.jpg');
+            const finalId = isImageType ? (getAssetId(imageValue.trim()) || metadata.id) : metadata.id;
+            
             tableRowsData.push({
               rowNumber: rowIndex,
               name: metadata.name,
-              id: metadata.id,
+              id: finalId,
               itemGroupId: metadata.itemGroupId,
               objectType: metadata.objectType,
               cms: metadata.cms,
@@ -5645,10 +5692,10 @@ function generateImageInventoryTable() {
               <th class="inventory-header-cell">Imp</th>
               <th class="inventory-header-cell">Imagen</th>
               <th class="inventory-header-cell">Analista</th>
-              <th class="inventory-header-cell">Primera Fecha</th>
+              <th class="inventory-header-cell">1º Fecha</th>
               <th class="inventory-header-cell">Comentario Analista</th>
               <th class="inventory-header-cell">Diseñador</th>
-              <th class="inventory-header-cell">Fecha Diseñador</th>
+              <th class="inventory-header-cell">Fecha Diseño</th>
               <th class="inventory-header-cell">Comentario Diseñador</th>
               <th class="inventory-header-cell">Tipo</th>
               <th class="inventory-header-cell">Status</th>
@@ -7016,6 +7063,39 @@ function updateInventoryDisplay(filteredData) {
 }
 
 function updateInventoryTableDirectly(filteredData) {
+  // Función para obtener el ID del asset basado en el nombre de la imagen
+  function getAssetId(imageName) {
+    if (!currentAssetComments || !imageName || imageName.trim() === '') {
+      console.log(`❌ updateInventory getAssetId: No hay currentAssetComments o imageName vacío. imageName: "${imageName}"`);
+      return '';
+    }
+    
+    const searchName = imageName.trim();
+    console.log(`🔍 updateInventory getAssetId: Buscando imagen "${searchName}" en ${currentAssetComments.length} assets`);
+    
+    const asset = currentAssetComments.find(asset => 
+      asset.Name === searchName
+    );
+    
+    if (asset) {
+      console.log(`✅ updateInventory getAssetId: Encontrado asset para "${searchName}":`, {
+        Name: asset.Name,
+        ID: asset.ID,
+        Id: asset.Id,
+        NamePath: asset.NamePath,
+        IdPath: asset.IdPath
+      });
+      
+      // Usar el campo ID (mayúscula) que contiene el ID específico de la imagen
+      const result = asset.ID;
+      console.log(`📋 updateInventory getAssetId: Retornando ID "${result}" para "${searchName}"`);
+      return result ? result.toString().trim() : '';
+    } else {
+      console.log(`❌ updateInventory getAssetId: No se encontró asset para "${searchName}"`);
+      return '';
+    }
+  }
+
   // Buscar la tabla de inventario existente
   const inventoryTable = document.querySelector('.image-inventory-table tbody');
   
@@ -7038,9 +7118,15 @@ function updateInventoryTableDirectly(filteredData) {
     row.className = 'inventory-row';
     row.setAttribute('data-original-row', rowData.originalRowIndex || index);
     
+    // Determinar el ID correcto: solo si Object Type será 'Image'
+    const objectTypeValue = getObjectTypeValue(rowData);
+    const displayId = (objectTypeValue === 'Image') 
+      ? (getAssetId(rowData.imageName) || rowData.id || rowData.itemGroupId || '')
+      : (rowData.id || rowData.itemGroupId || '');
+
     row.innerHTML = `
       <td class="inventory-cell">${index + 1}</td>
-      <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.id || rowData.itemGroupId || '')}</td>
+      <td class="inventory-cell inventory-item-group">${escapeHtml(displayId)}</td>
       <td class="inventory-cell">${escapeHtml(getObjectTypeValue(rowData))}</td>
       <td class="inventory-cell">${escapeHtml(rowData.cms || '')}</td>
       <td class="inventory-cell">${escapeHtml(rowData.marca || '')}</td>
