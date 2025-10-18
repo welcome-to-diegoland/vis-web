@@ -5477,10 +5477,10 @@ html, body {
 }
 
 /* Anchos específicos para headers - deben coincidir con las celdas */
-.inventory-header-cell:nth-child(1) { width: 25px; min-width: 25px; max-width: 25px; }
+.inventory-header-cell:nth-child(1) { width: 35px; min-width: 35px; max-width: 35px; }
 .inventory-header-cell:nth-child(2) { width: 55px; min-width: 55px; max-width: 55px; }
 .inventory-header-cell:nth-child(3) { width: 90px; min-width: 90px; max-width: 90px; }
-.inventory-header-cell:nth-child(4) { width: 60px; min-width: 60px; max-width: 60px; }
+.inventory-header-cell:nth-child(4) { width: 65px; min-width: 65px; max-width: 65px; }
 .inventory-header-cell:nth-child(5) { width: 80px; min-width: 80px; max-width: 80px; }
 .inventory-header-cell:nth-child(6) { width: 120px; min-width: 120px; max-width: 120px; }
 .inventory-header-cell:nth-child(7) { width: 35px; min-width: 35px; max-width: 35px; }
@@ -5529,7 +5529,6 @@ html, body {
   width: 25px !important;
   min-width: 25px !important;
   max-width: 25px !important;
-  text-align: center;
   font-weight: 600;
   color: #6c757d;
   font-size: 12px;
@@ -6624,10 +6623,10 @@ html, body {
 
 /* ===== ANCHOS DEFINITIVOS DE COLUMNAS DE INVENTARIO (AL FINAL PARA MÁXIMA PRIORIDAD) ===== */
 /* Anchos específicos para celdas de datos - MÁXIMA ESPECIFICIDAD */
-.image-inventory-table .inventory-cell:nth-child(1) { width: 25px !important; min-width: 25px !important; max-width: 25px !important; }
+.image-inventory-table .inventory-cell:nth-child(1) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
 .image-inventory-table .inventory-cell:nth-child(2) { width: 55px !important; min-width: 55px !important; max-width: 55px !important; }
 .image-inventory-table .inventory-cell:nth-child(3) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
-.image-inventory-table .inventory-cell:nth-child(4) { width: 60px !important; min-width: 60px !important; max-width: 60px !important; }
+.image-inventory-table .inventory-cell:nth-child(4) { width: 65px !important; min-width: 65px !important; max-width: 65px !important; }
 .image-inventory-table .inventory-cell:nth-child(5) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
 .image-inventory-table .inventory-cell:nth-child(6) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 .image-inventory-table .inventory-cell:nth-child(7) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
@@ -6642,10 +6641,10 @@ html, body {
 .image-inventory-table .inventory-cell:nth-child(16) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 
 /* También aplicar a las celdas td directamente */
-table.image-inventory-table td:nth-child(1) { width: 25px !important; min-width: 25px !important; max-width: 25px !important; }
+table.image-inventory-table td:nth-child(1) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
 table.image-inventory-table td:nth-child(2) { width: 55px !important; min-width: 55px !important; max-width: 55px !important; }
 table.image-inventory-table td:nth-child(3) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
-table.image-inventory-table td:nth-child(4) { width: 60px !important; min-width: 60px !important; max-width: 60px !important; }
+table.image-inventory-table td:nth-child(4) { width: 65px !important; min-width: 65px !important; max-width: 65px !important; }
 table.image-inventory-table td:nth-child(5) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
 table.image-inventory-table td:nth-child(6) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 table.image-inventory-table td:nth-child(7) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
