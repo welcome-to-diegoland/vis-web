@@ -273,6 +273,36 @@ function navigateToItemGroup(itemGroupId) {
   }
 }
 
+// Función auxiliar para determinar qué mostrar en la columna imagen
+function getImageColumnValue(rowData) {
+  // Si ya tiene imagen, usarla
+  if (rowData.imagen && String(rowData.imagen).trim() !== '' && rowData.imagen !== '-') {
+    return String(rowData.imagen);
+  }
+  
+  // Si no tiene imagen, revisar el Object Type
+  if (rowData.objectType === 'Item Group') {
+    return String(rowData.id || rowData.itemId || '');
+  } else if (rowData.objectType === 'Item Code') {
+    return String(rowData.name || rowData.itemName || '');
+  }
+  
+  // Si no coincide con ninguno, mantener el valor original
+  return String(rowData.imagen || '');
+}
+
+// Función auxiliar para determinar qué mostrar en Object Type
+function getObjectTypeValue(rowData) {
+  // Solo mostrar "Imagen" si el valor de imagen contiene .jpg
+  const imageValue = getImageColumnValue(rowData);
+  if (imageValue && String(imageValue).toLowerCase().includes('.jpg')) {
+    return 'Imagen';
+  }
+  
+  // Si no, mantener el Object Type original
+  return String(rowData.objectType || '');
+}
+
 // Función para determinar el status automático basado en el grupo del usuario
 function getAutomaticStatus() {
   const userInfo = getCurrentUserInfo();
@@ -5499,16 +5529,13 @@ function generateImageInventoryTable() {
       return `
         <tr class="inventory-row inventory-direct-comment" data-original-row="${rowData.originalRowIndex}">
           <td class="inventory-cell">${rowData.rowNumber}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
-          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell">${escapeHtml(getObjectTypeValue(rowData))}</td>
           <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
-          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
-          <td class="inventory-cell inventory-image-empty">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-image-empty">${escapeHtml(getImageColumnValue(rowData))}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
           <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
@@ -5523,16 +5550,13 @@ function generateImageInventoryTable() {
       return `
         <tr class="inventory-row inventory-image-comment" data-original-row="${rowData.originalRowIndex}">
           <td class="inventory-cell">${rowData.rowNumber}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
-          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell">${escapeHtml(getObjectTypeValue(rowData))}</td>
           <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
-          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
-          <td class="inventory-cell inventory-image">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-image">${escapeHtml(getImageColumnValue(rowData))}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
           <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
@@ -5571,15 +5595,12 @@ function generateImageInventoryTable() {
           <thead>
             <tr class="inventory-header-row">
               <th class="inventory-header-cell">#</th>
-              <th class="inventory-header-cell">Nombre</th>
-              <th class="inventory-header-cell">Id</th>
-              <th class="inventory-header-cell">Item Group</th>
+              <th class="inventory-header-cell">ID</th>
               <th class="inventory-header-cell">Object Type</th>
               <th class="inventory-header-cell">CMS</th>
               <th class="inventory-header-cell">Marca</th>
               <th class="inventory-header-cell">Título</th>
               <th class="inventory-header-cell">Imp</th>
-              <th class="inventory-header-cell">Campo</th>
               <th class="inventory-header-cell">Imagen</th>
               <th class="inventory-header-cell">Analista</th>
               <th class="inventory-header-cell">Primera Fecha</th>
@@ -6101,16 +6122,13 @@ function regenerateInventoryTable(filteredData) {
       return `
         <tr class="inventory-row inventory-direct-comment" data-original-row="${rowData.originalRowIndex}">
           <td class="inventory-cell">${rowData.rowNumber}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
-          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell">${escapeHtml(getObjectTypeValue(rowData))}</td>
           <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
-          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
-          <td class="inventory-cell inventory-image-empty">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-image-empty">${escapeHtml(getImageColumnValue(rowData))}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
           <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
@@ -6125,16 +6143,13 @@ function regenerateInventoryTable(filteredData) {
       return `
         <tr class="inventory-row inventory-image-comment" data-original-row="${rowData.originalRowIndex}">
           <td class="inventory-cell">${rowData.rowNumber}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.name)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.id)}</td>
-          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.itemGroupId)}</td>
-          <td class="inventory-cell">${escapeHtml(rowData.objectType)}</td>
+          <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.id)}</td>
+          <td class="inventory-cell">${escapeHtml(getObjectTypeValue(rowData))}</td>
           <td class="inventory-cell">${escapeHtml(rowData.cms)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.marca)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.titulo)}</td>
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
-          <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo)}</td>
-          <td class="inventory-cell inventory-image">${escapeHtml(rowData.imagen)}</td>
+          <td class="inventory-cell inventory-image">${escapeHtml(getImageColumnValue(rowData))}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
           <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
@@ -6940,7 +6955,7 @@ function updateInventoryDisplay(filteredData) {
   if (!filteredData || filteredData.length === 0) {
     const inventoryTable = document.querySelector('.image-inventory-table tbody');
     if (inventoryTable) {
-      inventoryTable.innerHTML = '<tr><td colspan="19" style="text-align: center; color: #666;">No hay datos que coincidan con el filtro actual</td></tr>';
+      inventoryTable.innerHTML = '<tr><td colspan="16" style="text-align: center; color: #666;">No hay datos que coincidan con el filtro actual</td></tr>';
     }
     console.log('❌ Sin datos para mostrar');
     return;
@@ -6977,7 +6992,7 @@ function updateInventoryTableDirectly(filteredData) {
   inventoryTable.innerHTML = '';
   
   if (!filteredData || filteredData.length === 0) {
-    inventoryTable.innerHTML = '<tr><td colspan="19" class="no-data">No hay datos que coincidan con el filtro seleccionado.</td></tr>';
+    inventoryTable.innerHTML = '<tr><td colspan="16" class="no-data">No hay datos que coincidan con el filtro seleccionado.</td></tr>';
     return;
   }
   
@@ -6989,23 +7004,20 @@ function updateInventoryTableDirectly(filteredData) {
     
     row.innerHTML = `
       <td class="inventory-cell">${index + 1}</td>
-      <td class="inventory-cell">${escapeHtml(rowData.name || '')}</td>
-      <td class="inventory-cell">${escapeHtml(rowData.id || '')}</td>
-      <td class="inventory-cell inventory-item-group clickable-status" data-item-group-id="${escapeHtml(rowData.itemGroupId || '')}">${escapeHtml(rowData.itemGroupId || '')}</td>
-      <td class="inventory-cell">${escapeHtml(rowData.objectType || '')}</td>
+      <td class="inventory-cell inventory-item-group">${escapeHtml(rowData.id || rowData.itemGroupId || '')}</td>
+      <td class="inventory-cell">${escapeHtml(getObjectTypeValue(rowData))}</td>
       <td class="inventory-cell">${escapeHtml(rowData.cms || '')}</td>
       <td class="inventory-cell">${escapeHtml(rowData.marca || '')}</td>
       <td class="inventory-cell">${escapeHtml(rowData.titulo || '')}</td>
       <td class="inventory-cell">${escapeHtml(rowData.importancia || '')}</td>
-      <td class="inventory-cell inventory-field">${escapeHtml(rowData.campo || '')}</td>
-      <td class="inventory-cell inventory-image">${escapeHtml(rowData.imagen || '')}</td>
-      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="analista-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
+      <td class="inventory-cell inventory-image">${escapeHtml(getImageColumnValue(rowData))}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
       <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
-      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="analista-comment-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
-      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="diseñador-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
       <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
-      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="diseñador-comment-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
-      <td class="inventory-cell-clean clickable-comment-clean" data-comment-type="tipo-clean" data-image-name="${escapeHtml(rowData.imagen || '')}" data-item-name="${escapeHtml(rowData.name || '')}" data-item-id="${escapeHtml(rowData.id || '')}" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
       <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || '')}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
     `;
     
