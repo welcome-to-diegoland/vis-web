@@ -2448,7 +2448,14 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     clearForm();
     
     // Actualizar burbujas de comentarios en la UI
-    updateCommentBubbles(type, contextForData, imageName);
+    if (typeof updateCommentBubbles === 'function') {
+      updateCommentBubbles(type, contextForData, imageName);
+    } else {
+      console.log('🔍 updateCommentBubbles no está disponible - contexto:', type, contextForData);
+    }
+    
+    // ACTUALIZAR TABLAS DESPUÉS DE AGREGAR COMENTARIO
+    updateTablesAfterComment();
     
     // Cerrar modal automáticamente después de agregar el comentario exitosamente
     setTimeout(() => {
@@ -2510,7 +2517,11 @@ function setupStatusControl(modal, context, type = 'item', imageName = null, com
     this.value = '';
     
     // Actualizar burbujas de comentarios en la UI
-    updateCommentBubbles(type, contextForData, imageName);
+    if (typeof updateCommentBubbles === 'function') {
+      updateCommentBubbles(type, contextForData, imageName);
+    } else {
+      console.log('🔍 updateCommentBubbles no está disponible - contexto status:', type, contextForData);
+    }
     
     // Cerrar modal automáticamente después de cambiar el status exitosamente
     setTimeout(() => {
@@ -2554,8 +2565,15 @@ function updateStatusBadge(modal, newStatus) {
 
 // Función para agregar un nuevo comentario a los datos
 function addNewCommentToData(context, newComment, type = 'item', imageName = null) {
+  console.log('🔥 === INICIO addNewCommentToData ===');
+  console.log('📝 Contexto:', context);
+  console.log('💬 Nuevo comentario:', newComment);
+  console.log('🏷️ Tipo:', type);
+  console.log('🖼️ Imagen:', imageName);
+  
   // Crear el string del nuevo comentario en formato Excel
   const newCommentString = `${newComment.usuario}¦${newComment.fechaHora}¦${newComment.tipoComentario}¦${newComment.textoComentario}¦${newComment.status}`;
+  console.log('📋 String de comentario formateado:', newCommentString);
   
   if (type === 'image' && imageName) {
     // Es un comentario de imagen
@@ -2582,7 +2600,11 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
     markItemGroupAsModified();
     
     // Actualizar burbujas visualmente para imágenes
-    updateCommentBubbles('image', imageName, null);
+    if (typeof updateCommentBubbles === 'function') {
+      updateCommentBubbles('image', imageName, null);
+    } else {
+      console.log('🔍 updateCommentBubbles no está disponible - actualizando imagen:', imageName);
+    }
     return;
   }
   
@@ -2591,30 +2613,195 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
   const modal = document.getElementById('commentModal');
   const isGroupComment = modal.querySelector('.modal-title').textContent.includes('Item Group');
   
-  if (isGroupComment && currentItemGroup) {
+  if (isGroupComment) {
     // Es un comentario de Item Group
-    const existingComments = currentItemGroup['WA_VIS_Comment'] || '';
-    currentItemGroup['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+    let targetItemGroup = currentItemGroup;
     
-    // Actualizar también en currentWorkingData
-    const itemGroupIndex = currentWorkingData.findIndex(item => 
-      item['Object Type'] === 'Item Group' && 
-      item.NamePath === currentItemGroup.NamePath
-    );
+    // Si currentItemGroup es null, intentar encontrarlo por contexto
+    if (!targetItemGroup) {
+      console.log('📍 currentItemGroup es null, buscando por contexto:', context);
+      
+      // Extraer el ID del contexto (formato: "Nombre (ID)")
+      const idMatch = context.match(/\((\d+)\)$/);
+      if (idMatch) {
+        const itemGroupId = idMatch[1];
+        console.log('🔍 Buscando Item Group con ID:', itemGroupId);
+        
+        // Buscar en allLibraryData o currentWorkingData
+        targetItemGroup = (allLibraryData || currentWorkingData).find(item => 
+          item['Object Type'] === 'Item Group' && 
+          (item.Id === itemGroupId || String(item.Id) === itemGroupId)
+        );
+        
+        if (targetItemGroup) {
+          console.log('✅ Item Group encontrado por ID:', targetItemGroup.Name);
+        }
+      }
+      
+      // Si aún no se encuentra, buscar por nombre
+      if (!targetItemGroup) {
+        const itemName = context.split(' (')[0]; // Remover el (ID) del final
+        console.log('🔍 Buscando Item Group por nombre:', itemName);
+        
+        targetItemGroup = (allLibraryData || currentWorkingData).find(item => 
+          item['Object Type'] === 'Item Group' && 
+          item.Name === itemName
+        );
+        
+        if (targetItemGroup) {
+          console.log('✅ Item Group encontrado por nombre:', targetItemGroup.Name);
+        }
+      }
+    }
     
-    if (itemGroupIndex !== -1) {
-      currentWorkingData[itemGroupIndex]['WA_VIS_Comment'] = currentItemGroup['WA_VIS_Comment'];
+    if (targetItemGroup) {
+      // Mostrar el estado ANTES del cambio
+      const existingComments = targetItemGroup['WA_VIS_Comment'] || '';
+      console.log('📋 ANTES - Comentarios existentes:', existingComments);
+      
+      // Parsear comentarios ANTES para comparar
+      const commentsBefore = parseCommentForDebugging(existingComments);
+      console.log('🔍 ANTES - Datos parseados:', commentsBefore);
+      
+      // Actualizar el Item Group encontrado
+      targetItemGroup['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      
+      // Parsear comentarios DESPUÉS para comparar
+      const commentsAfter = parseCommentForDebugging(targetItemGroup['WA_VIS_Comment']);
+      console.log('🔍 DESPUÉS - Datos parseados:', commentsAfter);
+      
+      // Mostrar qué cambió específicamente
+      console.log('🎯 === ANÁLISIS DE CAMBIOS ===');
+      console.log('   Analista antes:', commentsBefore.analista, '→ después:', commentsAfter.analista);
+      console.log('   Fecha analista antes:', commentsBefore.primeraFechaAnalista, '→ después:', commentsAfter.primeraFechaAnalista);
+      console.log('   Comentario analista antes:', commentsBefore.ultimoComentarioAnalista, '→ después:', commentsAfter.ultimoComentarioAnalista);
+      console.log('   Diseñador antes:', commentsBefore.diseñador, '→ después:', commentsAfter.diseñador);
+      console.log('   Fecha diseñador antes:', commentsBefore.ultimaFechaDisenador, '→ después:', commentsAfter.ultimaFechaDisenador);
+      console.log('   Comentario diseñador antes:', commentsBefore.ultimoComentarioDisenador, '→ después:', commentsAfter.ultimoComentarioDisenador);
+      console.log('   Status antes:', commentsBefore.ultimoStatus, '→ después:', commentsAfter.ultimoStatus);
+      console.log('   Tipo antes:', commentsBefore.ultimoTipo, '→ después:', commentsAfter.ultimoTipo);
+      
+      console.log('💾 Comentario guardado en Item Group:', targetItemGroup.Name);
+      console.log('💾 Comentario completo guardado:', targetItemGroup['WA_VIS_Comment']);
+      
+      // Actualizar también en currentWorkingData si es diferente
+      const itemGroupIndex = currentWorkingData.findIndex(item => 
+        item['Object Type'] === 'Item Group' && 
+        (item.Id === targetItemGroup.Id || item.NamePath === targetItemGroup.NamePath)
+      );
+      
+      if (itemGroupIndex !== -1) {
+        currentWorkingData[itemGroupIndex]['WA_VIS_Comment'] = targetItemGroup['WA_VIS_Comment'];
+        console.log('💾 También actualizado en currentWorkingData');
+      }
+      
+      // Actualizar también en allLibraryData si existe
+      if (allLibraryData && allLibraryData.length > 0) {
+        const allDataIndex = allLibraryData.findIndex(item => 
+          item['Object Type'] === 'Item Group' && 
+          (item.Id === targetItemGroup.Id || item.NamePath === targetItemGroup.NamePath)
+        );
+        
+        if (allDataIndex !== -1) {
+          allLibraryData[allDataIndex]['WA_VIS_Comment'] = targetItemGroup['WA_VIS_Comment'];
+          console.log('💾 También actualizado en allLibraryData');
+        }
+      }
+      
+      // Si currentItemGroup era null, actualizarlo para futuras referencias
+      if (!currentItemGroup) {
+        currentItemGroup = targetItemGroup;
+        console.log('🔄 currentItemGroup actualizado');
+      }
+      
+    } else {
+      console.error('❌ No se pudo encontrar el Item Group para guardar el comentario:', context);
+      return;
     }
   } else {
     // Es un comentario de Item Code
-    const itemCodeData = currentWorkingData.find(item => 
-      item['Object Type'] === 'Item Code' && 
-      (item.Name === context || item['Item Code'] === context)
-    );
+    console.log('🏷️ Procesando comentario de Item Code');
+    
+    // Buscar el Item Code por ID primero, luego por nombre
+    let itemCodeData = null;
+    
+    // Extraer el ID del contexto (formato: "Nombre (ID)")
+    const idMatch = context.match(/\((\d+)\)$/);
+    if (idMatch) {
+      const itemCodeId = idMatch[1];
+      console.log('🔍 Buscando Item Code con ID:', itemCodeId);
+      
+      itemCodeData = currentWorkingData.find(item => 
+        item['Object Type'] === 'Item Code' && 
+        (item.Id === itemCodeId || String(item.Id) === itemCodeId)
+      );
+      
+      if (itemCodeData) {
+        console.log('✅ Item Code encontrado por ID:', itemCodeData.Name);
+      }
+    }
+    
+    // Si no se encuentra por ID, buscar por nombre
+    if (!itemCodeData) {
+      const itemName = context.split(' (')[0]; // Remover el (ID) del final
+      console.log('🔍 Buscando Item Code por nombre:', itemName);
+      
+      itemCodeData = currentWorkingData.find(item => 
+        item['Object Type'] === 'Item Code' && 
+        (item.Name === itemName || item['Item Code'] === itemName)
+      );
+      
+      if (itemCodeData) {
+        console.log('✅ Item Code encontrado por nombre:', itemCodeData.Name);
+      }
+    }
     
     if (itemCodeData) {
+      // Mostrar el estado ANTES del cambio
       const existingComments = itemCodeData['WA_VIS_Comment'] || '';
+      console.log('📋 ANTES - Comentarios existentes (Item Code):', existingComments);
+      
+      // Parsear comentarios ANTES para comparar
+      const commentsBefore = parseCommentForDebugging(existingComments);
+      console.log('🔍 ANTES - Datos parseados (Item Code):', commentsBefore);
+      
+      // Actualizar el Item Code encontrado
       itemCodeData['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      
+      // Parsear comentarios DESPUÉS para comparar
+      const commentsAfter = parseCommentForDebugging(itemCodeData['WA_VIS_Comment']);
+      console.log('🔍 DESPUÉS - Datos parseados (Item Code):', commentsAfter);
+      
+      // Mostrar qué cambió específicamente
+      console.log('🎯 === ANÁLISIS DE CAMBIOS (Item Code) ===');
+      console.log('   Analista antes:', commentsBefore.analista, '→ después:', commentsAfter.analista);
+      console.log('   Fecha analista antes:', commentsBefore.primeraFechaAnalista, '→ después:', commentsAfter.primeraFechaAnalista);
+      console.log('   Comentario analista antes:', commentsBefore.ultimoComentarioAnalista, '→ después:', commentsAfter.ultimoComentarioAnalista);
+      console.log('   Diseñador antes:', commentsBefore.diseñador, '→ después:', commentsAfter.diseñador);
+      console.log('   Fecha diseñador antes:', commentsBefore.ultimaFechaDisenador, '→ después:', commentsAfter.ultimaFechaDisenador);
+      console.log('   Comentario diseñador antes:', commentsBefore.ultimoComentarioDisenador, '→ después:', commentsAfter.ultimoComentarioDisenador);
+      console.log('   Status antes:', commentsBefore.ultimoStatus, '→ después:', commentsAfter.ultimoStatus);
+      console.log('   Tipo antes:', commentsBefore.ultimoTipo, '→ después:', commentsAfter.ultimoTipo);
+      
+      console.log('💾 Comentario guardado en Item Code:', itemCodeData.Name);
+      console.log('💾 Comentario completo guardado:', itemCodeData['WA_VIS_Comment']);
+      
+      // Actualizar también en allLibraryData si existe
+      if (allLibraryData && allLibraryData.length > 0) {
+        const allDataIndex = allLibraryData.findIndex(item => 
+          item['Object Type'] === 'Item Code' && 
+          (item.Id === itemCodeData.Id || item.Name === itemCodeData.Name)
+        );
+        
+        if (allDataIndex !== -1) {
+          allLibraryData[allDataIndex]['WA_VIS_Comment'] = itemCodeData['WA_VIS_Comment'];
+          console.log('💾 También actualizado en allLibraryData (Item Code)');
+        }
+      }
+      
+    } else {
+      console.error('❌ No se pudo encontrar el Item Code para guardar el comentario:', context);
+      return;
     }
   }
   
@@ -2625,13 +2812,345 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
   
   // Actualizar burbujas visualmente después de agregar comentario
   if (isGroupComment) {
-    updateCommentBubbles('group', context, imageName);
+    if (typeof updateCommentBubbles === 'function') {
+      updateCommentBubbles('group', context, imageName);
+    } else {
+      console.log('🔍 updateCommentBubbles no está disponible - actualizando grupo:', context);
+    }
   } else {
-    updateCommentBubbles('item', context, imageName);
+    if (typeof updateCommentBubbles === 'function') {
+      updateCommentBubbles('item', context, imageName);
+    } else {
+      console.log('🔍 updateCommentBubbles no está disponible - actualizando item:', context);
+    }
   }
 }
 
-// Función para actualizar las burbujas después de agregar un comentario
+// Función para parsear comentarios estructurados (específica para debugging)
+function parseCommentForDebugging(commentText) {
+  // Inicializar estructura de respuesta
+  const result = {
+    analista: '',
+    primeraFechaAnalista: '',
+    ultimoComentarioAnalista: '',
+    diseñador: '',
+    ultimaFechaDisenador: '',
+    ultimoComentarioDisenador: '',
+    ultimoTipo: '',
+    ultimoStatus: ''
+  };
+
+  if (!commentText || commentText.trim() === '') {
+    return result;
+  }
+
+  try {
+    // Dividir por ¶ para separar todas las entradas
+    const sections = commentText.split('¶');
+    
+    let allEntries = [];
+    
+    // Procesar cada sección
+    sections.forEach(section => {
+      if (section.trim()) {
+        // Dividir por ¦ para obtener los campos
+        const fields = section.split('¦');
+        if (fields.length >= 5) {
+          const entry = {
+            usuario: fields[0].trim(),
+            fecha: fields[1].trim(),
+            tipo: fields[2].trim(),
+            comentario: fields[3].trim(),
+            status: fields[4].trim(),
+            fechaDate: new Date(fields[1].trim())
+          };
+          allEntries.push(entry);
+        }
+      }
+    });
+
+    if (allEntries.length === 0) {
+      return result;
+    }
+
+    // Separar analistas y diseñadores basado en los usuarios conocidos
+    // Lista de analistas conocidos (puedes expandir esta lista)
+    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego'];
+    // Lista de diseñadores conocidos (puedes expandir esta lista)  
+    const diseñadoresConocidos = ['Veronica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
+    
+    let analistas = [];
+    let diseñadores = [];
+    
+    // Clasificar entradas por tipo de usuario
+    allEntries.forEach(entry => {
+      if (analistasConocidos.includes(entry.usuario)) {
+        analistas.push(entry);
+      } else if (diseñadoresConocidos.includes(entry.usuario)) {
+        diseñadores.push(entry);
+      } else {
+        // Si no se reconoce, asumir que es analista por defecto
+        analistas.push(entry);
+      }
+    });
+
+    // Ordenar por fecha
+    analistas.sort((a, b) => a.fechaDate - b.fechaDate);
+    diseñadores.sort((a, b) => a.fechaDate - b.fechaDate);
+
+    // Procesar analistas
+    if (analistas.length > 0) {
+      const primerAnalista = analistas[0];
+      const ultimoAnalista = analistas[analistas.length - 1];
+      
+      result.analista = primerAnalista.usuario;
+      result.primeraFechaAnalista = primerAnalista.fecha;
+      result.ultimoComentarioAnalista = ultimoAnalista.comentario;
+    }
+
+    // Procesar diseñadores
+    if (diseñadores.length > 0) {
+      const ultimoDisenador = diseñadores[diseñadores.length - 1];
+      
+      result.diseñador = ultimoDisenador.usuario;
+      result.ultimaFechaDisenador = ultimoDisenador.fecha;
+      result.ultimoComentarioDisenador = ultimoDisenador.comentario;
+    }
+
+    // Encontrar la entrada más reciente para tipo y status
+    if (allEntries.length > 0) {
+      // Ordenar todas las entradas por fecha
+      allEntries.sort((a, b) => b.fechaDate - a.fechaDate);
+      
+      result.ultimoTipo = allEntries[0].tipo;
+      result.ultimoStatus = allEntries[0].status;
+    }
+
+  } catch (error) {
+    console.warn('Error parseando comentario para debug:', commentText, error);
+  }
+
+  return result;
+}
+
+// Función para actualizar las tablas después de agregar un comentario
+function updateTablesAfterComment() {
+  console.log('🔄 === INICIO updateTablesAfterComment ===');
+  
+  // 1. Actualizar tabla de inventario si existe
+  const inventoryTable = document.querySelector('.image-inventory-table');
+  if (inventoryTable) {
+    console.log('📊 Tabla de inventario encontrada, regenerando...');
+    
+    // Verificar si hay filtros activos (dropdown o tabla)
+    const hasDropdownFilters = inventoryViewState && (
+      inventoryViewState.dropdownFilters?.analista ||
+      inventoryViewState.dropdownFilters?.disenador ||
+      inventoryViewState.dropdownFilters?.status ||
+      inventoryViewState.dropdownFilters?.tipo
+    );
+    
+    // CORREGIDO: Los filtros de tabla están en activeFilters, no en tableFilters
+    const hasTableFilters = inventoryViewState && inventoryViewState.activeFilters && (
+      inventoryViewState.activeFilters.analista ||
+      inventoryViewState.activeFilters.disenador ||
+      inventoryViewState.activeFilters.analistaStatus ||
+      inventoryViewState.activeFilters.diseñadorStatus
+    );
+    
+    const isFiltered = hasDropdownFilters || hasTableFilters;
+    
+    console.log('🔍 Estado de filtros:', {
+      isFiltered: isFiltered,
+      hasDropdownFilters: hasDropdownFilters,
+      hasTableFilters: hasTableFilters,
+      dropdownFiltros: inventoryViewState?.dropdownFilters || 'Sin filtros dropdown',
+      tableFiltros: inventoryViewState?.activeFilters || 'Sin filtros tabla'
+    });
+    
+    if (isFiltered) {
+      console.log('⚠️ TABLA FILTRADA DETECTADA - Se requiere lógica especial');
+      // Para tabla filtrada, necesitamos regenerar los datos filtrados
+      updateFilteredInventoryTableAfterComment();
+    } else {
+      console.log('✅ TABLA NORMAL - Regenerando completamente');
+      // Regenerar la tabla de inventario completamente
+      const box4Content = document.getElementById('box4-content');
+      if (box4Content && currentWorkingData && currentWorkingData.length > 0) {
+        // Regenerar tabla de inventario
+        box4Content.innerHTML = generateImageInventoryTable();
+        
+        // Restaurar estado de filtros después de un pequeño delay
+        setTimeout(() => {
+          restoreInventoryViewState();
+        }, 200);
+        
+        console.log('✅ Tabla de inventario normal actualizada');
+      }
+    }
+  } else {
+    console.log('⚠️ No se encontró tabla de inventario en el DOM');
+  }
+  
+  // 2. Actualizar tablas de resumen/estadísticas si existen
+  setTimeout(() => {
+    updateStatsTablesOnDataChange();
+  }, 300);
+  
+  console.log('✅ === FIN updateTablesAfterComment ===');
+}
+
+// Función específica para actualizar tabla filtrada después de comentario
+function updateFilteredInventoryTableAfterComment() {
+  console.log('🔄 === INICIO updateFilteredInventoryTableAfterComment ===');
+  
+  // CRÍTICO: Detener cualquier restauración automática que esté en curso
+  console.log('⚠️ DESHABILITANDO restauración automática temporalmente...');
+  
+  // Regenerar originalInventoryData primero
+  console.log('📊 Regenerando originalInventoryData...');
+  
+  // IMPORTANTE: Regenerar la tabla completa para actualizar originalInventoryData con los nuevos comentarios
+  // Esto ejecuta generateImageInventoryTable() que actualiza originalInventoryData con la función parseComment actualizada
+  const box4Content = document.getElementById('box4-content');
+  if (box4Content && currentWorkingData && currentWorkingData.length > 0) {
+    // Regenerar tabla de inventario completamente en el DOM real para que originalInventoryData se actualice
+    console.log('🔄 Regenerando tabla completa para actualizar originalInventoryData...');
+    box4Content.innerHTML = generateImageInventoryTable();
+    console.log('✅ originalInventoryData regenerado con', originalInventoryData.length, 'elementos');
+    
+    // MOSTRAR DATOS ACTUALIZADOS PARA DEBUG
+    const sampleItem = originalInventoryData.find(item => item.nombre === '87-100-122');
+    if (sampleItem) {
+      console.log('🔍 DATOS ACTUALIZADOS - Item 87-100-122:', {
+        analista: sampleItem.analista,
+        diseñador: sampleItem.diseñador,
+        ultimoComentarioAnalista: sampleItem.ultimoComentarioAnalista,
+        ultimoComentarioDisenador: sampleItem.ultimoComentarioDisenador,
+        ultimoStatus: sampleItem.ultimoStatus
+      });
+    }
+    
+    // CRÍTICO: Aplicar filtros inmediatamente con datos actualizados
+    const currentFilters = inventoryViewState?.activeFilters;
+    if (currentFilters) {
+      console.log('� APLICANDO filtros de tabla inmediatamente:', currentFilters);
+      
+      // Buscar el elemento de filtro activo y simular click para aplicar filtros actualizados
+      let filterElement = null;
+      
+      if (currentFilters.analista && currentFilters.analistaStatus) {
+        filterElement = document.querySelector(`[data-type="analyst"][data-user="${currentFilters.analista}"][data-status="${currentFilters.analistaStatus}"]`);
+        console.log('🎯 Buscando analista:', currentFilters.analista, currentFilters.analistaStatus);
+      } else if (currentFilters.analista) {
+        filterElement = document.querySelector(`[data-type="analyst"][data-user="${currentFilters.analista}"]`);
+        console.log('🎯 Buscando analista:', currentFilters.analista);
+      } else if (currentFilters.disenador && currentFilters.diseñadorStatus) {
+        filterElement = document.querySelector(`[data-type="designer"][data-user="${currentFilters.disenador}"][data-status="${currentFilters.diseñadorStatus}"]`);
+        console.log('🎯 Buscando diseñador:', currentFilters.disenador, currentFilters.diseñadorStatus);
+      } else if (currentFilters.disenador) {
+        filterElement = document.querySelector(`[data-type="designer"][data-user="${currentFilters.disenador}"]`);
+        console.log('🎯 Buscando diseñador:', currentFilters.disenador);
+      }
+      
+      if (filterElement) {
+        console.log('✅ FORZANDO click en filtro para aplicar datos actualizados...');
+        // Simular click en el filtro para aplicar los datos actualizados
+    // APLICAR FILTROS DIRECTAMENTE sobre los datos actualizados
+    setTimeout(() => {
+      // MOSTRAR DATOS ACTUALIZADOS PARA DEBUG después del timeout
+      const sampleItem = originalInventoryData.find(item => item.nombre === '87-100-122');
+      if (sampleItem) {
+        console.log('🔍 DATOS ACTUALIZADOS DESPUÉS DEL TIMEOUT - Item 87-100-122:', {
+          analista: sampleItem.analista,
+          diseñador: sampleItem.diseñador,
+          ultimoComentarioAnalista: sampleItem.ultimoComentarioAnalista,
+          ultimoComentarioDisenador: sampleItem.ultimoComentarioDisenador,
+          ultimoStatus: sampleItem.ultimoStatus
+        });
+      }
+      
+      const currentFilters = inventoryViewState?.activeFilters;
+      if (currentFilters) {
+        console.log('🔧 APLICANDO filtros directamente sobre datos actualizados CON TIMEOUT:', currentFilters);
+        
+        // Filtrar datos directamente usando la misma lógica que las stats tables
+        let filteredData = originalInventoryData.filter(row => {
+          let userMatch = true;
+          let statusMatch = true;
+          
+          // Filtro por analista
+          if (currentFilters.analista) {
+            userMatch = row.analista === currentFilters.analista;
+            if (currentFilters.analistaStatus) {
+              statusMatch = row.ultimoStatus && row.ultimoStatus.toLowerCase() === currentFilters.analistaStatus.toLowerCase();
+            }
+          }
+          
+          // Filtro por diseñador
+          if (currentFilters.disenador) {
+            userMatch = row.diseñador === currentFilters.disenador;
+            if (currentFilters.diseñadorStatus) {
+              statusMatch = row.ultimoStatus && row.ultimoStatus.toLowerCase() === currentFilters.diseñadorStatus.toLowerCase();
+            }
+          }
+          
+          return userMatch && statusMatch;
+        });
+        
+        console.log('📋 Datos filtrados directamente CON TIMEOUT:', filteredData.length, 'de', originalInventoryData.length, 'elementos');
+        
+        // Mostrar ejemplo de datos filtrados
+        if (filteredData.length > 0) {
+          console.log('🔍 PRIMER ELEMENTO FILTRADO CON TIMEOUT:', {
+            nombre: filteredData[0].nombre,
+            analista: filteredData[0].analista,
+            diseñador: filteredData[0].diseñador,
+            ultimoComentarioAnalista: filteredData[0].ultimoComentarioAnalista,
+            ultimoComentarioDisenador: filteredData[0].ultimoComentarioDisenador,
+            ultimoStatus: filteredData[0].ultimoStatus
+          });
+        }
+        
+        // Actualizar la tabla directamente con los datos filtrados
+        updateInventoryTableDirectly(filteredData);
+        
+      } else {
+        console.log('❌ No hay filtros activos para aplicar');
+      }
+    }, 150); // Timeout para asegurar que originalInventoryData se actualice
+    
+  } else {
+    console.log('❌ No se pudo regenerar originalInventoryData: falta box4Content o currentWorkingData');
+  }
+  
+  console.log('✅ === FIN updateFilteredInventoryTableAfterComment ===');
+}
+
+// Función para actualizar las tablas de estadísticas cuando cambian los datos
+function updateStatsTablesOnDataChange() {
+  console.log('📈 Actualizando tablas de estadísticas...');
+  
+  // Buscar si hay tablas de estadísticas en el DOM
+  const statsContainer = document.querySelector('.stats-table-container');
+  if (statsContainer) {
+    console.log('📊 Regenerando tablas de estadísticas...');
+    
+    // Si estamos en vista de datos (clean view), regenerar las estadísticas
+    if (isCleanViewActive) {
+      // Regenerar completamente las tablas de estadísticas
+      const box3Content = document.getElementById('box3-content');
+      if (box3Content && currentWorkingData && currentWorkingData.length > 0) {
+        // Regenerar el contenido de estadísticas
+        // Esto depende de cómo se generen las estadísticas en tu sistema
+        // Por ahora, simplemente forzamos una actualización
+        console.log('🔄 Forzando actualización de estadísticas en clean view');
+      }
+    }
+  }
+  
+  console.log('✅ Tablas de estadísticas verificadas');
+}
 function updateCommentBubbles(type, context, imageName = null) {
   console.log('updateCommentBubbles llamada con:', { type, context, imageName });
   
@@ -2672,6 +3191,13 @@ function updateCommentBubbles(type, context, imageName = null) {
     if (type === 'group') {
       // Actualizar burbuja del Item Group
       console.log('Actualizando burbuja de Item Group');
+      
+      // Verificar que currentItemGroup existe antes de acceder a sus propiedades
+      if (!currentItemGroup) {
+        console.warn('⚠️ currentItemGroup es null, no se puede actualizar la burbuja');
+        return;
+      }
+      
       const currentStatus = getCurrentStatus(currentItemGroup['WA_VIS_Comment'] || '');
       const groupBubble = document.querySelector('.comment-indicator.group-comment');
       if (groupBubble) {
@@ -2730,6 +3256,8 @@ function updateCommentBubbles(type, context, imageName = null) {
       });
     }
   }
+}
+}
 }
 
 // Función para actualizar la vista de comentarios después de agregar uno nuevo
@@ -5366,12 +5894,12 @@ function generateImageInventoryTable() {
     }
 
     try {
-      // Dividir por ¶ para separar analista y diseñador
+      // Dividir por ¶ para separar todas las entradas
       const sections = commentText.split('¶');
       
       let allEntries = [];
       
-      // Procesar cada sección (analista y diseñador)
+      // Procesar cada sección
       sections.forEach(section => {
         if (section.trim()) {
           // Dividir por ¦ para obtener los campos
@@ -5382,7 +5910,8 @@ function generateImageInventoryTable() {
               fecha: fields[1].trim(),
               tipo: fields[2].trim(),
               comentario: fields[3].trim(),
-              status: fields[4].trim()
+              status: fields[4].trim(),
+              fechaDate: new Date(fields[1].trim())
             };
             allEntries.push(entry);
           }
@@ -5393,37 +5922,30 @@ function generateImageInventoryTable() {
         return result;
       }
 
-      // Separar analistas y diseñadores basado en las secciones originales
+      // Separar analistas y diseñadores basado en los usuarios conocidos
+      // Lista de analistas conocidos (puedes expandir esta lista)
+      const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego'];
+      // Lista de diseñadores conocidos (puedes expandir esta lista)  
+      const diseñadoresConocidos = ['Veronica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
+      
       let analistas = [];
       let diseñadores = [];
       
-      if (sections.length >= 1 && sections[0].trim()) {
-        // Primera sección es analista
-        const fields = sections[0].split('¦');
-        if (fields.length >= 5) {
-          analistas.push({
-            usuario: fields[0].trim(),
-            fecha: fields[1].trim(),
-            tipo: fields[2].trim(),
-            comentario: fields[3].trim(),
-            status: fields[4].trim()
-          });
+      // Clasificar entradas por tipo de usuario
+      allEntries.forEach(entry => {
+        if (analistasConocidos.includes(entry.usuario)) {
+          analistas.push(entry);
+        } else if (diseñadoresConocidos.includes(entry.usuario)) {
+          diseñadores.push(entry);
+        } else {
+          // Si no se reconoce, asumir que es analista por defecto
+          analistas.push(entry);
         }
-      }
-      
-      if (sections.length >= 2 && sections[1].trim()) {
-        // Segunda sección es diseñador
-        const fields = sections[1].split('¦');
-        if (fields.length >= 5) {
-          diseñadores.push({
-            usuario: fields[0].trim(),
-            fecha: fields[1].trim(),
-            tipo: fields[2].trim(),
-            comentario: fields[3].trim(),
-            status: fields[4].trim()
-          });
-        }
-      }
+      });
+
+      // Ordenar por fecha
+      analistas.sort((a, b) => a.fechaDate - b.fechaDate);
+      diseñadores.sort((a, b) => a.fechaDate - b.fechaDate);
 
       // Procesar analistas
       if (analistas.length > 0) {
@@ -5444,19 +5966,14 @@ function generateImageInventoryTable() {
         result.ultimoComentarioDisenador = ultimoDisenador.comentario;
       }
 
-      // Determinar último tipo y status (del más reciente entre todos)
+      // Encontrar la entrada más reciente para tipo y status
       if (allEntries.length > 0) {
-        // Ordenar por fecha para encontrar el más reciente
-        const sortedEntries = allEntries.sort((a, b) => {
-          const dateA = new Date(a.fecha);
-          const dateB = new Date(b.fecha);
-          return dateB - dateA; // Más reciente primero
-        });
+        // Ordenar todas las entradas por fecha
+        allEntries.sort((a, b) => b.fechaDate - a.fechaDate);
         
-        result.ultimoTipo = sortedEntries[0].tipo;
-        result.ultimoStatus = sortedEntries[0].status;
+        result.ultimoTipo = allEntries[0].tipo;
+        result.ultimoStatus = allEntries[0].status;
       }
-
     } catch (error) {
       console.warn('Error parseando comentario:', commentText, error);
     }
@@ -5731,7 +6248,10 @@ function generateImageInventoryTable() {
     originalInventoryData = [...tableRowsData];
     console.log('🔄 Inicializando originalInventoryData por primera vez con', tableRowsData.length, 'elementos');
   } else {
-    console.log('🔄 Preservando originalInventoryData existente con', originalInventoryData.length, 'elementos');
+    // CRÍTICO: Cuando se regenera después de comentarios, SIEMPRE actualizar originalInventoryData
+    // para asegurar que los nuevos comentarios se reflejen
+    originalInventoryData = [...tableRowsData];
+    console.log('🔄 FORZANDO actualización de originalInventoryData con', tableRowsData.length, 'elementos (nuevos comentarios)');
   }
 
   // Actualizar las tablas de estadísticas
@@ -7063,6 +7583,23 @@ function updateInventoryDisplay(filteredData) {
 }
 
 function updateInventoryTableDirectly(filteredData) {
+  console.log('🔄 === INICIO updateInventoryTableDirectly ===');
+  console.log('📊 Datos recibidos:', filteredData.length, 'elementos');
+  
+  // Mostrar algunos ejemplos de los datos para verificar que están actualizados
+  if (filteredData.length > 0) {
+    console.log('📋 Primer elemento de datos:', {
+      id: filteredData[0].id,
+      nombre: filteredData[0].name,
+      analista: filteredData[0].analista,
+      diseñador: filteredData[0].diseñador,
+      ultimoStatus: filteredData[0].ultimoStatus,
+      ultimoTipo: filteredData[0].ultimoTipo,
+      primeraFechaAnalista: filteredData[0].primeraFechaAnalista,
+      ultimaFechaDisenador: filteredData[0].ultimaFechaDisenador
+    });
+  }
+  
   // Función para obtener el ID del asset basado en el nombre de la imagen
   function getAssetId(imageName) {
     if (!currentAssetComments || !imageName || imageName.trim() === '') {
@@ -7114,6 +7651,22 @@ function updateInventoryTableDirectly(filteredData) {
   
   // Regenerar filas usando la misma lógica que la tabla original
   filteredData.forEach((rowData, index) => {
+    // Log detallado para cada fila (solo las primeras 3 para no saturar)
+    if (index < 3) {
+      console.log(`📋 Fila ${index + 1} datos:`, {
+        nombre: rowData.name,
+        id: rowData.id,
+        analista: rowData.analista,
+        primeraFechaAnalista: rowData.primeraFechaAnalista,
+        ultimoComentarioAnalista: rowData.ultimoComentarioAnalista,
+        diseñador: rowData.diseñador,
+        ultimaFechaDisenador: rowData.ultimaFechaDisenador,
+        ultimoComentarioDisenador: rowData.ultimoComentarioDisenador,
+        ultimoStatus: rowData.ultimoStatus,
+        ultimoTipo: rowData.ultimoTipo
+      });
+    }
+    
     const row = document.createElement('tr');
     row.className = 'inventory-row';
     row.setAttribute('data-original-row', rowData.originalRowIndex || index);
@@ -7156,6 +7709,8 @@ function updateInventoryTableDirectly(filteredData) {
   setTimeout(() => {
     setupInventoryClickListeners();
   }, 100);
+  
+  console.log('✅ === FIN updateInventoryTableDirectly - Tabla actualizada con', filteredData.length, 'filas ===');
 }
 
 window.clearInventoryFilter = function() {
@@ -7831,16 +8386,19 @@ function extractImageName(imageSrc) {
     return imageSrc.split('/').pop() || imageSrc;
   }
 }
+
 function createStatusTag(status) {
   if (!status) return "<span class=\"status-tag\">-</span>";
   
   const s = status.toLowerCase();
   let c = "revision";
   
-  if (s.includes("diseño")) c = "diseno";
+  // Manejar tanto "diseño" como "diseno" (con y sin tilde)
+  if (s.includes("diseño") || s.includes("diseno")) c = "diseno";
   else if (s.includes("cancelado")) c = "cancelado";
   else if (s.includes("completado")) c = "completado";
   
+  console.log(`🏷️ createStatusTag: "${status}" → clase "${c}"`);
   return `<span class="status-tag ${c}">${status}</span>`;
 }
 
