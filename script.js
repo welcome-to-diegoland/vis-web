@@ -7136,6 +7136,7 @@ function generateDesignerStatsTable() {
           <tr>
             <th>Diseño</th>
             <th>Total</th>
+            <th>Act</th>
             <th>Rev</th>
             <th>Dis</th>
             <th>Can</th>
@@ -7147,6 +7148,7 @@ function generateDesignerStatsTable() {
   
   // Variables para calcular totales
   let totalGeneral = 0;
+  let totalActivos = 0;
   let totalRevision = 0;
   let totalDiseño = 0;
   let totalCancelado = 0;
@@ -7188,10 +7190,21 @@ function generateDesignerStatsTable() {
     totalCancelado += cancelado;
     totalCompletado += completado;
     
+    // Calcular activos (Revision + Diseño)
+    const activos = assignedItems.filter(row => {
+      if (!row.ultimoStatus) return false;
+      const status = row.ultimoStatus.toLowerCase();
+      return (status.includes('revision') || status.includes('revisión') || status.includes('review')) ||
+             (status.includes('diseño') || status.includes('diseno') || status.includes('design'));
+    }).length;
+    
+    totalActivos += activos;
+    
     tableHTML += `
       <tr>
         <td class="clickable-name" data-user="${designer}" data-type="designer">${USERS[designer].name}</td>
         <td class="clickable-stat" data-user="${designer}" data-status="" data-type="designer">${total}</td>
+        <td class="clickable-stat" data-user="${designer}" data-status="activos" data-type="designer">${activos}</td>
         <td class="clickable-stat" data-user="${designer}" data-status="revisión" data-type="designer">${revision}</td>
         <td class="clickable-stat" data-user="${designer}" data-status="diseño" data-type="designer">${diseño}</td>
         <td class="clickable-stat" data-user="${designer}" data-status="cancelado" data-type="designer">${cancelado}</td>
@@ -7228,8 +7241,17 @@ function generateDesignerStatsTable() {
     return status.includes('completado') || status.includes('completed') || status.includes('complete');
   }).length;
   
+  // Calcular activos vacíos (Revision + Diseño)
+  const emptyActivos = emptyItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return (status.includes('revision') || status.includes('revisión') || status.includes('review')) ||
+           (status.includes('diseño') || status.includes('diseno') || status.includes('design'));
+  }).length;
+  
   // Acumular totales incluyendo vacíos
   totalGeneral += emptyTotal;
+  totalActivos += emptyActivos;
   totalRevision += emptyRevision;
   totalDiseño += emptyDiseño;
   totalCancelado += emptyCancelado;
@@ -7239,6 +7261,7 @@ function generateDesignerStatsTable() {
     <tr>
       <td class="clickable-name" data-user="" data-type="designer">Vacío</td>
       <td class="clickable-stat" data-user="" data-status="" data-type="designer">${emptyTotal}</td>
+      <td class="clickable-stat" data-user="" data-status="activos" data-type="designer">${emptyActivos}</td>
       <td class="clickable-stat" data-user="" data-status="revisión" data-type="designer">${emptyRevision}</td>
       <td class="clickable-stat" data-user="" data-status="diseño" data-type="designer">${emptyDiseño}</td>
       <td class="clickable-stat" data-user="" data-status="cancelado" data-type="designer">${emptyCancelado}</td>
@@ -7247,6 +7270,7 @@ function generateDesignerStatsTable() {
     <tr class="total-row">
       <td>Total</td>
       <td class="clickable-stat" data-user="all" data-status="" data-type="designer">${totalGeneral}</td>
+      <td class="clickable-stat" data-user="all" data-status="activos" data-type="designer">${totalActivos}</td>
       <td class="clickable-stat" data-user="all" data-status="revisión" data-type="designer">${totalRevision}</td>
       <td class="clickable-stat" data-user="all" data-status="diseño" data-type="designer">${totalDiseño}</td>
       <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="designer">${totalCancelado}</td>
@@ -7274,6 +7298,7 @@ function generateAnalystStatsTable() {
           <tr>
             <th>Analista</th>
             <th>Total</th>
+            <th>Act</th>
             <th>Rev</th>
             <th>Dis</th>
             <th>Can</th>
@@ -7285,6 +7310,7 @@ function generateAnalystStatsTable() {
   
   // Variables para calcular totales
   let totalGeneral = 0;
+  let totalActivos = 0;
   let totalRevision = 0;
   let totalDiseño = 0;
   let totalCancelado = 0;
@@ -7326,10 +7352,21 @@ function generateAnalystStatsTable() {
     totalCancelado += cancelado;
     totalCompletado += completado;
     
+    // Calcular activos (Revision + Diseño)
+    const activos = assignedItems.filter(row => {
+      if (!row.ultimoStatus) return false;
+      const status = row.ultimoStatus.toLowerCase();
+      return (status.includes('revision') || status.includes('revisión') || status.includes('review')) ||
+             (status.includes('diseño') || status.includes('diseno') || status.includes('design'));
+    }).length;
+    
+    totalActivos += activos;
+    
     tableHTML += `
       <tr>
         <td class="clickable-name" data-user="${analyst}" data-type="analyst">${USERS[analyst].name}</td>
         <td class="clickable-stat" data-user="${analyst}" data-status="" data-type="analyst">${total}</td>
+        <td class="clickable-stat" data-user="${analyst}" data-status="activos" data-type="analyst">${activos}</td>
         <td class="clickable-stat" data-user="${analyst}" data-status="revisión" data-type="analyst">${revision}</td>
         <td class="clickable-stat" data-user="${analyst}" data-status="diseño" data-type="analyst">${diseño}</td>
         <td class="clickable-stat" data-user="${analyst}" data-status="cancelado" data-type="analyst">${cancelado}</td>
@@ -7379,10 +7416,21 @@ function generateAnalystStatsTable() {
     }).length;
   }, 0);
   
+  totalActivos = analysts.reduce((sum, analyst) => {
+    const items = originalInventoryData.filter(row => row.analista === analyst);
+    return sum + items.filter(row => {
+      if (!row.ultimoStatus) return false;
+      const status = row.ultimoStatus.toLowerCase();
+      return (status.includes('revision') || status.includes('revisión') || status.includes('review')) ||
+             (status.includes('diseño') || status.includes('diseno') || status.includes('design'));
+    }).length;
+  }, 0);
+  
   tableHTML += `
     <tr class="total-row">
       <td>Total</td>
       <td class="clickable-stat" data-user="all" data-status="" data-type="analyst">${totalGeneral}</td>
+      <td class="clickable-stat" data-user="all" data-status="activos" data-type="analyst">${totalActivos}</td>
       <td class="clickable-stat" data-user="all" data-status="revisión" data-type="analyst">${totalRevision}</td>
       <td class="clickable-stat" data-user="all" data-status="diseño" data-type="analyst">${totalDiseño}</td>
       <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="analyst">${totalCancelado}</td>
@@ -7506,6 +7554,10 @@ function filterInventoryByUserAndStatus(user, status, type) {
       const rowStatus = row.ultimoStatus.toLowerCase();
       
       switch(status.toLowerCase()) {
+        case 'activos':
+        case 'act':
+          return (rowStatus.includes('revision') || rowStatus.includes('revisión') || rowStatus.includes('review')) ||
+                 (rowStatus.includes('diseño') || rowStatus.includes('diseno') || rowStatus.includes('design'));
         case 'diseño':
         case 'dis':
           return rowStatus.includes('diseño') || rowStatus.includes('diseno') || rowStatus.includes('design');

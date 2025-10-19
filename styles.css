@@ -5481,7 +5481,7 @@ html, body {
 .inventory-header-cell:nth-child(2) { width: 55px; min-width: 55px; max-width: 55px; }
 .inventory-header-cell:nth-child(3) { width: 90px; min-width: 90px; max-width: 90px; }
 .inventory-header-cell:nth-child(4) { width: 65px; min-width: 65px; max-width: 65px; }
-.inventory-header-cell:nth-child(5) { width: 80px; min-width: 80px; max-width: 80px; }
+.inventory-header-cell:nth-child(5) { width: 90px; min-width: 90px; max-width: 90px; }
 .inventory-header-cell:nth-child(6) { width: 120px; min-width: 120px; max-width: 120px; }
 .inventory-header-cell:nth-child(7) { width: 35px; min-width: 35px; max-width: 35px; }
 .inventory-header-cell:nth-child(8) { width: 145px; min-width: 145px; max-width: 145px; }
@@ -6515,29 +6515,36 @@ html, body {
   font-weight: 600;
 }
 
-/* Columna Revisión HEADER (Rev) - Color naranja más claro */
+/* Columna Activos HEADER (Act) - Color azul claro */
 .stats-table th:nth-child(3) {
+  background-color: #5dade2;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Columna Revisión HEADER (Rev) - Color naranja más claro */
+.stats-table th:nth-child(4) {
   background-color: #ff9a56;
   color: #ffffff;
   font-weight: 600;
 }
 
 /* Columna Diseño HEADER (Dis) - Color morado más claro */
-.stats-table th:nth-child(4) {
+.stats-table th:nth-child(5) {
   background-color: #8e6bb8;
   color: #ffffff;
   font-weight: 600;
 }
 
 /* Columna Cancelado HEADER (Can) - Color gris */
-.stats-table th:nth-child(5) {
+.stats-table th:nth-child(6) {
   background-color: #8a8a8a;
   color: #ffffff;
   font-weight: 600;
 }
 
 /* Columna Completado HEADER (Com) - Color verde más claro */
-.stats-table th:nth-child(6) {
+.stats-table th:nth-child(7) {
   background-color: #4ba76f;
   color: #ffffff;
   font-weight: 600;
@@ -6567,6 +6574,11 @@ html, body {
 }
 
 /* Estilos específicos para celdas de estado según su contenido */
+.stats-table td.clickable-stat[data-status="activos"] {
+  color: #5dade2 !important;
+  font-weight: 700;
+}
+
 .stats-table td.clickable-stat[data-status="revisión"] {
   color: #ff9a56 !important;
   font-weight: 700;
@@ -6627,7 +6639,7 @@ html, body {
 .image-inventory-table .inventory-cell:nth-child(2) { width: 55px !important; min-width: 55px !important; max-width: 55px !important; }
 .image-inventory-table .inventory-cell:nth-child(3) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 .image-inventory-table .inventory-cell:nth-child(4) { width: 65px !important; min-width: 65px !important; max-width: 65px !important; }
-.image-inventory-table .inventory-cell:nth-child(5) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
+.image-inventory-table .inventory-cell:nth-child(5) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 .image-inventory-table .inventory-cell:nth-child(6) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 .image-inventory-table .inventory-cell:nth-child(7) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
 .image-inventory-table .inventory-cell:nth-child(8) { width: 145px !important; min-width: 145px !important; max-width: 145px !important; }
@@ -6645,7 +6657,7 @@ table.image-inventory-table td:nth-child(1) { width: 35px !important; min-width:
 table.image-inventory-table td:nth-child(2) { width: 55px !important; min-width: 55px !important; max-width: 55px !important; }
 table.image-inventory-table td:nth-child(3) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 table.image-inventory-table td:nth-child(4) { width: 65px !important; min-width: 65px !important; max-width: 65px !important; }
-table.image-inventory-table td:nth-child(5) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
+table.image-inventory-table td:nth-child(5) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 table.image-inventory-table td:nth-child(6) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 table.image-inventory-table td:nth-child(7) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
 table.image-inventory-table td:nth-child(8) { width: 145px !important; min-width: 145px !important; max-width: 145px !important; }
