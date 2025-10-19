@@ -832,7 +832,7 @@ function handleCombinedExcel(event) {
       allLibraryData = [...assetRows]; // Guardar todos los datos globalmente (no se sobrescribe)
       currentAssetComments = [...assetCommentsData];
       currentColumnsOrder = [...columnsToRead];
-
+      
       // Renderiza el árbol usando solo las columnas filtradas
       renderAssetLibraryTree(assetRows, document.getElementById('tree'));
       
@@ -2527,6 +2527,9 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     
     // ACTUALIZAR TABLAS DESPUÉS DE AGREGAR COMENTARIO
     updateTablesAfterComment();
+    
+    // AUTO-GUARDAR COMENTARIO INMEDIATAMENTE
+    autoSaveComment(newComment, type, imageName, context);
     
     // Cerrar modal automáticamente después de agregar el comentario exitosamente
     setTimeout(() => {
@@ -8216,13 +8219,18 @@ async function saveToGoogleSheets() {
       return;
     }
     
-    // Recopilar datos visibles
+    // Recopilar datos visibles (del visualizador - SOLO imágenes, NO comentarios)
     const visibleData = collectVisibleData();
     
+    // IMPORTANTE: Los comentarios (WA_VIS_Comment) se auto-guardan individualmente cuando se crean
+    // Esta función solo maneja los datos del visualizador (imágenes de galerías, covers, etc.)
+    
     if (visibleData.length === 0) {
-      alert('No hay datos para guardar');
+      alert('No hay cambios del visualizador para guardar.\n\nℹ️ Nota: Los comentarios se guardan automáticamente cuando los escribes.');
       return;
     }
+    
+    console.log(`📊 Total de datos del visualizador a guardar: ${visibleData.length}`);
     
     // Mostrar progreso
     const saveBtn = document.getElementById('saveChangesBtn');
@@ -8243,7 +8251,7 @@ async function saveToGoogleSheets() {
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       
-      saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Guardando lote ${i + 1}/${batches.length}...`;
+      saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Guardando...`;
       
       try {
         const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -8293,7 +8301,9 @@ async function saveToGoogleSheets() {
       }
     }
     
-    alert(`✅ ¡Todos los datos guardados exitosamente!\n${totalSaved} registros guardados en ${batches.length} lotes`);
+    // Guardado exitoso - sin alerta popup
+    
+    console.log(`� Datos del visualizador guardados exitosamente: ${totalSaved} registros`);
     
   } catch (error) {
     alert(`❌ Error al guardar: ${error.message}`);
@@ -8328,6 +8338,240 @@ function getCurrentUser() {
   return userMap[selectedValue] || null;
 }
 
+// Función para auto-guardar un comentario individual inmediatamente después de crearlo
+function autoSaveComment(newComment, type, imageName = null, context = null) {
+  console.log('💾 === INICIO AUTO-GUARDADO DE COMENTARIO ===');
+  console.log('💬 Comentario a guardar:', newComment);
+  console.log('🏷️ Tipo:', type);
+  console.log('🖼️ Imagen:', imageName);
+  console.log('📝 Contexto:', context);
+  
+  const currentDate = getLocalDateTime();
+  const currentUser = getCurrentUser();
+  
+  // Obtener comentarios actualizados (que ya incluyen el nuevo comentario)
+  let completeCommentHistory = '';
+  
+  if (type === 'image' && imageName) {
+    // Para imágenes, obtener comentarios actualizados (ya incluyen el nuevo)
+    completeCommentHistory = getImageComments(imageName) || '';
+    console.log('📜 Historial completo de comentarios (ya actualizado):', completeCommentHistory);
+  } else {
+    // Para Item Groups/Codes, buscar en los datos usando el contexto
+    if (context) {
+      let itemId = null;
+      let searchItem = null;
+      
+      // Verificar si es un contexto complejo de Item Code (formato: "Item Group (ID) | Item Code | Marca")
+      if (typeof context === 'string' && context.includes(' | ')) {
+        const parts = context.split(' | ');
+        if (parts.length >= 2) {
+          // Es un Item Code - buscar por nombre en la parte [1]
+          const itemCodeName = parts[1];
+          console.log('🔍 Contexto de Item Code detectado, buscando por nombre:', itemCodeName);
+          
+          // Buscar en allLibraryData por nombre
+          searchItem = allLibraryData.find(item => item.Name === itemCodeName || item['Item Code'] === itemCodeName);
+          if (searchItem) {
+            itemId = searchItem.Id;
+            console.log('✅ Item Code encontrado - Nombre:', itemCodeName, 'ID:', itemId);
+          }
+        }
+      } else {
+        // Contexto simple - extraer ID del formato "nombre (id)"
+        if (typeof context === 'string' && context.includes('(') && context.includes(')')) {
+          const match = context.match(/\((\d+)\)/);
+          if (match) {
+            itemId = match[1];
+          }
+        } else if (typeof context === 'object' && context.id) {
+          itemId = context.id;
+        }
+        
+        console.log('🔍 Contexto simple, buscando item con ID:', itemId);
+        
+        if (itemId) {
+          // Buscar en allLibraryData
+          searchItem = allLibraryData.find(item => item.Id == itemId);
+        }
+      }
+      
+      // Obtener comentarios del item encontrado
+      if (searchItem && searchItem['WA_VIS_Comment']) {
+        completeCommentHistory = searchItem['WA_VIS_Comment'];
+        console.log('✅ Comentarios encontrados en allLibraryData:', completeCommentHistory);
+      } else if (searchItem) {
+        console.log('ℹ️ Item encontrado pero sin comentarios:', searchItem.Name || searchItem.Id);
+      } else {
+        console.log('❌ No se encontró item para contexto:', context);
+      }
+    }
+    
+    console.log('📜 Historial completo de comentarios (ya actualizado):', completeCommentHistory);
+  }
+  
+  // Crear registro con el historial completo
+  const record = {
+    id: null,
+    objectType: null,
+    attribute: 'WA_VIS_Comment',
+    value: completeCommentHistory,
+    date: currentDate,
+    user: currentUser
+  };
+  
+  if (type === 'image' && imageName) {
+    // Comentario de imagen - encontrar el asset ID
+    const asset = currentAssetComments.find(asset => asset.Name === imageName);
+    console.log('🔍 Buscando asset para imagen:', imageName);
+    console.log('📋 Asset encontrado:', asset);
+    
+    if (asset && asset.ID) {
+      record.id = asset.ID;
+      record.objectType = 'Image';
+      console.log('✅ Asset válido con ID:', asset.ID);
+    } else {
+      console.warn('❌ No se pudo encontrar ID para imagen:', imageName);
+      console.warn('📊 currentAssetComments tiene', currentAssetComments.length, 'assets');
+      console.warn('🔍 Primeros 3 assets:', currentAssetComments.slice(0, 3));
+      showAutoSaveNotification('Error: No se encontró ID de imagen', 'error');
+      return;
+    }
+  } else {
+    // Comentario de Item Group o Item Code - usar contexto
+    if (context) {
+      let itemId = null;
+      let targetItem = null;
+      
+      // Verificar si es un contexto complejo de Item Code (formato: "Item Group (ID) | Item Code | Marca")
+      if (typeof context === 'string' && context.includes(' | ')) {
+        const parts = context.split(' | ');
+        if (parts.length >= 2) {
+          // Es un Item Code - buscar por nombre en la parte [1]
+          const itemCodeName = parts[1];
+          console.log('🔍 Contexto de Item Code detectado para guardar, buscando por nombre:', itemCodeName);
+          
+          // Buscar en allLibraryData por nombre
+          targetItem = allLibraryData.find(item => item.Name === itemCodeName || item['Item Code'] === itemCodeName);
+          if (targetItem) {
+            itemId = targetItem.Id;
+            console.log('✅ Item Code encontrado para guardar - Nombre:', itemCodeName, 'ID:', itemId);
+          }
+        }
+      } else {
+        // Contexto simple - extraer ID del formato "nombre (id)"
+        if (typeof context === 'string' && context.includes('(') && context.includes(')')) {
+          const match = context.match(/\((\d+)\)/);
+          if (match) {
+            itemId = match[1];
+          }
+        } else if (typeof context === 'object' && context.id) {
+          itemId = context.id;
+        }
+        
+        console.log('🔍 Contexto simple para guardar, usando ID:', itemId);
+        
+        if (itemId) {
+          // Buscar en allLibraryData para determinar el tipo
+          targetItem = allLibraryData.find(item => item.Id == itemId);
+        }
+      }
+      
+      if (targetItem && itemId) {
+        record.id = itemId;
+        record.objectType = targetItem['Object Type'] || 'Item Code'; // Asumir Item Code por defecto
+        console.log('✅ Item encontrado para guardar - ID:', itemId, 'Tipo:', record.objectType);
+      } else {
+        console.warn('❌ No se encontró item para contexto:', context);
+        showAutoSaveNotification('Error: No se encontró item', 'error');
+        return;
+      }
+    } else {
+      console.warn('❌ No se proporcionó contexto para comentario');
+      showAutoSaveNotification('Error: No se pudo determinar contexto', 'error');
+      return;
+    }
+  }
+  
+  console.log('📋 Registro a enviar:', record);
+  console.log('📊 Datos por columna que se enviarán:');
+  console.log('   - ID:', record.id);
+  console.log('   - Object Type:', record.objectType);  
+  console.log('   - Attribute:', record.attribute);
+  console.log('   - Value:', record.value);
+  console.log('   - Date:', record.date);
+  console.log('   - User:', record.user);
+  
+  // Enviar a Google Sheets
+  const payload = {
+    records: [record],
+    user: currentUser,
+    date: currentDate,
+    type: 'comment_autosave'
+  };
+  
+  console.log('🚀 Enviando auto-guardado a Google Sheets...');
+  console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
+  
+  // Usar fetch sin async/await para evitar problemas de CORS
+  fetch(GOOGLE_APPS_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(() => {
+    console.log('✅ Auto-guardado enviado exitosamente');
+    showAutoSaveNotification('Comentario guardado');
+  }).catch(error => {
+    console.error('❌ Error en fetch de auto-guardado:', error);
+    showAutoSaveNotification('Error al guardar comentario', 'error');
+  });
+}
+
+// Función para mostrar notificación discreta de auto-guardado
+function showAutoSaveNotification(message, type = 'success') {
+  // Crear elemento de notificación
+  const notification = document.createElement('div');
+  notification.className = `autosave-notification ${type}`;
+  notification.textContent = message;
+  notification.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: ${type === 'success' ? '#6c757d' : '#dc3545'};
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    max-width: 250px;
+  `;
+  
+  // Agregar al DOM
+  document.body.appendChild(notification);
+  
+  // Mostrar con animación
+  setTimeout(() => {
+    notification.style.opacity = '1';
+  }, 100);
+  
+  // Ocultar y remover después de 2 segundos (más rápido)
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 2000);
+}
+
 function collectVisibleData() {
   const records = [];
   const currentDate = getLocalDateTime();
@@ -8344,8 +8588,13 @@ function collectVisibleData() {
     
     let groupRecordCount = 0;
     
-    // Recopilar campos WA del Item Group
+    // Recopilar campos WA del Item Group (EXCLUYENDO comentarios que se auto-guardan)
     WA_ATTRIBUTES.forEach(attribute => {
+      // Saltar WA_VIS_Comment porque se auto-guarda cuando se crean comentarios
+      if (attribute === 'WA_VIS_Comment') {
+        return;
+      }
+      
       if (currentItemGroup[attribute] !== undefined && currentItemGroup[attribute] !== null) {
         const value = currentItemGroup[attribute].toString().trim();
         if (value && 
@@ -8396,8 +8645,13 @@ function collectVisibleData() {
     if (itemId) {
       let itemRecordCount = 0;
       
-      // Recopilar TODOS los campos WA que tengan cualquier valor
+      // Recopilar TODOS los campos WA que tengan cualquier valor (EXCLUYENDO comentarios que se auto-guardan)
       WA_ATTRIBUTES.forEach(attribute => {
+        // Saltar WA_VIS_Comment porque se auto-guarda cuando se crean comentarios
+        if (attribute === 'WA_VIS_Comment') {
+          return;
+        }
+        
         if (itemData[attribute] !== undefined && itemData[attribute] !== null) {
           const value = itemData[attribute].toString().trim();
           if (value && 
@@ -8430,120 +8684,14 @@ function collectVisibleData() {
     }
   });
   
-  // PASO 3: Recopilar comentarios de imágenes desde currentAssetComments
-  if (currentAssetComments && currentAssetComments.length > 0) {
-    console.log(`\n💬 Procesando comentarios de imágenes: ${currentAssetComments.length} assets con comentarios`);
-    
-    let commentRecordCount = 0;
-    let assetsWithComments = 0;
-    
-    // Primero, buscar assets que tengan la imagen específica que sabemos que tiene comentarios
-    const targetImage = '61-251-105.jpg';
-    const targetAsset = currentAssetComments.find(asset => asset.Name === targetImage);
-    
-    if (targetAsset) {
-      console.log(`🎯 Asset objetivo encontrado (${targetImage}):`, targetAsset);
-      console.log(`   ID del asset: ${targetAsset.ID}`);
-      console.log(`   Tiene comentarios?:`, !!targetAsset.comentarios);
-      console.log(`   Tipo de comentarios:`, typeof targetAsset.comentarios);
-      console.log(`   Comentarios:`, targetAsset.comentarios);
-      
-      // Buscar comentarios usando el ID del asset
-      const assetId = targetAsset.ID.toString();
-      console.log(`🔍 Buscando comentarios para asset ID: ${assetId}`);
-      
-      // Buscar en currentAssetComments por ID
-      const assetWithComments = currentAssetComments.find(asset => asset.ID.toString() === assetId);
-      if (assetWithComments && assetWithComments.comentarios) {
-        console.log(`✅ Encontrado asset con comentarios por ID:`, assetWithComments.comentarios);
-      }
-    } else {
-      console.log(`❌ No se encontró asset para ${targetImage}`);
-      // Mostrar algunos nombres de assets para debug
-      console.log(`🔍 Primeros 10 assets:`, currentAssetComments.slice(0, 10).map(a => a.Name));
-    }
-    
-    // Buscar específicamente imágenes visibles en el grid actual
-    const visibleImageNames = [];
-    
-    // Agregar imágenes del Item Group
-    if (currentItemGroup) {
-      WA_ATTRIBUTES.forEach(attr => {
-        if (currentItemGroup[attr] && 
-            !currentItemGroup[attr].includes('logo_img_blank') &&
-            !currentItemGroup[attr].includes('¦') && // No incluir comentarios
-            currentItemGroup[attr].includes('.')) { // Solo archivos con extensión
-          visibleImageNames.push(currentItemGroup[attr]);
-        }
-      });
-    }
-    
-    // Agregar imágenes de Item Codes visibles
-    if (currentItemCodes) {
-      currentItemCodes.forEach(itemCode => {
-        WA_ATTRIBUTES.forEach(attr => {
-          if (itemCode[attr] && 
-              !itemCode[attr].includes('logo_img_blank') &&
-              !itemCode[attr].includes('¦') && // No incluir comentarios
-              itemCode[attr].includes('.')) { // Solo archivos con extensión
-            visibleImageNames.push(itemCode[attr]);
-          }
-        });
-      });
-    }
-    
-    console.log(`🔍 Imágenes visibles a buscar comentarios:`, [...new Set(visibleImageNames)]); // Eliminar duplicados
-    
-    // Eliminar duplicados de la lista de imágenes
-    const uniqueImageNames = [...new Set(visibleImageNames)];
-    
-    // Buscar comentarios solo para imágenes visibles
-    uniqueImageNames.forEach(imageName => {
-      // Filtrar solo nombres de imágenes válidos (no comentarios que se filtraron por error)
-      if (!imageName.includes('¦') && imageName.includes('.')) {
-        // Buscar el asset por nombre
-        const asset = currentAssetComments.find(a => a.Name === imageName);
-        
-        if (asset) {
-          console.log(`📸 Procesando imagen visible: ${imageName} (ID: ${asset.ID})`);
-          
-          // Los comentarios están en WA_VIS_Comment como string, no en asset.comentarios como array
-          if (asset.WA_VIS_Comment && asset.WA_VIS_Comment.trim() !== '') {
-            assetsWithComments++;
-            console.log(`💬 Asset con comentarios: ${imageName} - Comentario: "${asset.WA_VIS_Comment}"`);
-            
-            commentRecordCount++;
-            
-            console.log(`   ✅ Comentario válido: "${asset.WA_VIS_Comment}"`);
-            
-            // Crear un registro con el formato correcto
-            records.push({
-              id: asset.ID, // Usar el ID del asset, no el nombre
-              objectType: asset.ObjectTypeName || 'Image', // Usar el tipo real del asset
-              attribute: 'WA_VIS_Comment', // Usar el atributo correcto
-              value: asset.WA_VIS_Comment, // Usar el valor original sin reformatear
-              date: currentDate,
-              user: currentUser
-            });
-          } else {
-            console.log(`   ❌ Asset ${imageName} no tiene comentarios válidos`);
-          }
-        } else {
-          console.log(`   ❌ No se encontró asset para imagen: ${imageName}`);
-        }
-      } else {
-        console.log(`   ⚠️ Ignorando elemento que no es imagen: ${imageName}`);
-      }
-    });
-    
-    console.log(`✅ Comentarios de imágenes: ${commentRecordCount} registros recopilados de ${assetsWithComments} assets`);
-  } else {
-    console.log(`💬 No hay currentAssetComments disponibles o está vacío`);
-    console.log(`   currentAssetComments:`, currentAssetComments ? `array con ${currentAssetComments.length} items` : 'null/undefined');
-  }
+  // NOTA: Los comentarios de imágenes se auto-guardan cuando se crean,
+  // por lo que no necesitamos recopilarlos aquí en el guardado principal.
+  console.log('\n💬 PASO 3 OMITIDO: Los comentarios se auto-guardan cuando se crean');
   
-  console.log(`\n📊 RESUMEN FINAL: ${records.length} registros totales para guardar`);
-  console.log('=== FIN RECOPILACIÓN ===\n');
+  console.log(`\n=== RESUMEN FINAL ===`);
+  console.log(`� Total de registros recopilados: ${records.length}`);
+  console.log(`�️ Solo datos del visualizador (imágenes de galerías, covers, etc.)`);
+  console.log(`💬 Los comentarios se manejan por auto-guardado separado`);
   
   return records;
 }
