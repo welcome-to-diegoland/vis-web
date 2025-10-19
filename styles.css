@@ -4300,15 +4300,15 @@ html, body {
   position: absolute;
   top: 2px;
   right: 2px;
-  width: 20px; /* Más grande */
-  height: 20px; /* Más grande */
+  width: 24px; /* Aumentado de 20px a 24px */
+  height: 24px; /* Aumentado de 20px a 24px */
   background: #007bff;
   border: 2px solid white; /* Borde blanco para destacar */
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px; /* Texto más grande */
+  font-size: 13px; /* Aumentado de 12px a 13px */
   color: white;
   cursor: pointer;
   z-index: 5;
@@ -4347,15 +4347,15 @@ html, body {
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 22px; /* Más grande */
-  height: 22px; /* Más grande */
+  width: 26px; /* Aumentado de 22px a 26px */
+  height: 26px; /* Aumentado de 22px a 26px */
   background: #3498db; /* Azul por defecto */
   border: 2px solid white; /* Borde blanco para destacar */
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px; /* Texto más grande */
+  font-size: 13px; /* Aumentado de 12px a 13px */
   color: white;
   cursor: pointer;
   z-index: 10;
@@ -4397,47 +4397,48 @@ html, body {
 /* Burbuja de comentario para imágenes - esquina superior derecha */
 .comment-bubble.image-comment {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 18px;
-  height: 18px;
+  top: 2px; /* Igual que item-code: 2px */
+  right: 2px; /* Igual que item-code: 2px */
+  width: 24px; /* Igual que item-code: 24px */
+  height: 24px; /* Igual que item-code: 24px */
   background: #3498db; /* Azul por defecto */
+  border: 2px solid white; /* Igual que item-code */
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 13px; /* Igual que item-code: 13px */
   color: white;
   cursor: pointer;
   z-index: 10;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.4); /* Igual que item-code */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .comment-bubble.image-comment:hover {
-  transform: scale(1.1);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  transform: scale(1.3); /* Igual que item-code: escala más marcada */
+  box-shadow: 0 6px 16px rgba(0,0,0,0.5); /* Igual que item-code */
 }
 
 /* Colores basados en status para image comments */
 .comment-bubble.image-comment[data-status="Diseño"] {
-  background: #9b59b6; /* Morado */
+  background: #8e44ad; /* Morado - igual que status-badge */
 }
 
 .comment-bubble.image-comment[data-status="Revision"] {
-  background: #e67e22; /* Naranja */
+  background: #ff6b35; /* Naranja - igual que status-badge */
 }
 
 .comment-bubble.image-comment[data-status="Completado"] {
-  background: #2ecc71; /* Verde */
+  background: #28a745; /* Verde - igual que status-badge */
 }
 
 .comment-bubble.image-comment[data-status="Cancelado"] {
-  background: #95a5a6; /* Gris */
+  background: #6c757d; /* Gris - igual que status-badge */
 }
 
 .comment-bubble.image-comment[data-status="Analista"] {
-  background: #3498db; /* Azul */
+  background: #ff6b35; /* Naranja - igual que Revision */
 }
 
 /* Asegurar que los contenedores de imágenes tengan posición relativa */
@@ -4524,32 +4525,32 @@ html, body {
   font-size: 12px;
   font-weight: 600;
   color: white;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.5px;
   min-width: 80px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Colores específicos por status */
+/* Colores específicos por status - sin gradientes */
 .status-badge[data-status="Diseño"] {
-  background: linear-gradient(135deg, #8e44ad, #9b59b6);
+  background-color: #8e44ad;
 }
 
 .status-badge[data-status="Revision"] {
-  background: linear-gradient(135deg, #f39c12, #e67e22);
+  background-color: #ff6b35;
 }
 
 .status-badge[data-status="Completado"] {
-  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  background-color: #28a745;
 }
 
 .status-badge[data-status="Cancelado"] {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  background-color: #6c757d;
 }
 
 .status-badge[data-status="Analista"] {
-  background: linear-gradient(135deg, #3498db, #2980b9);
+  background-color: #ff6b35;
 }
 
 /* Dropdown de control de status */
@@ -5484,15 +5485,16 @@ html, body {
 .inventory-header-cell:nth-child(5) { width: 90px; min-width: 90px; max-width: 90px; }
 .inventory-header-cell:nth-child(6) { width: 120px; min-width: 120px; max-width: 120px; }
 .inventory-header-cell:nth-child(7) { width: 35px; min-width: 35px; max-width: 35px; }
-.inventory-header-cell:nth-child(8) { width: 145px; min-width: 145px; max-width: 145px; }
+.inventory-header-cell:nth-child(8) { width: 150px; min-width: 150px; max-width: 150px; }
 .inventory-header-cell:nth-child(9) { width: 70px; min-width: 70px; max-width: 70px; }
 .inventory-header-cell:nth-child(10) { width: 90px; min-width: 90px; max-width: 90px; }
-.inventory-header-cell:nth-child(11) { width: 150px; min-width: 150px; max-width: 150px; }
-.inventory-header-cell:nth-child(12) { width: 80px; min-width: 80px; max-width: 80px; }
-.inventory-header-cell:nth-child(13) { width: 90px; min-width: 90px; max-width: 90px; }
-.inventory-header-cell:nth-child(14) { width: 150px; min-width: 150px; max-width: 150px; }
-.inventory-header-cell:nth-child(15) { width: 110px; min-width: 110px; max-width: 110px; }
-.inventory-header-cell:nth-child(16) { width: 120px; min-width: 120px; max-width: 120px; }
+.inventory-header-cell:nth-child(11) { width: 90px; min-width: 90px; max-width: 90px; }
+.inventory-header-cell:nth-child(12) { width: 150px; min-width: 150px; max-width: 150px; }
+.inventory-header-cell:nth-child(13) { width: 80px; min-width: 80px; max-width: 80px; }
+.inventory-header-cell:nth-child(14) { width: 90px; min-width: 90px; max-width: 90px; }
+.inventory-header-cell:nth-child(15) { width: 150px; min-width: 150px; max-width: 150px; }
+.inventory-header-cell:nth-child(16) { width: 110px; min-width: 110px; max-width: 110px; }
+.inventory-header-cell:nth-child(17) { width: 120px; min-width: 120px; max-width: 120px; }
 
 .inventory-row {
   border-bottom: 1px solid #e9ecef;
@@ -5618,25 +5620,26 @@ html, body {
 /* Columnas con colores específicos - Analista (naranja claro) */
 .inventory-cell:nth-child(9), /* Analista */
 .inventory-cell:nth-child(10), /* Primera Fecha Analista */
-.inventory-cell:nth-child(11) { /* Último Comentario Analista */
+.inventory-cell:nth-child(11), /* Fecha Analista */
+.inventory-cell:nth-child(12) { /* Último Comentario Analista */
   background-color: rgba(255, 165, 0, 0.15); /* Naranja claro */
   font-size: 12px;
 }
 
 /* Columnas con colores específicos - Diseñador (morado claro) */
-.inventory-cell:nth-child(12), /* Diseñador */
-.inventory-cell:nth-child(13), /* Fecha Diseñador */
-.inventory-cell:nth-child(14) { /* Último Comentario Diseñador */
+.inventory-cell:nth-child(13), /* Diseñador */
+.inventory-cell:nth-child(14), /* Fecha Diseñador */
+.inventory-cell:nth-child(15) { /* Último Comentario Diseñador */
   background-color: rgba(147, 112, 219, 0.15); /* Morado claro */
 }
 
 /* Columna Tipo (gris) */
-.inventory-cell:nth-child(15) { /* Tipo */
+.inventory-cell:nth-child(16) { /* Tipo */
   background-color: rgba(108, 117, 125, 0.1); /* Gris */
 }
 
 /* Columna Status (gris blanco) */
-.inventory-cell:nth-child(16) { /* Status */
+.inventory-cell:nth-child(17) { /* Status */
   background-color: rgba(248, 249, 250, 0.8); /* Gris blanco */
   min-width: 120px; /* Más ancho para que quepa "completado" */
   width: 120px;
@@ -5644,15 +5647,15 @@ html, body {
 
 /* Estilos específicos por columna - TEXTOS EN NEGRO Y BOLD */
 .inventory-cell:nth-child(9), /* Analista */
-.inventory-cell:nth-child(12), /* Diseñador */
-.inventory-cell:nth-child(15) { /* Tipo */
+.inventory-cell:nth-child(13), /* Diseñador */
+.inventory-cell:nth-child(16) { /* Tipo */
   color: #000000; /* Negro */
   font-weight: 600; /* Bold restaurado */
 }
 
 /* Comentarios clickeables - SIN recuadros internos, SIN padding */
-.inventory-cell:nth-child(11), /* Último Comentario Analista */
-.inventory-cell:nth-child(14) { /* Último Comentario Diseñador */
+.inventory-cell:nth-child(12), /* Último Comentario Analista */
+.inventory-cell:nth-child(15) { /* Último Comentario Diseñador */
 
 
   min-width: 160px;
@@ -6406,8 +6409,19 @@ html, body {
   font-style: normal !important;
 }
 
-/* Comentario Analista Clean - Columna 11 */
+/* Fecha Analista Clean - Columna 11 */
 .inventory-cell-clean:nth-child(11) {
+  background-color: rgba(255, 165, 0, 0.15);
+  min-width: 90px;
+  width: 90px;
+  font-size: 11px;
+  text-align: center;
+  color: #000000 !important;
+  font-style: normal !important;
+}
+
+/* Comentario Analista Clean - Columna 12 */
+.inventory-cell-clean:nth-child(12) {
   background-color: rgba(255, 165, 0, 0.15);
   min-width: 170px;
   width: 170px;
@@ -6417,10 +6431,8 @@ html, body {
   font-style: normal !important;
 }
 
-
-
-/* Diseñador Clean - Columna 12 */
-.inventory-cell-clean:nth-child(12) {
+/* Diseñador Clean - Columna 13 */
+.inventory-cell-clean:nth-child(13) {
   background-color: rgba(147, 112, 219, 0.15);
   min-width: 120px;
   width: 120px;
@@ -6429,8 +6441,8 @@ html, body {
   font-style: normal !important;
 }
 
-/* Fecha Diseñador Clean - Columna 13 */
-.inventory-cell-clean:nth-child(13) {
+/* Fecha Diseñador Clean - Columna 14 */
+.inventory-cell-clean:nth-child(14) {
   background-color: rgba(147, 112, 219, 0.15);
   min-width: 100px;
   width: 100px;
@@ -6440,8 +6452,8 @@ html, body {
   font-style: normal !important;
 }
 
-/* Comentario Diseñador Clean - Columna 14 */
-.inventory-cell-clean:nth-child(14) {
+/* Comentario Diseñador Clean - Columna 15 */
+.inventory-cell-clean:nth-child(15) {
   background-color: rgba(147, 112, 219, 0.15);
   min-width: 170px;
   width: 170px;
@@ -6451,10 +6463,8 @@ html, body {
   font-style: normal !important;
 }
 
-
-
-/* Tipo Clean - Columna 15 */
-.inventory-cell-clean:nth-child(15) {
+/* Tipo Clean - Columna 16 */
+.inventory-cell-clean:nth-child(16) {
   background-color: rgba(108, 117, 125, 0.1);
   min-width: 140px;
   width: 140px;
@@ -6469,8 +6479,8 @@ html, body {
 }
 
 
-/* Status Clean - Columna 16 */
-.inventory-cell-clean:nth-child(16) {
+/* Status Clean - Columna 17 */
+.inventory-cell-clean:nth-child(17) {
   background-color: rgba(248, 249, 250, 0.8);
   min-width: 120px;
   width: 120px;
@@ -6642,15 +6652,16 @@ html, body {
 .image-inventory-table .inventory-cell:nth-child(5) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 .image-inventory-table .inventory-cell:nth-child(6) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 .image-inventory-table .inventory-cell:nth-child(7) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
-.image-inventory-table .inventory-cell:nth-child(8) { width: 145px !important; min-width: 145px !important; max-width: 145px !important; }
+.image-inventory-table .inventory-cell:nth-child(8) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 .image-inventory-table .inventory-cell:nth-child(9) { width: 70px !important; min-width: 70px !important; max-width: 70px !important; }
 .image-inventory-table .inventory-cell:nth-child(10) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
-.image-inventory-table .inventory-cell:nth-child(11) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
-.image-inventory-table .inventory-cell:nth-child(12) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
-.image-inventory-table .inventory-cell:nth-child(13) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
-.image-inventory-table .inventory-cell:nth-child(14) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
-.image-inventory-table .inventory-cell:nth-child(15) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
-.image-inventory-table .inventory-cell:nth-child(16) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+.image-inventory-table .inventory-cell:nth-child(11) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
+.image-inventory-table .inventory-cell:nth-child(12) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
+.image-inventory-table .inventory-cell:nth-child(13) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
+.image-inventory-table .inventory-cell:nth-child(14) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
+.image-inventory-table .inventory-cell:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
+.image-inventory-table .inventory-cell:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
+.image-inventory-table .inventory-cell:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 
 /* También aplicar a las celdas td directamente */
 table.image-inventory-table td:nth-child(1) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
@@ -6660,22 +6671,24 @@ table.image-inventory-table td:nth-child(4) { width: 65px !important; min-width:
 table.image-inventory-table td:nth-child(5) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 table.image-inventory-table td:nth-child(6) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 table.image-inventory-table td:nth-child(7) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
-table.image-inventory-table td:nth-child(8) { width: 145px !important; min-width: 145px !important; max-width: 145px !important; }
+table.image-inventory-table td:nth-child(8) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 table.image-inventory-table td:nth-child(9) { width: 70px !important; min-width: 70px !important; max-width: 70px !important; }
 table.image-inventory-table td:nth-child(10) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
-table.image-inventory-table td:nth-child(11) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
-table.image-inventory-table td:nth-child(12) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
-table.image-inventory-table td:nth-child(13) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
-table.image-inventory-table td:nth-child(14) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
-table.image-inventory-table td:nth-child(15) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
-table.image-inventory-table td:nth-child(16) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+table.image-inventory-table td:nth-child(11) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
+table.image-inventory-table td:nth-child(12) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
+table.image-inventory-table td:nth-child(13) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
+table.image-inventory-table td:nth-child(14) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
+table.image-inventory-table td:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
+table.image-inventory-table td:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
+table.image-inventory-table td:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 
 /* REGLAS PARA inventory-cell-clean - LAS COLUMNAS 9-16 USAN ESTA CLASE */
 .image-inventory-table .inventory-cell-clean:nth-child(9) { width: 70px !important; min-width: 70px !important; max-width: 70px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(10) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
-.image-inventory-table .inventory-cell-clean:nth-child(11) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
-.image-inventory-table .inventory-cell-clean:nth-child(12) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
-.image-inventory-table .inventory-cell-clean:nth-child(13) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
-.image-inventory-table .inventory-cell-clean:nth-child(14) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
-.image-inventory-table .inventory-cell-clean:nth-child(15) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
-.image-inventory-table .inventory-cell-clean:nth-child(16) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+.image-inventory-table .inventory-cell-clean:nth-child(11) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
+.image-inventory-table .inventory-cell-clean:nth-child(12) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
+.image-inventory-table .inventory-cell-clean:nth-child(13) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
+.image-inventory-table .inventory-cell-clean:nth-child(14) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
+.image-inventory-table .inventory-cell-clean:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
+.image-inventory-table .inventory-cell-clean:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
+.image-inventory-table .inventory-cell-clean:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }

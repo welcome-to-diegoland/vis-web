@@ -388,6 +388,136 @@ function getCurrentStatus(commentText) {
   return lastComment.status || '';
 }
 
+// Función para actualizar las burbujas de comentarios en la UI
+function updateCommentBubbles(type, context, imageName = null) {
+  console.log('🔄 updateCommentBubbles llamada con:', { type, context, imageName });
+  
+  if (type === 'image') {
+    // Para imágenes, el context es realmente el imageName
+    const realImageName = context;
+    console.log('📷 Actualizando burbuja para imagen:', realImageName);
+    
+    // Obtener el status actual de la imagen
+    const imageComments = getImageComments(realImageName);
+    console.log('💬 Comentarios de la imagen:', imageComments);
+    
+    const currentStatus = getCurrentStatus(imageComments);
+    console.log('📊 Status actual calculado:', currentStatus);
+    
+    // Buscar la imagen en el grid y actualizar/agregar burbuja
+    const imageThumbnails = document.querySelectorAll('.image-thumbnail');
+    console.log('🔍 Total de thumbnails encontrados:', imageThumbnails.length);
+    
+    let imageFound = false;
+    imageThumbnails.forEach((img, index) => {
+      console.log(`🖼️ Thumbnail ${index}: alt="${img.alt}", src="${img.src}"`);
+      if (img.alt === realImageName) {
+        imageFound = true;
+        console.log('✅ Imagen encontrada en thumbnail:', realImageName);
+        
+        const container = img.closest('.image-thumbnail-container');
+        if (container) {
+          console.log('📦 Container encontrado para la imagen');
+          
+          let bubble = container.querySelector('.comment-bubble.image-comment');
+          if (bubble) {
+            // Ya tenía burbuja, actualizar color según status
+            console.log('🟡 Actualizando burbuja existente con status:', currentStatus);
+            bubble.setAttribute('data-status', currentStatus);
+          } else {
+            // No tenía burbuja, crear nueva
+            console.log('🟢 Creando nueva burbuja con status:', currentStatus);
+            const newBubble = document.createElement('div');
+            newBubble.className = 'comment-bubble image-comment';
+            newBubble.setAttribute('data-image', realImageName);
+            newBubble.setAttribute('data-status', currentStatus);
+            newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${realImageName}')`);
+            newBubble.setAttribute('title', 'Ver comentarios');
+            newBubble.textContent = '💬';
+            container.appendChild(newBubble);
+            console.log('✅ Burbuja creada y agregada al container');
+          }
+        } else {
+          console.warn('❌ No se encontró container para la imagen');
+        }
+      }
+    });
+    
+    if (!imageFound) {
+      console.warn('❌ Imagen no encontrada en thumbnails:', realImageName);
+    }
+  } else {
+    // Para Item Codes e Item Groups
+    if (type === 'group') {
+      // Actualizar burbuja del Item Group
+      console.log('Actualizando burbuja de Item Group');
+      
+      // Verificar que currentItemGroup existe antes de acceder a sus propiedades
+      if (!currentItemGroup) {
+        console.warn('⚠️ currentItemGroup es null, no se puede actualizar la burbuja');
+        return;
+      }
+      
+      const currentStatus = getCurrentStatus(currentItemGroup['WA_VIS_Comment'] || '');
+      const groupBubble = document.querySelector('.comment-indicator.group-comment');
+      if (groupBubble) {
+        console.log('Burbuja de grupo encontrada, actualizando status');
+        groupBubble.setAttribute('data-status', currentStatus);
+        // Actualizar el atributo data-comment
+        groupBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
+      } else {
+        // Crear nueva burbuja para Item Group si no existía
+        console.log('Creando nueva burbuja para Item Group');
+        const itemGroupImage = document.querySelector('.item-group-image');
+        if (itemGroupImage && currentItemGroup) {
+          const newBubble = document.createElement('div');
+          newBubble.className = 'comment-indicator group-comment';
+          newBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
+          newBubble.setAttribute('data-status', currentStatus);
+          newBubble.textContent = '💬';
+          newBubble.addEventListener('click', function(event) {
+            handleCommentClick(event, this);
+          });
+          itemGroupImage.appendChild(newBubble);
+        }
+      }
+      
+    } else if (type === 'item') {
+      // Actualizar burbuja del Item Code
+      console.log('Actualizando burbuja de Item Code para:', context);
+      const itemCodeCells = document.querySelectorAll('.item-code-cell');
+      itemCodeCells.forEach(cell => {
+        const itemCode = cell.getAttribute('data-item-code');
+        if (itemCode === context) {
+          // Buscar el item tanto por 'Item Code' como por 'Name'
+          const item = currentWorkingData.find(item => 
+            item['Item Code'] === itemCode || item['Name'] === itemCode
+          );
+          const currentStatus = getCurrentStatus(item?.['WA_VIS_Comment'] || '');
+          
+          let bubble = cell.querySelector('.comment-indicator');
+          if (bubble) {
+            // Ya tenía burbuja, actualizar status y data-comment
+            bubble.setAttribute('data-status', currentStatus);
+            bubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
+          } else {
+            // No tenía burbuja, crear nueva
+            const newBubble = document.createElement('div');
+            newBubble.className = 'comment-indicator';
+            newBubble.setAttribute('data-status', currentStatus);
+            newBubble.textContent = '💬';
+            newBubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
+            newBubble.addEventListener('click', function(event) {
+              handleCommentClick(event, this);
+            });
+            cell.appendChild(newBubble);
+          }
+        }
+      });
+    }
+  }
+}
+
 // Función para inicializar el selector de usuario
 function initializeUserSelector() {
   const userSelect = document.getElementById('userSelect');
@@ -1666,14 +1796,6 @@ function generateSectionTable(unifiedRows, imageProperty, columnCount, sectionNa
 function generateImageCell(imageName, itemCode) {
   const hasComments = hasImageComments(imageName);
   
-  // Obtener el status actual de la imagen si tiene comentarios
-  let statusAttribute = '';
-  if (hasComments) {
-    const imageComments = getImageComments(imageName);
-    const currentStatus = getCurrentStatus(imageComments);
-    statusAttribute = currentStatus ? ` data-status="${currentStatus}"` : '';
-  }
-  
   return `
     <div class="image-thumbnail-container">
       <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
@@ -1682,7 +1804,7 @@ function generateImageCell(imageName, itemCode) {
       <div class="image-controls">
         <button class="btn-remove" title="Quitar imagen">🗑️</button>
       </div>
-      ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}"${statusAttribute} onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios">💬</div>` : ''}
+      ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}" onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios">💬</div>` : ''}
       <div class="image-name">${imageName}</div>
     </div>
   `;
@@ -2469,61 +2591,7 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     clearForm();
     
     // Actualizar burbujas de comentarios en la UI
-    setTimeout(() => {
-      // Actualizar burbujas inline para evitar problemas de orden
-      if (type === 'item') {
-        // Actualizar burbuja del Item Code
-        const itemCodeCells = document.querySelectorAll('.item-code-cell');
-        itemCodeCells.forEach(cell => {
-          const itemCode = cell.getAttribute('data-item-code');
-          if (itemCode === contextForData) {
-            const item = currentWorkingData.find(item => 
-              item['Item Code'] === itemCode || item['Name'] === itemCode
-            );
-            const currentStatus = getCurrentStatus(item?.['WA_VIS_Comment'] || '');
-            
-            let bubble = cell.querySelector('.comment-indicator');
-            if (bubble) {
-              bubble.setAttribute('data-status', currentStatus);
-              bubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
-            } else {
-              const newBubble = document.createElement('div');
-              newBubble.className = 'comment-indicator';
-              newBubble.setAttribute('data-status', currentStatus);
-              newBubble.textContent = '💬';
-              newBubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
-              newBubble.addEventListener('click', function(event) {
-                handleCommentClick(event, this);
-              });
-              cell.appendChild(newBubble);
-            }
-          }
-        });
-      } else if (type === 'group') {
-        // Actualizar burbuja del Item Group
-        if (currentItemGroup) {
-          const currentStatus = getCurrentStatus(currentItemGroup['WA_VIS_Comment'] || '');
-          const groupBubble = document.querySelector('.comment-indicator.group-comment');
-          if (groupBubble) {
-            groupBubble.setAttribute('data-status', currentStatus);
-            groupBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
-          } else {
-            const itemGroupImage = document.querySelector('.item-group-image');
-            if (itemGroupImage) {
-              const newBubble = document.createElement('div');
-              newBubble.className = 'comment-indicator group-comment';
-              newBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
-              newBubble.setAttribute('data-status', currentStatus);
-              newBubble.textContent = '💬';
-              newBubble.addEventListener('click', function(event) {
-                handleCommentClick(event, this);
-              });
-              itemGroupImage.appendChild(newBubble);
-            }
-          }
-        }
-      }
-    }, 100);
+    updateCommentBubbles(type, contextForData, imageName);
     
     // ACTUALIZAR TABLAS DESPUÉS DE AGREGAR COMENTARIO
     updateTablesAfterComment();
@@ -2588,27 +2656,7 @@ function setupStatusControl(modal, context, type = 'item', imageName = null, com
     this.value = '';
     
     // Actualizar burbujas de comentarios en la UI
-    setTimeout(() => {
-      // Actualizar burbujas inline para evitar problemas de orden
-      if (type === 'item') {
-        const itemCodeCells = document.querySelectorAll('.item-code-cell');
-        itemCodeCells.forEach(cell => {
-          const itemCode = cell.getAttribute('data-item-code');
-          if (itemCode === contextForData) {
-            const item = currentWorkingData.find(item => 
-              item['Item Code'] === itemCode || item['Name'] === itemCode
-            );
-            const currentStatus = getCurrentStatus(item?.['WA_VIS_Comment'] || '');
-            
-            let bubble = cell.querySelector('.comment-indicator');
-            if (bubble) {
-              bubble.setAttribute('data-status', currentStatus);
-              bubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
-            }
-          }
-        });
-      }
-    }, 100);
+    updateCommentBubbles(type, contextForData, imageName);
     
     // Cerrar modal automáticamente después de cambiar el status exitosamente
     setTimeout(() => {
@@ -2703,93 +2751,18 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
           // La imagen pertenece a un item específico
           contextForBubbles = itemCodeWithImage['Item Code'] || itemCodeWithImage['Name'];
           console.log('🎯 Contexto para burbuja: Item Code -', contextForBubbles);
-          setTimeout(() => {
-            // Actualizar burbuja de imagen inline
-            const imageComments = getImageComments(imageName);
-            const currentStatus = getCurrentStatus(imageComments);
-            const imageThumbnails = document.querySelectorAll('.image-thumbnail');
-            imageThumbnails.forEach(img => {
-              if (img.alt === imageName) {
-                const container = img.closest('.image-thumbnail-container');
-                if (container) {
-                  let bubble = container.querySelector('.comment-bubble.image-comment');
-                  if (bubble) {
-                    bubble.setAttribute('data-status', currentStatus);
-                  } else {
-                    const newBubble = document.createElement('div');
-                    newBubble.className = 'comment-bubble image-comment';
-                    newBubble.setAttribute('data-image', imageName);
-                    newBubble.setAttribute('data-status', currentStatus);
-                    newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${imageName}')`);
-                    newBubble.setAttribute('title', 'Ver comentarios');
-                    newBubble.textContent = '💬';
-                    container.appendChild(newBubble);
-                  }
-                }
-              }
-            });
-          }, 100);
+          updateCommentBubbles('item', contextForBubbles, imageName);
         } else {
           // La imagen pertenece al grupo
           contextForBubbles = currentItemGroup['Name'] || currentItemGroup['Id'];
           console.log('🎯 Contexto para burbuja: Item Group -', contextForBubbles);
-          setTimeout(() => {
-            // Actualizar burbuja de imagen inline
-            const imageComments = getImageComments(imageName);
-            const currentStatus = getCurrentStatus(imageComments);
-            const imageThumbnails = document.querySelectorAll('.image-thumbnail');
-            imageThumbnails.forEach(img => {
-              if (img.alt === imageName) {
-                const container = img.closest('.image-thumbnail-container');
-                if (container) {
-                  let bubble = container.querySelector('.comment-bubble.image-comment');
-                  if (bubble) {
-                    bubble.setAttribute('data-status', currentStatus);
-                  } else {
-                    const newBubble = document.createElement('div');
-                    newBubble.className = 'comment-bubble image-comment';
-                    newBubble.setAttribute('data-image', imageName);
-                    newBubble.setAttribute('data-status', currentStatus);
-                    newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${imageName}')`);
-                    newBubble.setAttribute('title', 'Ver comentarios');
-                    newBubble.textContent = '💬';
-                    container.appendChild(newBubble);
-                  }
-                }
-              }
-            });
-          }, 100);
+          updateCommentBubbles('group', contextForBubbles, imageName);
         }
       } else {
         // Solo tenemos grupo, no items específicos
         contextForBubbles = currentItemGroup['Name'] || currentItemGroup['Id'];
         console.log('🎯 Contexto para burbuja: Item Group -', contextForBubbles);
-        setTimeout(() => {
-          // Actualizar burbuja de imagen inline
-          const imageComments = getImageComments(imageName);
-          const currentStatus = getCurrentStatus(imageComments);
-          const imageThumbnails = document.querySelectorAll('.image-thumbnail');
-          imageThumbnails.forEach(img => {
-            if (img.alt === imageName) {
-              const container = img.closest('.image-thumbnail-container');
-              if (container) {
-                let bubble = container.querySelector('.comment-bubble.image-comment');
-                if (bubble) {
-                  bubble.setAttribute('data-status', currentStatus);
-                } else {
-                  const newBubble = document.createElement('div');
-                  newBubble.className = 'comment-bubble image-comment';
-                  newBubble.setAttribute('data-image', imageName);
-                  newBubble.setAttribute('data-status', currentStatus);
-                  newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${imageName}')`);
-                  newBubble.setAttribute('title', 'Ver comentarios');
-                  newBubble.textContent = '💬';
-                  container.appendChild(newBubble);
-                }
-              }
-            }
-          });
-        }, 100);
+        updateCommentBubbles('group', contextForBubbles, imageName);
       }
     } else {
       console.log('⚠️ No hay contexto actual disponible para actualizar burbujas');
@@ -3345,136 +3318,6 @@ function updateStatsTablesOnDataChange() {
   }
   
   console.log('✅ Tablas de estadísticas verificadas');
-}
-function updateCommentBubbles(type, context, imageName = null) {
-  console.log('🔄 updateCommentBubbles llamada con:', { type, context, imageName });
-  
-  if (type === 'image') {
-    // Para imágenes, el context es realmente el imageName
-    const realImageName = context;
-    console.log('📷 Actualizando burbuja para imagen:', realImageName);
-    
-    // Obtener el status actual de la imagen
-    const imageComments = getImageComments(realImageName);
-    console.log('💬 Comentarios de la imagen:', imageComments);
-    
-    const currentStatus = getCurrentStatus(imageComments);
-    console.log('📊 Status actual calculado:', currentStatus);
-    
-    // Buscar la imagen en el grid y actualizar/agregar burbuja
-    const imageThumbnails = document.querySelectorAll('.image-thumbnail');
-    console.log('🔍 Total de thumbnails encontrados:', imageThumbnails.length);
-    
-    let imageFound = false;
-    imageThumbnails.forEach((img, index) => {
-      console.log(`🖼️ Thumbnail ${index}: alt="${img.alt}", src="${img.src}"`);
-      if (img.alt === realImageName) {
-        imageFound = true;
-        console.log('✅ Imagen encontrada en thumbnail:', realImageName);
-        
-        const container = img.closest('.image-thumbnail-container');
-        if (container) {
-          console.log('📦 Container encontrado para la imagen');
-          
-          let bubble = container.querySelector('.comment-bubble.image-comment');
-          if (bubble) {
-            // Ya tenía burbuja, actualizar color según status
-            console.log('🟡 Actualizando burbuja existente con status:', currentStatus);
-            bubble.setAttribute('data-status', currentStatus);
-          } else {
-            // No tenía burbuja, crear nueva
-            console.log('🟢 Creando nueva burbuja con status:', currentStatus);
-            const newBubble = document.createElement('div');
-            newBubble.className = 'comment-bubble image-comment';
-            newBubble.setAttribute('data-image', realImageName);
-            newBubble.setAttribute('data-status', currentStatus);
-            newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${realImageName}')`);
-            newBubble.setAttribute('title', 'Ver comentarios');
-            newBubble.textContent = '💬';
-            container.appendChild(newBubble);
-            console.log('✅ Burbuja creada y agregada al container');
-          }
-        } else {
-          console.warn('❌ No se encontró container para la imagen');
-        }
-      }
-    });
-    
-    if (!imageFound) {
-      console.warn('❌ Imagen no encontrada en thumbnails:', realImageName);
-    }
-  } else {
-    // Para Item Codes e Item Groups
-    if (type === 'group') {
-      // Actualizar burbuja del Item Group
-      console.log('Actualizando burbuja de Item Group');
-      
-      // Verificar que currentItemGroup existe antes de acceder a sus propiedades
-      if (!currentItemGroup) {
-        console.warn('⚠️ currentItemGroup es null, no se puede actualizar la burbuja');
-        return;
-      }
-      
-      const currentStatus = getCurrentStatus(currentItemGroup['WA_VIS_Comment'] || '');
-      const groupBubble = document.querySelector('.comment-indicator.group-comment');
-      if (groupBubble) {
-        console.log('Burbuja de grupo encontrada, actualizando status');
-        groupBubble.setAttribute('data-status', currentStatus);
-        // Actualizar el atributo data-comment
-        groupBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
-      } else {
-        // Crear nueva burbuja para Item Group si no existía
-        console.log('Creando nueva burbuja para Item Group');
-        const itemGroupImage = document.querySelector('.item-group-image');
-        if (itemGroupImage && currentItemGroup) {
-          const newBubble = document.createElement('div');
-          newBubble.className = 'comment-indicator group-comment';
-          newBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
-          newBubble.setAttribute('data-status', currentStatus);
-          newBubble.textContent = '💬';
-          newBubble.addEventListener('click', function(event) {
-            handleCommentClick(event, this);
-          });
-          itemGroupImage.appendChild(newBubble);
-        }
-      }
-      
-    } else if (type === 'item') {
-      // Actualizar burbuja del Item Code
-      console.log('Actualizando burbuja de Item Code para:', context);
-      const itemCodeCells = document.querySelectorAll('.item-code-cell');
-      itemCodeCells.forEach(cell => {
-        const itemCode = cell.getAttribute('data-item-code');
-        if (itemCode === context) {
-          // Buscar el item tanto por 'Item Code' como por 'Name'
-          const item = currentWorkingData.find(item => 
-            item['Item Code'] === itemCode || item['Name'] === itemCode
-          );
-          const currentStatus = getCurrentStatus(item?.['WA_VIS_Comment'] || '');
-          
-          let bubble = cell.querySelector('.comment-indicator');
-          if (bubble) {
-            // Ya tenía burbuja, actualizar status y data-comment
-            bubble.setAttribute('data-status', currentStatus);
-            bubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
-          } else {
-            // No tenía burbuja, crear nueva
-            const newBubble = document.createElement('div');
-            newBubble.className = 'comment-indicator';
-            newBubble.setAttribute('data-status', currentStatus);
-            newBubble.textContent = '💬';
-            newBubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
-            newBubble.addEventListener('click', function(event) {
-              handleCommentClick(event, this);
-            });
-            cell.appendChild(newBubble);
-          }
-        }
-      });
-    }
-  }
-}
-}
 }
 
 // Función para actualizar la vista de comentarios después de agregar uno nuevo
