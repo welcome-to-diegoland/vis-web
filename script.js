@@ -33,6 +33,11 @@ let inventoryViewState = {
 // Configuración para Google Apps Script
 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNHLEg0zipYBpd7G7ZTCURdhFhQiB2-wQSiMiRMJDI89G_heWtEFv428aHmz1ghQlo/exec';
 
+// Sistema de cola para auto-guardado (evitar rate limiting)
+let autoSaveQueue = [];
+let isProcessingAutoSave = false;
+const AUTO_SAVE_DELAY = 1000; // 1 segundo entre envíos
+
 // Lista de atributos WA válidos
 const WA_ATTRIBUTES = [
   'WA_VIS_Comment', 'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
@@ -58,6 +63,82 @@ document.addEventListener('keydown', function(event) {
     }
   }
 });
+
+// Sistema de cola para auto-guardado (evitar rate limiting)
+async function processAutoSaveQueue() {
+  if (isProcessingAutoSave || autoSaveQueue.length === 0) {
+    return;
+  }
+  
+  isProcessingAutoSave = true;
+  console.log(`🔄 Procesando cola de auto-guardado: ${autoSaveQueue.length} elementos pendientes`);
+  
+  while (autoSaveQueue.length > 0) {
+    const saveRequest = autoSaveQueue.shift();
+    console.log(`📤 Enviando auto-guardado ${autoSaveQueue.length + 1} de ${autoSaveQueue.length + 1}: ID ${saveRequest.record.id}`);
+    
+    try {
+      await sendAutoSaveRequest(saveRequest);
+      console.log(`✅ Auto-guardado exitoso para ID: ${saveRequest.record.id}`);
+    } catch (error) {
+      console.error(`❌ Error en auto-guardado para ID: ${saveRequest.record.id}`, error);
+    }
+    
+    // Delay entre envíos para evitar rate limiting
+    if (autoSaveQueue.length > 0) {
+      console.log(`⏱️ Esperando ${AUTO_SAVE_DELAY}ms antes del siguiente envío...`);
+      await new Promise(resolve => setTimeout(resolve, AUTO_SAVE_DELAY));
+    }
+  }
+  
+  isProcessingAutoSave = false;
+  console.log('✅ Cola de auto-guardado procesada completamente');
+}
+
+function addToAutoSaveQueue(record, user, date) {
+  const saveRequest = {
+    record: record,
+    user: user,
+    date: date,
+    type: 'comment_autosave'
+  };
+  
+  autoSaveQueue.push(saveRequest);
+  console.log(`📥 Agregado a cola de auto-guardado: ID ${record.id} (${autoSaveQueue.length} en cola)`);
+  
+  // Iniciar procesamiento si no está activo
+  if (!isProcessingAutoSave) {
+    processAutoSaveQueue();
+  }
+}
+
+async function sendAutoSaveRequest(saveRequest) {
+  const payload = {
+    records: [saveRequest.record],
+    user: saveRequest.user,
+    date: saveRequest.date,
+    type: saveRequest.type
+  };
+  
+  console.log('🚀 Enviando auto-guardado a Google Sheets...');
+  console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+  
+  return fetch(GOOGLE_APPS_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(() => {
+    console.log('✅ Auto-guardado enviado exitosamente para ID:', saveRequest.record.id, 'Tipo:', saveRequest.record.objectType);
+    showAutoSaveNotification('Comentario de asignación guardado');
+  }).catch(error => {
+    console.error('❌ Error en fetch de auto-guardado:', error);
+    showAutoSaveNotification('Error al guardar comentario de asignación', 'error');
+    throw error;
+  });
+}
 
 // Función para marcar automáticamente un Item Group como modificado
 function markItemGroupAsModified(itemGroupId = null, itemGroupName = null) {
@@ -6237,6 +6318,15 @@ function generateImageInventoryTable() {
       rowIndex++;
       totalImagesWithComments++;
       
+      // DEBUG: Detectar IDs problemáticos al agregarlos
+      const problematicIds = ['42990', '23591'];
+      if (problematicIds.includes(metadata.id)) {
+        console.log(`🚨 DETECTADO ID PROBLEMÁTICO ${metadata.id} siendo agregado a tableRowsData:`);
+        console.log(`   - Diseñador del comentario: "${parsedComment.diseñador}"`);
+        console.log(`   - Status: "${parsedComment.ultimoStatus}"`);
+        console.log(`   - Comentario original: "${directComment}"`);
+      }
+
       tableRowsData.push({
         rowNumber: rowIndex,
         name: metadata.name,
@@ -6290,6 +6380,17 @@ function generateImageInventoryTable() {
             // Determinar si será una fila de tipo 'Image' 
             const isImageType = imageValue && String(imageValue).toLowerCase().includes('.jpg');
             const finalId = isImageType ? (getAssetId(imageValue.trim()) || metadata.id) : metadata.id;
+            
+            // DEBUG: Detectar IDs problemáticos para imágenes
+            const problematicIds = ['42990', '23591'];
+            if (problematicIds.includes(finalId)) {
+              console.log(`🚨 DETECTADO ID PROBLEMÁTICO ${finalId} en imagen siendo agregado a tableRowsData:`);
+              console.log(`   - Imagen: "${imageValue.trim()}"`);
+              console.log(`   - Diseñador del comentario: "${parsedComment.diseñador}"`);
+              console.log(`   - Status: "${parsedComment.ultimoStatus}"`);
+              console.log(`   - Comentario original: "${comment}"`);
+              console.log(`   - metadata.id original: "${metadata.id}"`);
+            }
             
             tableRowsData.push({
               rowNumber: rowIndex,
@@ -6475,11 +6576,144 @@ function generateImageInventoryTable() {
     originalInventoryData = [...tableRowsData];
     console.log('🔄 Inicializando originalInventoryData por primera vez con', tableRowsData.length, 'elementos');
   } else {
-    // CRÍTICO: Cuando se regenera después de comentarios, SIEMPRE actualizar originalInventoryData
-    // para asegurar que los nuevos comentarios se reflejen
-    originalInventoryData = [...tableRowsData];
-    console.log('🔄 FORZANDO actualización de originalInventoryData con', tableRowsData.length, 'elementos (nuevos comentarios)');
+    // CRÍTICO: Solo actualizar originalInventoryData si NO estamos en medio de un proceso de asignaciones
+    // Verificar si algún elemento en originalInventoryData tiene asignaciones recientes que no están en tableRowsData
+    const hasRecentAssignments = originalInventoryData.some(originalRow => {
+      const matchingTableRow = tableRowsData.find(tableRow => {
+        // Matching mejorado: usar commentType y múltiples criterios
+        if (originalRow.commentType === 'item' && tableRow.commentType === 'item') {
+          // Para elementos tipo "item": comparar IDs de forma flexible (id o itemId) y name
+          const originalId = originalRow.itemId || originalRow.id;
+          const tableId = tableRow.itemId || tableRow.id;
+          return String(tableId) === String(originalId) && tableRow.name === originalRow.name;
+        } else if (originalRow.commentType === 'image' && tableRow.commentType === 'image') {
+          // Para elementos tipo "image": usar id y name
+          return String(tableRow.id) === String(originalRow.id) && tableRow.name === originalRow.name;
+        } else {
+          // Fallback: usar id y name
+          return String(tableRow.id) === String(originalRow.id) && tableRow.name === originalRow.name;
+        }
+      });
+      // Si el elemento tiene diseñador en original pero no en tableRowsData, preservar original
+      return originalRow.diseñador && originalRow.diseñador.trim() !== '' && 
+             (!matchingTableRow || !matchingTableRow.diseñador || matchingTableRow.diseñador.trim() === '');
+    });
+    
+    if (hasRecentAssignments) {
+      console.log('🔒 PRESERVANDO originalInventoryData - contiene asignaciones recientes no reflejadas en tableRowsData');
+      // Solo actualizar comentarios en originalInventoryData sin perder asignaciones
+      originalInventoryData.forEach(originalRow => {
+        const matchingTableRow = tableRowsData.find(tableRow => {
+          // Matching mejorado: usar commentType y múltiples criterios
+          if (originalRow.commentType === 'item' && tableRow.commentType === 'item') {
+            // Para elementos tipo "item": comparar IDs de forma flexible (id o itemId) y name
+            const originalId = originalRow.itemId || originalRow.id;
+            const tableId = tableRow.itemId || tableRow.id;
+            const match = String(tableId) === String(originalId) && tableRow.name === originalRow.name;
+            if (!match && originalRow.diseñador && originalRow.diseñador.trim() !== '') {
+              console.log(`🔍 DEBUGGING itemId matching para ${originalRow.name}:`);
+              console.log(`   - originalRow.itemId: "${originalRow.itemId}" (${typeof originalRow.itemId})`);
+              console.log(`   - tableRow.itemId: "${tableRow.itemId}" (${typeof tableRow.itemId})`);
+              console.log(`   - originalRow.id: "${originalRow.id}" (${typeof originalRow.id})`);
+              console.log(`   - tableRow.id: "${tableRow.id}" (${typeof tableRow.id})`);
+              console.log(`   - originalId: "${originalId}" tableId: "${tableId}"`);
+              console.log(`   - String comparison: "${String(tableId)}" === "${String(originalId)}" = ${String(tableId) === String(originalId)}`);
+              console.log(`   - Name comparison: "${tableRow.name}" === "${originalRow.name}" = ${tableRow.name === originalRow.name}`);
+            }
+            return match;
+          } else if (originalRow.commentType === 'image' && tableRow.commentType === 'image') {
+            // Para elementos tipo "image": usar id y name
+            return String(tableRow.id) === String(originalRow.id) && tableRow.name === originalRow.name;
+          } else {
+            // Fallback: usar id y name
+            return tableRow.id === originalRow.id && tableRow.name === originalRow.name;
+          }
+        });
+        if (matchingTableRow && matchingTableRow['WA_VIS_Comment'] !== originalRow['WA_VIS_Comment']) {
+          console.log(`🔄 Actualizando solo comentarios para ${originalRow.name}: preservando diseñador "${originalRow.diseñador}"`);
+          originalRow['WA_VIS_Comment'] = matchingTableRow['WA_VIS_Comment'];
+          originalRow.ultimoStatus = matchingTableRow.ultimoStatus;
+          originalRow.ultimaFechaEstatus = matchingTableRow.ultimaFechaEstatus;
+        }
+      });
+      
+      // CRÍTICO: Sincronizar asignaciones desde originalInventoryData hacia tableRowsData
+      console.log('🔄 SINCRONIZANDO asignaciones desde originalInventoryData hacia tableRowsData');
+      let syncCount = 0;
+      originalInventoryData.forEach(originalRow => {
+        if (originalRow.diseñador && originalRow.diseñador.trim() !== '') {
+          const matchingTableRow = tableRowsData.find(tableRow => {
+            if (originalRow.commentType === 'item' && tableRow.commentType === 'item') {
+              // Para elementos tipo "item": comparar IDs de forma flexible (id o itemId) y name
+              const originalId = originalRow.itemId || originalRow.id;
+              const tableId = tableRow.itemId || tableRow.id;
+              return String(tableId) === String(originalId) && tableRow.name === originalRow.name;
+            } else if (originalRow.commentType === 'image' && tableRow.commentType === 'image') {
+              return String(tableRow.id) === String(originalRow.id) && tableRow.name === originalRow.name;
+            } else {
+              return String(tableRow.id) === String(originalRow.id) && tableRow.name === originalRow.name;
+            }
+          });
+          
+          if (matchingTableRow) {
+            console.log(`✅ Sincronizando ${originalRow.name}: "${matchingTableRow.diseñador}" → "${originalRow.diseñador}"`);
+            matchingTableRow.diseñador = originalRow.diseñador;
+            syncCount++;
+          } else {
+            console.log(`❌ No se pudo sincronizar ${originalRow.name} (${originalRow.commentType}) - ID original: ${originalRow.itemId || originalRow.id}`);
+          }
+        }
+      });
+      console.log(`🔄 Sincronización completada: ${syncCount} asignaciones transferidas a tableRowsData`);
+      
+      // CRÍTICO: Reaplicar filtros activos después de la sincronización
+      // Esto es necesario porque si había un filtro de "sin diseñador" activo, 
+      // después de asignar diseñadores estos elementos ya no deberían mostrarse
+      const currentFilters = inventoryViewState?.activeFilters;
+      if (currentFilters && Object.keys(currentFilters).length > 0) {
+        console.log('🔄 Reaplicando filtros activos después de sincronización:', currentFilters);
+        
+        // Si hay un filtro de diseñador activo, simular el click para reaplicarlo
+        if (currentFilters.disenador !== undefined) {
+          const filterElement = document.querySelector(`[data-type="designer"][data-user="${currentFilters.disenador || ''}"]`);
+          if (filterElement) {
+            console.log('🎯 Reaplicando filtro de diseñador:', currentFilters.disenador || 'vacío');
+            setTimeout(() => {
+              filterElement.click();
+            }, 100);
+          }
+        }
+        // Si hay un filtro de analista activo, simular el click para reaplicarlo  
+        else if (currentFilters.analista !== undefined) {
+          const filterElement = document.querySelector(`[data-type="analyst"][data-user="${currentFilters.analista || ''}"]`);
+          if (filterElement) {
+            console.log('🎯 Reaplicando filtro de analista:', currentFilters.analista || 'vacío');
+            setTimeout(() => {
+              filterElement.click();
+            }, 100);
+          }
+        }
+      }
+    } else {
+      // Seguro actualizar originalInventoryData cuando no hay asignaciones pendientes
+      originalInventoryData = [...tableRowsData];
+      console.log('🔄 Actualizando originalInventoryData con', tableRowsData.length, 'elementos (sin asignaciones pendientes)');
+    }
   }
+  
+  // DEBUGGING: Verificar IDs problemáticos en originalInventoryData
+  const problematicIds = ['42990', '23591'];
+  console.log('🔍 VERIFICANDO IDS PROBLEMÁTICOS EN originalInventoryData:');
+  problematicIds.forEach(id => {
+    const found = originalInventoryData.find(row => row.id === id);
+    if (found) {
+      console.log(`🚨 ID ${id} encontrado en originalInventoryData:`);
+      console.log(`   - Diseñador: "${found.diseñador}"`);
+      console.log(`   - Comment Type: "${found.commentType}"`);
+      console.log(`   - Status: "${found.ultimoStatus}"`);
+      console.log(`   - Nombre: "${found.name}"`);
+    }
+  });
 
   // Actualizar las tablas de estadísticas
   setTimeout(() => {
@@ -7203,6 +7437,52 @@ window.applyDesignerAssignments = function() {
   console.log('📊 Comentarios sin asignar ANTES:', unassignedComments.length);
   console.log('📊 Total datos originalInventoryData:', originalInventoryData.length);
   
+  // LOGGING DETALLADO DE ELEMENTOS SIN ASIGNAR
+  console.log('🔍 === DETALLE DE ELEMENTOS SIN ASIGNAR ===');
+  
+  // CRÍTICO: Revisar si los IDs problemáticos están aquí
+  const problematicIds = ['42990', '23591'];
+  const expectedIds = ['119495', '193853', '23482', '53764', '23456'];
+  
+  console.log('🚨 VERIFICACIÓN DE IDS PROBLEMÁTICOS:');
+  problematicIds.forEach(id => {
+    const found = unassignedComments.find(row => row.id === id);
+    if (found) {
+      console.log(`❌ ERROR: ID ${id} NO DEBERÍA ESTAR SIN ASIGNAR - Diseñador actual: "${found.diseñador}"`);
+    } else {
+      console.log(`✅ OK: ID ${id} no está en la lista de sin asignar`);
+    }
+  });
+  
+  console.log('🎯 VERIFICACIÓN DE IDS ESPERADOS:');
+  expectedIds.forEach(id => {
+    const found = unassignedComments.find(row => row.id === id);
+    if (found) {
+      console.log(`✅ OK: ID ${id} SÍ está sin asignar - Diseñador: "${found.diseñador}"`);
+    } else {
+      console.log(`❌ FALTA: ID ${id} debería estar sin asignar pero no aparece`);
+    }
+  });
+  
+  unassignedComments.forEach((row, index) => {
+    const isProblematic = problematicIds.includes(row.id);
+    const prefix = isProblematic ? '🚨 PROBLEMA' : '📋';
+    
+    console.log(`${prefix} Elemento ${index + 1}:`);
+    console.log(`   - Nombre: "${row.name}"`);
+    console.log(`   - ID: "${row.id}"`);
+    console.log(`   - Object Type: "${row.objectType}"`);
+    console.log(`   - Comment Type: "${row.commentType}"`);
+    console.log(`   - Analista: "${row.analista}"`);
+    console.log(`   - Diseñador actual: "${row.diseñador}"`);
+    console.log(`   - WA_VIS_Comment: "${row['WA_VIS_Comment'] || 'VACÍO'}"`);
+    console.log(`   - Status actual: "${row.ultimoStatus}"`);
+    if (isProblematic) {
+      console.log(`   - 🚨 ESTE ID NO DEBERÍA PROCESARSE - YA TIENE DISEÑADOR`);
+    }
+    console.log('   ---');
+  });
+  
   // Validar que la suma de asignaciones no exceda los comentarios sin asignar
   let totalAssignments = 0;
   designers.forEach(designer => {
@@ -7231,28 +7511,48 @@ window.applyDesignerAssignments = function() {
       console.log(`📝 ANTES Row ${commentIndex}: diseñador="${row.diseñador}", name="${row.name}"`);
       row.diseñador = designer;
       console.log(`📝 DESPUÉS Row ${commentIndex}: diseñador="${row.diseñador}"`);
+      
+      // Agregar comentario automático de asignación
+      addAssignmentComment(row);
+      
       commentIndex++;
     }
   });
   
   console.log(`✅ Total asignaciones procesadas: ${commentIndex}`);
   
-  // SINCRONIZAR currentWorkingData con originalInventoryData
-  console.log('🔄 Sincronizando currentWorkingData con originalInventoryData...');
-  console.log('📊 currentWorkingData antes:', currentWorkingData.length);
+  // CRÍTICO: Actualizar originalInventoryData debe reflejar las asignaciones hechas localmente
+  console.log(' originalInventoryData después de asignaciones:', originalInventoryData.length);
   
-  // Actualizar currentWorkingData con las asignaciones hechas en originalInventoryData
-  currentWorkingData.forEach(workingRow => {
-    const matchingOriginalRow = originalInventoryData.find(originalRow => 
-      originalRow.name === workingRow.name && originalRow.id === workingRow.id
-    );
-    if (matchingOriginalRow && matchingOriginalRow.diseñador !== workingRow.diseñador) {
-      console.log(`🔄 Actualizando ${workingRow.name}: "${workingRow.diseñador}" -> "${matchingOriginalRow.diseñador}"`);
-      workingRow.diseñador = matchingOriginalRow.diseñador;
+  // Verificar que originalInventoryData mantenga las asignaciones que acabamos de hacer
+  originalInventoryData.forEach((row, index) => {
+    if (index < commentIndex) {
+      // Buscar el diseñador asignado correspondiente
+      let assignedDesigner = '';
+      let currentAssignmentIndex = 0;
+      
+      designers.forEach(designer => {
+        const input = document.getElementById(`assignment-${designer}`);
+        const assignmentValue = parseInt(input?.value) || 0;
+        
+        for (let i = 0; i < assignmentValue; i++) {
+          if (currentAssignmentIndex === index) {
+            assignedDesigner = designer;
+            break;
+          }
+          currentAssignmentIndex++;
+        }
+        if (assignedDesigner) return; // Break outer loop
+      });
+      
+      if (assignedDesigner && row.diseñador !== assignedDesigner) {
+// DESHABILITADO:         console.log(`� FORZANDO asignación en originalInventoryData[${index}]: "${row.diseñador}" -> "${assignedDesigner}" para ${row.name}`);
+        // NO SOBREESCRIBIR - row.diseñador = assignedDesigner;
+      }
     }
   });
   
-  console.log('📊 currentWorkingData después:', currentWorkingData.length);
+  console.log('📊 originalInventoryData después de verificar:', originalInventoryData.length);
   
   // Verificar el estado después de las asignaciones
   const assignedAfter = originalInventoryData.filter(row => row.diseñador && row.diseñador.trim() !== '');
@@ -7261,23 +7561,38 @@ window.applyDesignerAssignments = function() {
   console.log('📊 Comentarios asignados DESPUÉS:', assignedAfter.length);
   console.log('📊 Comentarios sin asignar DESPUÉS:', unassignedAfter.length);
   
-  // Actualizar la tabla
-  console.log('🔄 Actualizando tabla del visualizer usando la misma lógica que clearInventoryFilter...');
+  // CRÍTICO: Regenerar tabla completa para mostrar asignaciones de tipo "item"
+  console.log('🔄 Regenerando tabla completa después de asignaciones...');
   
-  // Usar EXACTAMENTE la misma lógica que clearInventoryFilter que SÍ funciona
-  const inventoryTable = document.querySelector('.image-inventory-table tbody');
-  if (inventoryTable) {
-    console.log('📊 Tabla encontrada, aplicando updateInventoryTableDirectly...');
-    updateInventoryTableDirectly(originalInventoryData);
+  // IMPORTANTE: Actualizar currentWorkingData con las asignaciones más recientes de allLibraryData
+  if (allLibraryData && allLibraryData.length > 0) {
+    console.log('🔄 Actualizando currentWorkingData con asignaciones de allLibraryData...');
+    currentWorkingData = [...allLibraryData];
+    console.log(`✅ currentWorkingData actualizado: ${currentWorkingData.length} elementos`);
+  }
+  
+  // Forzar regeneración completa del inventario para que se vean los cambios de "item"
+  const inventoryContainer = document.querySelector('.image-inventory-container');
+  if (inventoryContainer) {
+    console.log('📊 Regenerando inventario completo usando generateInventoryData...');
     
-    // Actualizar estadísticas de la tabla
-    const statsElement = document.querySelector('.inventory-stats');
-    if (statsElement) {
-      statsElement.innerHTML = `Comentarios visibles: <strong>${originalInventoryData.length}</strong>`;
-    }
-    console.log('✅ Tabla del visualizer actualizada correctamente');
+    // Regenerar HTML completo del inventario usando datos actualizados
+    const updatedInventoryHTML = generateImageInventoryTable(currentWorkingData);
+    inventoryContainer.outerHTML = updatedInventoryHTML;
+    
+    console.log('✅ Inventario regenerado completamente - elementos tipo "item" ahora visibles');
+    
+    // Re-configurar event listeners y actualizar datos después de regenerar
+    setTimeout(() => {
+      // Reconfigurar originalInventoryData con los datos actualizados
+      originalInventoryData = [...originalInventoryData];
+      setupClickableElements();
+      setupInventoryClickListeners();
+      console.log('🔗 Event listeners reconfigurados después de regeneración');
+      console.log('📊 originalInventoryData sincronizado con', originalInventoryData.length, 'elementos');
+    }, 100);
   } else {
-    console.log('❌ No se encontró la tabla del inventario');
+    console.log('❌ No se encontró el contenedor del inventario');
   }
   
   console.log('🔄 Actualizando estadísticas...');
@@ -7312,24 +7627,294 @@ window.applyDesignerAssignments = function() {
       
       setupStatsTableListeners();
     }, 300);
+    
+    // CRÍTICO: Regenerar originalInventoryData con los nuevos comentarios
+    setTimeout(() => {
+      console.log('🔄 Regenerando datos de inventario con comentarios actualizados...');
+      
+      // PASO 1: Forzar limpieza completa de originalInventoryData
+      originalInventoryData = [];
+      
+      // PASO 2: Regenerar tabla completa para forzar procesamiento de comentarios nuevos
+      const box4Content = document.getElementById('box4-content');
+      if (box4Content && currentWorkingData && currentWorkingData.length > 0) {
+        console.log('📊 Regenerando tabla completa para reflejar comentarios de asignación...');
+        
+        // IMPORTANTE: Asegurar que currentWorkingData tenga los datos más recientes
+        if (allLibraryData && allLibraryData.length > 0) {
+          console.log('🔄 Actualizando currentWorkingData antes de regenerar tabla...');
+          currentWorkingData = [...allLibraryData];
+        }
+        
+        // Forzar regeneración completa de los datos procesados
+        box4Content.innerHTML = generateImageInventoryTable(currentWorkingData, true);
+        
+        // Asegurar que los event listeners se configuren correctamente
+        setTimeout(() => {
+          setupClickableElements();
+          setupStatsTableListeners();
+          
+          // Aplicar el filtro si había uno activo
+          const currentFilters = getActiveTableFilters();
+          if (currentFilters && Object.keys(currentFilters).length > 0) {
+            console.log('🔄 Reaplicando filtros después de regeneración:', currentFilters);
+            // Reaplicar filtros activos
+            Object.entries(currentFilters).forEach(([filterType, filterValue]) => {
+              if (filterType === 'diseñador' && filterValue) {
+                // Simular click en la estadística de diseñador
+                const designerStats = document.querySelectorAll('[data-user-type="designer"]');
+                designerStats.forEach(stat => {
+                  if (stat.textContent.trim() === filterValue || stat.getAttribute('data-user') === filterValue) {
+                    setTimeout(() => stat.click(), 100);
+                  }
+                });
+              }
+            });
+          }
+        }, 100);
+        
+      } else {
+        console.log('❌ No se pudo regenerar tabla: elementos no encontrados');
+      }
+    }, 500);
   } else {
     console.log('🚫 No actualizando estadísticas - estamos en visualizador');
   }
   
-  // Verificar que las asignaciones se mantuvieron
-  console.log('🔍 VERIFICACIÓN FINAL - Comentarios sin asignar después de todo:', 
-    originalInventoryData.filter(row => !row.diseñador || row.diseñador === '').length);
+  // VERIFICACIÓN FINAL COMPLETA
+  console.log('🔍 === VERIFICACIÓN FINAL DE ASIGNACIONES ===');
   
-  // Log de algunos diseñadores asignados para verificar
-  const assignedRows = originalInventoryData.filter(row => row.diseñador && row.diseñador !== '');
-  console.log('🔍 VERIFICACIÓN - Primeros 5 comentarios con diseñador asignado:', 
-    assignedRows.slice(0, 5).map(row => ({name: row.name, diseñador: row.diseñador})));
+  const finalUnassigned = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
+  const finalAssigned = originalInventoryData.filter(row => row.diseñador && row.diseñador !== '');
+  
+  console.log('� Comentarios sin asignar después de todo:', finalUnassigned.length);
+  console.log('📊 Comentarios asignados después de todo:', finalAssigned.length);
+  
+  // Mostrar detalles de elementos asignados EN ESTA SESIÓN SOLAMENTE
+  console.log('🎯 === ELEMENTOS ASIGNADOS EN ESTA SESIÓN ===');
+  
+  // Crear lista de elementos procesados en esta sesión basándose en comentIndex
+  const elementsAssignedThisSession = [];
+  let currentIndex = 0;
+  
+  designers.forEach(designer => {
+    const input = document.getElementById(`assignment-${designer}`);
+    const assignmentValue = parseInt(input?.value) || 0;
+    
+    for (let i = 0; i < assignmentValue; i++) {
+      if (currentIndex < unassignedComments.length) {
+        const assignedElement = unassignedComments[currentIndex];
+        // Obtener el elemento actualizado de originalInventoryData
+        const updatedElement = originalInventoryData.find(row => 
+          row.id === assignedElement.id && row.name === assignedElement.name
+        );
+        
+        if (updatedElement) {
+          elementsAssignedThisSession.push({
+            ...updatedElement,
+            assignedTo: designer
+          });
+        }
+        currentIndex++;
+      }
+    }
+  });
+  
+  // Mostrar solo los elementos asignados en esta sesión
+  elementsAssignedThisSession.forEach((row, index) => {
+    console.log(`📋 Asignación ${index + 1}:`);
+    console.log(`   - Nombre: "${row.name}"`);
+    console.log(`   - ID: "${row.id}"`);
+    console.log(`   - Object Type: "${row.objectType}"`);
+    console.log(`   - Comment Type: "${row.commentType}"`);
+    console.log(`   - Diseñador asignado: "${row.assignedTo}" (ahora: "${row.diseñador}")`);
+    console.log(`   - Comentario completo FINAL: "${row['WA_VIS_Comment'] || 'No disponible'}"`);
+    console.log('   ---');
+  });
   
   console.log('🔄 === PROCESO DE ASIGNACIONES COMPLETADO ===');
+  
+  // Mostrar notificación de éxito
+  showAutoSaveNotification(`Asignaciones completadas con comentarios automáticos`);
   
   // Cerrar el modal
   closeAssignDesignerModal();
 };
+
+// Función para agregar comentario automático al asignar diseñadora
+function addAssignmentComment(row) {
+  console.log('📝 === INICIO addAssignmentComment ===');
+  console.log('📝 Agregando comentario de asignación para:', row.name, 'ID:', row.id, 'Tipo:', row.objectType);
+  console.log('📝 CommentType:', row.commentType, 'Diseñador asignado:', row.diseñador);
+  
+  // Buscar el comentario existente COMPLETO según el commentType
+  let existingComments = '';
+  
+  if (row.commentType === 'item') {
+    // Buscar en allLibraryData para Item Codes e Item Groups
+    console.log('🔍 Buscando comentarios existentes en allLibraryData para', row.objectType, 'ID:', row.id);
+    console.log('🔍 Total elementos en allLibraryData:', allLibraryData.length);
+    
+    // Buscar con diferentes propiedades de ID, considerando el Object Type
+    let libraryItem = allLibraryData.find(item => 
+      (item['Object Type'] === row.objectType) && 
+      (item.ID == row.id || item.Id == row.id || item.id == row.id)
+    );
+    
+    // Si aún no encuentra, buscar por nombre
+    if (!libraryItem && row.name) {
+      libraryItem = allLibraryData.find(item => 
+        (item['Object Type'] === row.objectType) &&
+        ((item.Name === row.name) || 
+        (item.Title === row.name) ||
+        (item.name === row.name))
+      );
+      if (libraryItem) {
+        console.log('✅ Encontrado por NOMBRE en allLibraryData:', libraryItem.Name || libraryItem.Title);
+      }
+    }
+    
+    if (libraryItem) {
+      existingComments = libraryItem['WA_VIS_Comment'] || '';
+      console.log('✅ Encontrado en allLibraryData:', row.objectType, 'Name:', libraryItem.Name || libraryItem.Title);
+      console.log('📜 Comentarios existentes encontrados:', existingComments);
+      console.log('🔍 Estructura del elemento encontrado:', libraryItem);
+    } else {
+      console.warn('❌ No se encontró', row.objectType, 'en allLibraryData con ID:', row.id, 'ni por nombre:', row.name);
+      
+      // Debug: buscar elementos que contengan parte del nombre o ID
+      console.log('🔍 Buscando elementos similares...');
+      const similarItems = allLibraryData.filter(item => {
+        const itemName = item.Name || item.Title || item.name || '';
+        const itemId = item.ID || item.Id || item.id || '';
+        return itemName.includes(row.name.substring(0, 5)) || 
+               itemId.toString().includes(row.id.toString().substring(0, 3));
+      }).slice(0, 3);
+      
+      console.log('🔍 Elementos similares encontrados:', similarItems);
+      console.log('🔍 Verificando primeros 5 elementos de allLibraryData:');
+      allLibraryData.slice(0, 5).forEach((item, idx) => {
+        console.log(`   ${idx + 1}. Estructura completa:`, item);
+        console.log(`   ${idx + 1}. ID: ${item.ID}, Type: ${item.ObjectTypeName}, Name: ${item.Name || item.Title}`);
+        console.log(`   ${idx + 1}. Claves disponibles:`, Object.keys(item));
+      });
+    }
+  } else if (row.commentType === 'image') {
+    // Buscar en currentAssetComments para imágenes
+    console.log('🔍 Buscando comentarios existentes en currentAssetComments para imagen ID:', row.id);
+    const assetItem = currentAssetComments.find(asset => asset.ID == row.id);
+    if (assetItem) {
+      existingComments = assetItem['WA_VIS_Comment'] || '';
+      console.log('✅ Encontrado en currentAssetComments:', assetItem.Name);
+      console.log('📜 Comentarios existentes encontrados:', existingComments);
+    } else {
+      console.warn('❌ No se encontró asset en currentAssetComments con ID:', row.id);
+      console.log('🔍 Verificando primeros 5 elementos de currentAssetComments:');
+      currentAssetComments.slice(0, 5).forEach((asset, idx) => {
+        console.log(`   ${idx + 1}. ID: ${asset.ID}, Name: ${asset.Name}`);
+      });
+    }
+  } else {
+    console.warn('⚠️ Tipo de comentario desconocido:', row.commentType);
+    // Usar el comentario de la fila como fallback
+    existingComments = row['WA_VIS_Comment'] || '';
+    console.log('📜 Usando comentarios de fila como fallback:', existingComments);
+  }
+  
+  // Crear el nuevo comentario de asignación
+  const assignmentComment = {
+    usuario: row.diseñador,
+    fechaHora: getLocalDateTime(),
+    tipoComentario: 'General',
+    textoComentario: `Se asignó diseñador a "${row.diseñador}"`,
+    status: 'Diseño'
+  };
+  
+  const newCommentString = `${assignmentComment.usuario}¦${assignmentComment.fechaHora}¦${assignmentComment.tipoComentario}¦${assignmentComment.textoComentario}¦${assignmentComment.status}`;
+  console.log('🆕 Nuevo comentario creado:', newCommentString);
+  
+  // Combinar comentarios existentes con el nuevo
+  const updatedComments = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+  console.log('📋 Comentarios finales combinados:', updatedComments);
+  
+  // Actualizar comentarios en la fila local
+  row['WA_VIS_Comment'] = updatedComments;
+  console.log('✅ Comentario de asignación agregado localmente:', row.name, 'ID:', row.id);
+  
+  // Actualizar en la estructura de datos correcta según el commentType
+  let dataUpdated = false;
+  
+  if (row.commentType === 'item') {
+    // Actualizar en allLibraryData
+    if (allLibraryData && row.id) {
+      const libraryItem = allLibraryData.find(item => 
+        (item['Object Type'] === row.objectType) && 
+        (item.ID == row.id || item.Id == row.id)
+      );
+      if (libraryItem) {
+        libraryItem['WA_VIS_Comment'] = updatedComments;
+        console.log('✅ Comentarios actualizados en allLibraryData para', row.objectType, 'ID:', row.id, 'Name:', row.name);
+        dataUpdated = true;
+      } else {
+        console.warn('❌ No se encontró', row.objectType, 'en allLibraryData con ID:', row.id);
+      }
+    }
+  } else if (row.commentType === 'image') {
+    // Actualizar en currentAssetComments
+    if (currentAssetComments && row.id) {
+      const assetItem = currentAssetComments.find(asset => asset.ID == row.id);
+      if (assetItem) {
+        assetItem['WA_VIS_Comment'] = updatedComments;
+        console.log('✅ Comentarios actualizados en currentAssetComments para Image ID:', row.id, 'Name:', row.name);
+        dataUpdated = true;
+      } else {
+        console.warn('❌ No se encontró asset en currentAssetComments con ID:', row.id);
+      }
+    }
+  }
+  
+  // Auto-guardar el comentario usando el commentType correcto
+  const currentDate = getLocalDateTime();
+  const currentUser = getCurrentUser();
+  
+  if (row.commentType === 'item') {
+    // Para Item Codes e Item Groups, crear payload directamente con ID conocido
+    console.log('🎯 Auto-guardando', row.objectType, 'ID:', row.id, 'Nombre:', row.name, 'CommentType:', row.commentType);
+    
+    const record = {
+      id: parseInt(row.id),
+      objectType: row.objectType,
+      attribute: 'WA_VIS_Comment',
+      value: updatedComments, // Usar los comentarios combinados
+      date: currentDate,
+      user: currentUser
+    };
+    
+    console.log('📋 Registro completo a enviar:', record);
+    console.log('📊 Datos por columna que se enviarán:');
+    console.log('   - ID:', record.id);
+    console.log('   - Object Type:', record.objectType);
+    console.log('   - Attribute:', record.attribute);
+    console.log('   - Value:', record.value);
+    console.log('   - Date:', record.date);
+    console.log('   - User:', record.user);
+    
+    // Usar el sistema de cola para evitar rate limiting
+    addToAutoSaveQueue(record, currentUser, currentDate);
+    
+  } else if (row.commentType === 'image') {
+    // Para imágenes, usar el método original con el nombre de imagen
+    const imageContext = row.imageName || (row.name + '.jpg');
+    console.log('🎯 Auto-guardando imagen ID:', row.id, 'ImageName:', imageContext, 'CommentType:', row.commentType);
+    console.log('📋 Comentario completo a auto-guardar:', updatedComments);
+    autoSaveComment(newCommentString, 'image', imageContext, imageContext);
+    
+  } else {
+    console.warn('⚠️ Tipo de comentario no reconocido para auto-guardado:', row.commentType);
+  }
+  
+  console.log('💾 === FIN addAssignmentComment ===');
+}
 
 function getActiveDesigners() {
   console.log('🔍 Buscando diseñadores activos...');
@@ -7679,6 +8264,55 @@ function generateAnalystStatsTable() {
   `;
   
   return tableHTML;
+}
+
+// Función para configurar event listeners de elementos clicables en la tabla de inventario
+function setupClickableElements() {
+  console.log('🔧 Configurando event listeners para elementos clicables...');
+  
+  // Event listeners para comentarios clicables en la tabla de inventario
+  document.querySelectorAll('.comment-indicator').forEach(indicator => {
+    if (!indicator.hasAttribute('data-listener-setup')) {
+      indicator.addEventListener('click', function(event) {
+        event.stopPropagation();
+        const context = this.getAttribute('data-context');
+        if (context) {
+          handleCommentClick(event, this);
+        }
+      });
+      indicator.setAttribute('data-listener-setup', 'true');
+    }
+  });
+  
+  // Event listeners para imágenes clicables en la tabla de inventario
+  document.querySelectorAll('.image-thumbnail').forEach(thumbnail => {
+    if (!thumbnail.hasAttribute('data-listener-setup')) {
+      thumbnail.addEventListener('click', function(event) {
+        event.stopPropagation();
+        const imageName = this.getAttribute('data-image-name');
+        if (imageName) {
+          handleImageCommentClick(event, imageName);
+        }
+      });
+      thumbnail.setAttribute('data-listener-setup', 'true');
+    }
+  });
+  
+  // Event listeners para celdas de imagen en Item Groups
+  document.querySelectorAll('.item-group-image-cell').forEach(cell => {
+    if (!cell.hasAttribute('data-listener-setup')) {
+      const thumbnail = cell.querySelector('.image-thumbnail');
+      if (thumbnail) {
+        cell.addEventListener('click', function(event) {
+          event.stopPropagation();
+          handleItemGroupImageAssignment(event, this, thumbnail);
+        });
+        cell.setAttribute('data-listener-setup', 'true');
+      }
+    }
+  });
+  
+  console.log('✅ Event listeners configurados correctamente');
 }
 
 function setupStatsTableListeners() {
@@ -8393,6 +9027,17 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
         if (itemId) {
           // Buscar en allLibraryData
           searchItem = allLibraryData.find(item => item.Id == itemId);
+        } else if (typeof context === 'string') {
+          // Si no hay ID, buscar por nombre directamente
+          console.log('🔍 No se pudo extraer ID del contexto, buscando por nombre:', context);
+          searchItem = allLibraryData.find(item => 
+            item['Object Type'] === 'Item Code' && 
+            (item.Name === context || item['Item Code'] === context)
+          );
+          if (searchItem) {
+            itemId = searchItem.Id;
+            console.log('✅ Item Code encontrado por nombre - Nombre:', context, 'ID:', itemId);
+          }
         }
       }
       
@@ -8510,24 +9155,11 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
     type: 'comment_autosave'
   };
   
-  console.log('🚀 Enviando auto-guardado a Google Sheets...');
+  console.log('🚀 Agregando auto-guardado de imagen a cola...');
   console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
   
-  // Usar fetch sin async/await para evitar problemas de CORS
-  fetch(GOOGLE_APPS_SCRIPT_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(payload),
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  }).then(() => {
-    console.log('✅ Auto-guardado enviado exitosamente');
-    showAutoSaveNotification('Comentario guardado');
-  }).catch(error => {
-    console.error('❌ Error en fetch de auto-guardado:', error);
-    showAutoSaveNotification('Error al guardar comentario', 'error');
-  });
+  // Usar el sistema de cola para evitar rate limiting
+  addToAutoSaveQueue(record, currentUser, currentDate);
 }
 
 // Función para mostrar notificación discreta de auto-guardado
@@ -8933,6 +9565,19 @@ function saveInventoryViewState() {
     console.log('✅ Estado guardado exitosamente');
   } catch (error) {
     console.error('❌ Error guardando estado:', error);
+  }
+}
+
+// Función para obtener filtros activos de tablas
+function getActiveTableFilters() {
+  try {
+    if (inventoryViewState && inventoryViewState.activeFilters) {
+      return inventoryViewState.activeFilters;
+    }
+    return {};
+  } catch (error) {
+    console.error('❌ Error obteniendo filtros activos:', error);
+    return {};
   }
 }
 
