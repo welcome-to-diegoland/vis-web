@@ -2690,6 +2690,43 @@ html, body {
   content: "💾";
 }
 
+/* Estilos para el filtro de marcas */
+.brand-filter-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+}
+
+.brand-filter-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #495057;
+  margin: 0;
+}
+
+.brand-filter-dropdown {
+  padding: 4px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  font-size: 12px;
+  color: #495057;
+  min-width: 150px;
+  cursor: pointer;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.brand-filter-dropdown:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.brand-filter-dropdown:hover {
+  border-color: #adb5bd;
+}
+
 /* Estilos para la retícula de imágenes */
 .image-grid-container {
   flex: 1;

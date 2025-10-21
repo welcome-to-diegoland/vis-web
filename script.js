@@ -1515,6 +1515,7 @@ function loadImageGridInBox4(itemGroupPath) {
     setupImageSystemEventListeners(); // Agregar sistema de imágenes
     setupItemGroupDeleteButton(); // Configurar botón de basura del Item Group
     setupItemGroupImageClick(); // Configurar click en imagen del Item Group
+    setupBrandFilter(); // Configurar filtro de marcas
     
     // Actualizar indicadores de múltiples imágenes después de cargar el grid
     updateMultipleImagesIndicators();
@@ -1596,6 +1597,12 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
                 <span class="group-items">${itemCodes.length} items</span>
               </div>
             </div>
+          </div>
+          <div class="brand-filter-container">
+            <label for="brandFilter" class="brand-filter-label">Filtrar por marca:</label>
+            <select id="brandFilter" class="brand-filter-dropdown">
+              ${generateBrandFilterOptions(itemCodes)}
+            </select>
           </div>
           <div class="selected-image-placeholder">
             <div class="selected-image-container">
@@ -1815,6 +1822,30 @@ function updateMultipleImagesIndicators() {
   restRows.forEach((row, rowIndex) => {
     updateRowMultipleIndicator(row, rowIndex, 'rest');
   });
+}
+
+// Función para generar las opciones del filtro de marcas
+function generateBrandFilterOptions(itemCodes) {
+  // Extraer todas las marcas únicas de los Item Codes
+  const brands = new Set();
+  
+  itemCodes.forEach(item => {
+    const brand = item['Marca'] || item['Brand'] || '';
+    if (brand && brand.trim()) {
+      brands.add(brand.trim());
+    }
+  });
+  
+  // Convertir a array y ordenar alfabéticamente
+  const sortedBrands = Array.from(brands).sort();
+  
+  // Generar opciones HTML
+  let options = '<option value="">Todas las marcas</option>';
+  sortedBrands.forEach(brand => {
+    options += `<option value="${brand}">${brand}</option>`;
+  });
+  
+  return options;
 }
 
 // Función auxiliar para actualizar el indicador de una fila específica
@@ -4175,6 +4206,102 @@ function handleItemGroupImageRemoval() {
   // Actualizar visualmente
   updateItemGroupHeaderImage('');
   console.log(`✅ Imagen del Item Group eliminada`);
+}
+
+// Función para configurar el filtro de marcas
+function setupBrandFilter() {
+  const brandFilter = document.getElementById('brandFilter');
+  if (!brandFilter) {
+    console.log('❌ No se encontró el elemento brandFilter');
+    return;
+  }
+  
+  brandFilter.addEventListener('change', function() {
+    const selectedBrand = this.value;
+    filterGridByBrand(selectedBrand);
+  });
+  
+  console.log('✅ Filtro de marcas configurado');
+}
+
+// Función para filtrar el grid por marca
+function filterGridByBrand(selectedBrand) {
+  console.log(`🔍 Filtrando grid por marca: "${selectedBrand}"`);
+  
+  // Buscar SOLO en el grid actual de Box 4
+  const currentGrid = document.querySelector('#imageGridContainer');
+  if (!currentGrid) {
+    console.log('❌ No se encontró el grid actual de Box 4');
+    return;
+  }
+  
+  // DEBUG: Inspeccionar la estructura del grid
+  console.log('🔍 DEBUG: Estructura del grid:');
+  console.log('   Grid container:', currentGrid);
+  console.log('   Todas las secciones:', currentGrid.querySelectorAll('.section-wrapper'));
+  console.log('   Item code wrapper:', currentGrid.querySelector('.item-code-wrapper'));
+  console.log('   Item code cells:', currentGrid.querySelectorAll('.item-code-cell'));
+  console.log('   Todas las filas:', currentGrid.querySelectorAll('.table-row'));
+  
+  // Intentar con diferentes selectores
+  const itemCodeCells = currentGrid.querySelectorAll('.item-code-cell');
+  console.log(`📊 Celdas de Item Code encontradas: ${itemCodeCells.length}`);
+  
+  if (itemCodeCells.length === 0) {
+    console.log('❌ No se encontraron celdas de Item Code, saliendo del filtro');
+    return;
+  }
+  
+  let filteredCount = 0;
+  let hiddenCount = 0;
+  
+  // Iterar sobre las celdas de Item Code directamente
+  itemCodeCells.forEach((itemCodeCell, index) => {
+    const itemCode = itemCodeCell.getAttribute('data-item-code');
+    const rowIndex = index; // Usar el índice como row index
+    
+    console.log(`🔍 Procesando celda ${index}, Item Code: ${itemCode}`);
+    
+    // Buscar la marca directamente en el DOM (desde la celda visual)
+    const brandElement = itemCodeCell.querySelector('.item-brand');
+    const itemBrandFromDOM = brandElement ? brandElement.textContent.trim() : '';
+    
+    // También buscar en currentItemCodes (datos del grupo actual)
+    const itemData = currentItemCodes ? currentItemCodes.find(item => 
+      item.Name === itemCode || item['Item Code'] === itemCode
+    ) : null;
+    
+    const itemBrandFromData = itemData ? (itemData['Marca'] || itemData['Brand'] || '') : '';
+    
+    // Usar la marca del DOM primero, luego la de los datos
+    const itemBrand = itemBrandFromDOM || itemBrandFromData;
+    
+    console.log(`   Marca del DOM: "${itemBrandFromDOM}"`);
+    console.log(`   Marca de los datos: "${itemBrandFromData}"`);
+    console.log(`   Marca final: "${itemBrand}"`);
+    
+    // Decidir si mostrar u ocultar la fila
+    if (selectedBrand === '' || itemBrand === selectedBrand) {
+      // Mostrar fila (todas las secciones DEL GRID ACTUAL)
+      const rowsInAllSections = currentGrid.querySelectorAll(`[data-row-index="${index}"]`);
+      rowsInAllSections.forEach(r => {
+        r.style.display = '';
+      });
+      filteredCount++;
+      console.log(`   ✅ Mostrando fila ${index} (marca: "${itemBrand}")`);
+    } else {
+      // Ocultar fila (todas las secciones DEL GRID ACTUAL)
+      const rowsInAllSections = currentGrid.querySelectorAll(`[data-row-index="${index}"]`);
+      rowsInAllSections.forEach(r => {
+        r.style.display = 'none';
+      });
+      hiddenCount++;
+      console.log(`   ❌ Ocultando fila ${index} (marca: "${itemBrand}" ≠ "${selectedBrand}")`);
+    }
+  });
+  
+  console.log(`✅ Filtrado completado. Marca seleccionada: "${selectedBrand || 'Todas'}"`);
+  console.log(`📊 Filas mostradas: ${filteredCount}, Filas ocultas: ${hiddenCount}`);
 }
 
 // Función auxiliar para obtener el Item Code de un nombre de imagen
@@ -9410,6 +9537,44 @@ function showAutoSaveNotification(message, type = 'success') {
   }, 2000);
 }
 
+// Función para obtener solo los Item Codes que están visualmente visibles (no filtrados)
+function getVisibleItemCodes() {
+  if (!currentItemCodes || currentItemCodes.length === 0) {
+    return [];
+  }
+  
+  // Buscar el grid actual
+  const currentGrid = document.querySelector('#imageGridContainer');
+  if (!currentGrid) {
+    console.log('⚠️ No se encontró grid actual, retornando todos los Item Codes');
+    return currentItemCodes;
+  }
+  
+  // Obtener todas las celdas de Item Code que están visibles
+  const visibleItemCodes = [];
+  const itemCodeCells = currentGrid.querySelectorAll('.item-code-cell');
+  
+  itemCodeCells.forEach(cell => {
+    // Verificar si la celda está visible (no oculta por filtros)
+    const parentRow = cell.closest('.table-row');
+    if (parentRow && parentRow.style.display !== 'none') {
+      const itemCodeName = cell.getAttribute('data-item-code');
+      
+      // Buscar el Item Code en los datos
+      const itemData = currentItemCodes.find(item => 
+        item.Name === itemCodeName || item['Item Code'] === itemCodeName
+      );
+      
+      if (itemData) {
+        visibleItemCodes.push(itemData);
+      }
+    }
+  });
+  
+  console.log(`📊 Item Codes visibles: ${visibleItemCodes.length} de ${currentItemCodes.length} totales`);
+  return visibleItemCodes;
+}
+
 function collectVisibleData() {
   const records = [];
   const currentDate = getLocalDateTime();
@@ -9464,21 +9629,25 @@ function collectVisibleData() {
     console.log(`✅ Item Group ${itemGroupName}: ${groupRecordCount} registros recopilados`);
   }
   
-  // PASO 2: Recopilar datos de Item Codes visibles
+  // PASO 2: Recopilar datos de Item Codes visibles (solo los que no están ocultos por filtros)
   if (!currentItemCodes || currentItemCodes.length === 0) {
     console.log('❌ No hay currentItemCodes disponibles');
     return records;
   }
   
-  console.log(`\n🔍 Item Codes a procesar: ${currentItemCodes.length}`);
+  console.log(`\n🔍 Item Codes totales: ${currentItemCodes.length}`);
   
-  // Procesar cada Item Code visible
-  currentItemCodes.forEach(itemData => {
+  // Obtener solo los Item Codes que están visualmente visibles (no filtrados)
+  const visibleItemCodes = getVisibleItemCodes();
+  console.log(`\n🔍 Item Codes visibles después de filtros: ${visibleItemCodes.length}`);
+  
+  // Procesar solo los Item Codes visibles
+  visibleItemCodes.forEach(itemData => {
     const itemId = itemData['Id'];
     const itemCodeName = itemData['Name']; // Ej: "61-251-105"
     const objectType = itemData['Object Type'] || 'Unknown';
     
-    console.log(`\n📋 Procesando Item Code: ${itemCodeName} (ID: ${itemId})`);
+    console.log(`\n📋 Procesando Item Code VISIBLE: ${itemCodeName} (ID: ${itemId})`);
     
     if (itemId) {
       let itemRecordCount = 0;
