@@ -2358,6 +2358,10 @@ function getStatusColor(status) {
 
 // Función para crear y mostrar la ventana modal de comentarios
 function openCommentModal(title, context, commentText, type = 'item', imageName = null) {
+  // IMPORTANTE: Guardar estado actual antes de abrir modal
+  console.log('💾 Guardando estado antes de abrir modal de comentarios...');
+  saveInventoryViewState();
+  
   // Verificar si ya existe una modal y cerrarla
   const existingModal = document.getElementById('commentModal');
   if (existingModal) {
@@ -2667,6 +2671,9 @@ function setupStatusControl(modal, context, type = 'item', imageName = null, com
     
     // Actualizar el status badge en el header
     updateStatusBadge(modal, selectedStatus);
+    
+    // Actualizar tablas principales después del cambio de status
+    updateTablesAfterComment();
     
     // Resetear el dropdown
     this.value = '';
@@ -3210,6 +3217,10 @@ function parseCommentForDebugging(commentText) {
 function updateTablesAfterComment() {
   console.log('🔄 === INICIO updateTablesAfterComment ===');
   
+  // IMPORTANTE: Guardar estado de scroll y filtros ANTES de actualizar
+  console.log('💾 Guardando estado antes de actualizar tabla...');
+  saveInventoryViewState();
+  
   // 1. Actualizar tabla de inventario si existe
   const inventoryTable = document.querySelector('.image-inventory-table');
   if (inventoryTable) {
@@ -3253,8 +3264,9 @@ function updateTablesAfterComment() {
         // Regenerar tabla de inventario
         box4Content.innerHTML = generateImageInventoryTable();
         
-        // Restaurar estado de filtros después de un pequeño delay
+        // Restaurar estado de filtros y scroll después de regenerar
         setTimeout(() => {
+          console.log('🔄 Restaurando estado después de regenerar tabla normal...');
           restoreInventoryViewState();
         }, 200);
         
@@ -3387,6 +3399,12 @@ function updateFilteredInventoryTableAfterComment() {
         
         // Actualizar la tabla directamente con los datos filtrados
         updateInventoryTableDirectly(filteredData);
+        
+        // IMPORTANTE: Restaurar scroll después de actualizar tabla filtrada
+        setTimeout(() => {
+          console.log('🔄 Restaurando estado después de actualizar tabla filtrada...');
+          restoreInventoryViewState();
+        }, 200);
         
       } else {
         console.log('❌ No hay filtros activos para aplicar');
@@ -6852,6 +6870,9 @@ function setupInventoryClickListeners() {
       
       // Validar que tenemos los datos mínimos necesarios según el tipo de comentario
       if (commentType === 'image' && imageName && imageName !== '-') {
+        // Guardar estado de scroll antes de abrir modal de historial
+        saveInventoryViewState();
+        
         // Para comentarios de imagen - usar el comentario original completo
         const originalComment = getOriginalImageComment(imageName);
         const modalTitle = `Historial de Comentarios - Imagen: ${imageName}`;
@@ -6860,6 +6881,9 @@ function setupInventoryClickListeners() {
         openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
         
       } else if ((commentType === 'item' || commentType === 'diseñador' || commentType === 'analista' || commentType === 'tipo') && itemName && itemId) {
+        // Guardar estado de scroll antes de abrir modal de historial
+        saveInventoryViewState();
+        
         // Para comentarios directos de Item Code/Item Group - buscar en todos los datos
         console.log(`🔍 Buscando item en allLibraryData (${allLibraryData.length} elementos):`, { itemName, itemId });
         
