@@ -1514,7 +1514,10 @@ function loadImageGridInBox4(itemGroupPath) {
     setupScrollSynchronization();
     setupImageSystemEventListeners(); // Agregar sistema de imágenes
     setupItemGroupDeleteButton(); // Configurar botón de basura del Item Group
-  setupItemGroupImageClick(); // Configurar click en imagen del Item Group
+    setupItemGroupImageClick(); // Configurar click en imagen del Item Group
+    
+    // Actualizar indicadores de múltiples imágenes después de cargar el grid
+    updateMultipleImagesIndicators();
   }, 500);
   
   // Intentar de nuevo la sincronización después de un delay más largo
@@ -1730,7 +1733,7 @@ function generateSectionTable(unifiedRows, imageProperty, columnCount, sectionNa
              data-col-index="${colIndex}" 
              data-section="${sectionName}"
              data-item-code="${row.itemCode.Name}">
-          ${imageName ? generateImageCell(imageName, row.itemCode.Name) : generateEmptyImageCell()}
+          ${imageName ? generateImageCell(imageName, row.itemCode.Name, sectionName, colIndex, images) : generateEmptyImageCell()}
         </div>
       `);
     }
@@ -1744,7 +1747,7 @@ function generateSectionTable(unifiedRows, imageProperty, columnCount, sectionNa
 }
 
 // Función auxiliar para generar celda de imagen
-function generateImageCell(imageName, itemCode) {
+function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, allImagesInRow = []) {
   const hasComments = hasImageComments(imageName);
   
   // Obtener el status actual de la imagen si tiene comentarios
@@ -1753,6 +1756,20 @@ function generateImageCell(imageName, itemCode) {
     const imageComments = getImageComments(imageName);
     const currentStatus = getCurrentStatus(imageComments);
     statusAttribute = currentStatus ? ` data-status="${currentStatus}"` : '';
+  }
+  
+  // Verificar si necesitamos mostrar el indicador de múltiples imágenes
+  let multipleImagesIndicator = '';
+  if (colIndex === 0 && (sectionName === 'cov' || sectionName === 'rest')) {
+    // Contar cuántas imágenes no vacías hay en esta fila para esta sección
+    const nonEmptyImages = allImagesInRow.filter(img => img && img.trim() && img !== '');
+    if (nonEmptyImages.length > 1) {
+      multipleImagesIndicator = `
+        <div class="multiple-images-indicator" title="${nonEmptyImages.length} imágenes en ${sectionName.toUpperCase()}">
+          <span class="indicator-text">+${nonEmptyImages.length - 1}</span>
+        </div>
+      `;
+    }
   }
   
   return `
@@ -1764,6 +1781,7 @@ function generateImageCell(imageName, itemCode) {
         <button class="btn-remove" title="Quitar imagen">🗑️</button>
       </div>
       ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}"${statusAttribute} onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios">💬</div>` : ''}
+      ${multipleImagesIndicator}
       <div class="image-name">${imageName}</div>
     </div>
   `;
@@ -1778,6 +1796,72 @@ function generateEmptyImageCell() {
       </div>
     </div>
   `;
+}
+
+// Función para actualizar los indicadores de múltiples imágenes
+function updateMultipleImagesIndicators() {
+  console.log('🔄 Actualizando indicadores de múltiples imágenes...');
+  
+  // Buscar todas las filas en las secciones COV y REST
+  const covRows = document.querySelectorAll('.cov-wrapper .table-row');
+  const restRows = document.querySelectorAll('.rest-wrapper .table-row');
+  
+  // Actualizar indicadores en COV
+  covRows.forEach((row, rowIndex) => {
+    updateRowMultipleIndicator(row, rowIndex, 'cov');
+  });
+  
+  // Actualizar indicadores en REST
+  restRows.forEach((row, rowIndex) => {
+    updateRowMultipleIndicator(row, rowIndex, 'rest');
+  });
+}
+
+// Función auxiliar para actualizar el indicador de una fila específica
+function updateRowMultipleIndicator(row, rowIndex, sectionName) {
+  const cells = row.querySelectorAll('.image-cell');
+  const firstCell = cells[0]; // Solo la primera celda puede tener el indicador
+  
+  if (!firstCell) return;
+  
+  // Contar cuántas celdas tienen imágenes (no vacías)
+  let imageCount = 0;
+  cells.forEach(cell => {
+    const img = cell.querySelector('.image-thumbnail');
+    if (img && img.src && !img.src.includes('placeholder') && !img.src.includes('blank')) {
+      imageCount++;
+    }
+  });
+  
+  // Buscar si ya existe un indicador
+  let existingIndicator = firstCell.querySelector('.multiple-images-indicator');
+  
+  if (imageCount > 1) {
+    // Mostrar o actualizar indicador
+    if (existingIndicator) {
+      // Actualizar contador
+      const textElement = existingIndicator.querySelector('.indicator-text');
+      if (textElement) {
+        textElement.textContent = `+${imageCount - 1}`;
+      }
+      existingIndicator.title = `${imageCount} imágenes en ${sectionName.toUpperCase()}`;
+    } else {
+      // Crear nuevo indicador
+      const container = firstCell.querySelector('.image-thumbnail-container');
+      if (container) {
+        const indicator = document.createElement('div');
+        indicator.className = 'multiple-images-indicator';
+        indicator.title = `${imageCount} imágenes en ${sectionName.toUpperCase()}`;
+        indicator.innerHTML = `<span class="indicator-text">+${imageCount - 1}</span>`;
+        container.appendChild(indicator);
+      }
+    }
+  } else {
+    // Quitar indicador si solo hay una imagen o ninguna
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
+  }
 }
 
 // Función auxiliar para generar headers individuales por columna
@@ -4184,6 +4268,9 @@ function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIn
   
   // Actualizar currentWorkingData con el nuevo estado
   updateCurrentWorkingDataWithGridState();
+  
+  // Actualizar indicadores de múltiples imágenes
+  updateMultipleImagesIndicators();
 }
 
 // Función para actualizar currentWorkingData con el estado actual de las imágenes
@@ -4596,6 +4683,9 @@ function removeImageFromGrid(rowIndex, colIndex, section, shouldCompact = true) 
   if (shouldCompact && itemCode) {
     compactImagesInSection(itemCode, section, colIndex);
   }
+  
+  // Actualizar indicadores de múltiples imágenes
+  updateMultipleImagesIndicators();
 }
 
 // Función para compactar imágenes en una sección después de eliminar una
@@ -4723,6 +4813,9 @@ function insertImageInGrid(imageName, rowIndex, colIndex, section) {
     updateCurrentWorkingDataColumn(itemCode, columnName, imageName);
     console.log(`🔄 DIRECT UPDATE: ${itemCode}.${columnName} = "${imageName}" (agregado)`);
   }
+  
+  // Actualizar indicadores de múltiples imágenes
+  updateMultipleImagesIndicators();
 }
 
 // Función para recorrer imágenes hacia la derecha
@@ -5346,6 +5439,9 @@ function compactGalleryRow(rowIndex) {
       cell.innerHTML = generateImageCell(image.alt, cell.getAttribute('data-item-code'));
     }
   });
+  
+  // Actualizar indicadores de múltiples imágenes después de compactar
+  updateMultipleImagesIndicators();
 }
 
 function setupHorizontalScrollSynchronization() {
