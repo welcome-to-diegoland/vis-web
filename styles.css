@@ -45,10 +45,18 @@ html, body {
 }
 
 .left-column {
-  width: 30%; /* Aumentado más para acomodar dropdown + botón con texto */
+  width: 40%; /* Aumentado de 30% a 40% para acomodar logo + elementos */
   background-color: #2c3e50;
   justify-content: flex-start;
-  gap: 10px; /* Misma separación que botones guardar/exportar */
+  gap: 15px; /* Aumentado gap para mejor separación */
+  padding: 0 15px 0 0 !important; /* Eliminar padding izquierdo para dar espacio al logo */
+}
+
+/* Override específico para el contenedor del logo en left-column */
+.left-column .header-logo {
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  margin-right: 10px !important;
 }
 
 .center-column {
@@ -59,13 +67,36 @@ html, body {
 }
 
 .right-column {
-  width: 30%; /* Balanceado con left-column */
+  width: 30%; /* Mantener balanceado */
   display: flex;
   background-color: #2c3e50; /* Mismo color que el resto del header */
   justify-content: flex-end;
   align-items: center;
   padding: 0 20px;
   gap: 10px;
+}
+
+/* ===== LOGO EN HEADER ===== */
+.header-logo {
+  display: flex !important;
+  align-items: flex-end !important; /* Cambio a flex-end para bajarlo */
+  justify-content: center !important;
+  padding: 5px 10px 8px 10px !important; /* Más padding abajo para bajarlo */
+  margin: 0 !important;
+  height: 70px !important; /* Altura exacta del header */
+  width: auto !important;
+  background: transparent !important;
+  box-sizing: border-box !important;
+}
+
+.logo-img {
+  height: 45px !important; /* Aumentado de 40px a 45px */
+  width: auto !important;
+  max-width: none !important;
+  max-height: 45px !important;
+  object-fit: contain !important;
+  display: block !important;
+  flex-shrink: 0 !important;
 }
 
 /* ===== SELECTOR DE USUARIO EN HEADER ===== */
