@@ -5747,25 +5747,94 @@ function performImageSearch() {
     gallerySelect.value = '';
   }
   
-  // Buscar en currentAssetComments (VIS_AG_Asset_Structure completo)
-  if (!currentAssetComments || currentAssetComments.length === 0) {
-    console.log('❌ No hay datos de VIS_AG_Asset_Structure cargados para buscar');
-    showSearchResults([]);
-    return;
+  console.log('🔍 Iniciando búsqueda expandida para:', searchTerm);
+  
+  // Array para almacenar todos los resultados (Assets + Library)
+  let allResults = [];
+  
+  // 1. BÚSQUEDA EN ASSETS (funcionalidad original)
+  if (currentAssetComments && currentAssetComments.length > 0) {
+    console.log('🔍 Buscando en Assets:', currentAssetComments.length, 'registros');
+    
+    const assetResults = currentAssetComments.filter(asset => {
+      const imageName = asset.Name || '';
+      return imageName.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+    
+    console.log('📸 Resultados en Assets:', assetResults.length, 'imágenes encontradas');
+    allResults = [...assetResults];
+  } else {
+    console.log('❌ No hay datos de Assets cargados para buscar');
   }
   
-  console.log('🔍 Buscando:', searchTerm, 'en', currentAssetComments.length, 'registros de VIS_AG_Asset_Structure');
+  // 2. NUEVA BÚSQUEDA EN LIBRARY
+  if (allLibraryData && allLibraryData.length > 0) {
+    console.log('🔍 Buscando en Library:', allLibraryData.length, 'registros');
+    
+    const libraryMatches = allLibraryData.filter(item => {
+      const itemName = item.Name || '';
+      return itemName.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+    
+    console.log('� Elementos encontrados en Library:', libraryMatches.length);
+    
+    // Extraer imágenes de las columnas de Library
+    const imageColumns = [
+      // Cover Images (5 columnas)
+      'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
+      // Gallery Images (25 columnas)
+      'WA_Gallery_01', 'WA_Gallery_02', 'WA_Gallery_03', 'WA_Gallery_04', 'WA_Gallery_05',
+      'WA_Gallery_06', 'WA_Gallery_07', 'WA_Gallery_08', 'WA_Gallery_09', 'WA_Gallery_10',
+      'WA_Gallery_11', 'WA_Gallery_12', 'WA_Gallery_13', 'WA_Gallery_14', 'WA_Gallery_15',
+      'WA_Gallery_16', 'WA_Gallery_17', 'WA_Gallery_18', 'WA_Gallery_19', 'WA_Gallery_20',
+      'WA_Gallery_21', 'WA_Gallery_22', 'WA_Gallery_23', 'WA_Gallery_24', 'WA_Gallery_25',
+      // Rest Images (25 columnas)
+      'WA_Rest_01', 'WA_Rest_02', 'WA_Rest_03', 'WA_Rest_04', 'WA_Rest_05',
+      'WA_Rest_06', 'WA_Rest_07', 'WA_Rest_08', 'WA_Rest_09', 'WA_Rest_10',
+      'WA_Rest_11', 'WA_Rest_12', 'WA_Rest_13', 'WA_Rest_14', 'WA_Rest_15',
+      'WA_Rest_16', 'WA_Rest_17', 'WA_Rest_18', 'WA_Rest_19', 'WA_Rest_20',
+      'WA_Rest_21', 'WA_Rest_22', 'WA_Rest_23', 'WA_Rest_24', 'WA_Rest_25'
+    ];
+    
+    libraryMatches.forEach(item => {
+      imageColumns.forEach(column => {
+        const imageName = item[column];
+        if (imageName && imageName.trim() !== '') {
+          // Crear objeto similar al formato de Assets
+          const libraryImageResult = {
+            Name: imageName.trim(),
+            ID: item.Id || item.ID,
+            Source: 'Library',
+            LibraryItem: item.Name,
+            ObjectType: item['Object Type']
+          };
+          allResults.push(libraryImageResult);
+        }
+      });
+    });
+    
+    console.log('🖼️ Imágenes extraídas de Library:', allResults.length - (currentAssetComments ? currentAssetComments.filter(asset => asset.Name.toLowerCase().includes(searchTerm.toLowerCase())).length : 0));
+  } else {
+    console.log('❌ No hay datos de Library cargados para buscar');
+  }
   
-  // Filtrar imágenes que contengan el término de búsqueda en el nombre
-  const searchResults = currentAssetComments.filter(asset => {
-    const imageName = asset.Name || '';
-    return imageName.toLowerCase().includes(searchTerm.toLowerCase());
+  // 3. DEDUPLICACIÓN - Eliminar imágenes repetidas por nombre
+  const uniqueResults = [];
+  const seenImages = new Set();
+  
+  allResults.forEach(result => {
+    const imageName = result.Name.toLowerCase();
+    if (!seenImages.has(imageName)) {
+      seenImages.add(imageName);
+      uniqueResults.push(result);
+    }
   });
   
-  console.log('📸 Resultados de búsqueda:', searchResults.length, 'imágenes encontradas');
+  console.log('✨ Resultados finales después de deduplicación:', uniqueResults.length, 'imágenes únicas');
+  console.log('🔍 Búsqueda completada - Assets + Library con deduplicación');
   
   // Mostrar resultados
-  showSearchResults(searchResults);
+  showSearchResults(uniqueResults);
 }
 
 // Función para mostrar resultados de búsqueda
@@ -5779,11 +5848,28 @@ function showSearchResults(results) {
   }
   
   // Convertir formato para usar la función existente de renderizado
-  const formattedResults = results.map(asset => ({
-    Imagen: asset.Name
-  }));
+  const formattedResults = results.map(asset => {
+    const result = {
+      Imagen: asset.Name
+    };
+    
+    // Si viene de Library, agregar información adicional como metadatos
+    if (asset.Source === 'Library') {
+      result.LibrarySource = true;
+      result.LibraryItem = asset.LibraryItem;
+      result.ObjectType = asset.ObjectType;
+    }
+    
+    return result;
+  });
   
-  console.log('🎨 Renderizando', formattedResults.length, 'resultados de búsqueda');
+  console.log('🎨 Renderizando', formattedResults.length, 'resultados de búsqueda (Assets + Library)');
+  
+  // Mostrar estadísticas de la búsqueda
+  const assetCount = results.filter(r => !r.Source).length;
+  const libraryCount = results.filter(r => r.Source === 'Library').length;
+  console.log(`📊 Estadísticas: ${assetCount} de Assets, ${libraryCount} de Library`);
+  
   renderGalleryGrid(formattedResults);
 }
 
