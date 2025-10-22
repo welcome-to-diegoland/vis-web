@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Google Sheets Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Google Sheets Integration</h1>
+    
+    <div class="test-section info">
+        <h3>📋 Instrucciones</h3>
+        <p>Para que funcione correctamente:</p>
+        <ol>
+            <li><strong>Ejecutar desde servidor web:</strong> No abrir directamente como archivo</li>
+            <li><strong>Comando:</strong> <code>python -m http.server 8000</code> o usar VS Code Live Server</li>
+            <li><strong>Acceder:</strong> <code>http://localhost:8000/test-server.html</code></li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>🔗 URLs de Google Sheets</h3>
+        <div id="urls-info">
+            <p><strong>Category Sheet:</strong> <code id="category-url"></code></p>
+            <p><strong>Data Sheet:</strong> <code id="data-url"></code></p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Tests de Conectividad</h3>
+        <button onclick="testCategorySheet()">Test Category Sheet</button>
+        <button onclick="testDataSheet()">Test Data Sheet</button>
+        <button onclick="testBothSheets()">Test Both Sheets</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 Resultados</h3>
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        // Configuración de Google Sheets
+        const GOOGLE_SHEETS_CONFIG = {
+            categorySheet: {
+                url: 'https://docs.google.com/spreadsheets/d/1TU51Xxx50DX5dc_aM9X2xguGBYV_Lsaswztv7WOmoyw/export?format=csv&gid=0',
+                name: 'category'
+            },
+            dataSheet: {
+                url: 'https://docs.google.com/spreadsheets/d/1ZgVc2c2dmjAzfCUoNOTU9Uv3J_YYfGZgksLTJrYDhIY/export?format=csv&gid=0',
+                name: 'data'
+            }
+        };
+
+        // Mostrar URLs
+        document.getElementById('category-url').textContent = GOOGLE_SHEETS_CONFIG.categorySheet.url;
+        document.getElementById('data-url').textContent = GOOGLE_SHEETS_CONFIG.dataSheet.url;
+
+        function logResult(message, isSuccess = true, data = null) {
+            const resultsDiv = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = isSuccess ? 'success' : 'error';
+            
+            let html = `<div class="${className}">
+                <strong>[${timestamp}]</strong> ${message}
+            `;
+            
+            if (data) {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            html += '</div>';
+            resultsDiv.innerHTML += html;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function parseCSVToObjects(csvText, sheetName) {
+            console.log(`📊 Procesando CSV de ${sheetName}`);
+            
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) {
+                throw new Error(`CSV de ${sheetName} no tiene suficientes líneas`);
+            }
+
+            // Obtener headers de la primera línea
+            const headers = lines[0].split(',').map(header => 
+                header.replace(/"/g, '').trim()
+            );
+
+            console.log(`📋 Headers encontrados en ${sheetName}:`, headers);
+
+            // Convertir las filas en objetos
+            const objects = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(value => 
+                    value.replace(/"/g, '').trim()
+                );
+                
+                if (values.length !== headers.length) {
+                    console.warn(`⚠️ Línea ${i + 1} tiene ${values.length} valores pero se esperaban ${headers.length}`);
+                    continue;
+                }
+
+                const obj = {};
+                headers.forEach((header, index) => {
+                    obj[header] = values[index];
+                });
+                objects.push(obj);
+            }
+
+            console.log(`✅ ${sheetName}: ${objects.length} objetos procesados`);
+            return objects;
+        }
+
+        async function loadGoogleSheetAsCSV(csvUrl, sheetName) {
+            console.log(`🔄 Cargando ${sheetName} desde: ${csvUrl}`);
+            logResult(`🔄 Iniciando carga de ${sheetName}...`, true);
+            
+            try {
+                const response = await fetch(csvUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Accept': 'text/csv,text/plain,*/*'
+                    }
+                });
+                
+                console.log(`📊 Respuesta: Status ${response.status}`);
+                logResult(`📊 Respuesta HTTP: ${response.status} ${response.statusText}`, response.ok);
+                
+                if (!response.ok) {
+                    throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const csvText = await response.text();
+                
+                if (!csvText || csvText.trim().length === 0) {
+                    throw new Error(`El archivo ${sheetName} está vacío`);
+                }
+                
+                // Verificar si es HTML (página de error de Google)
+                if (csvText.trim().toLowerCase().startsWith('<!doctype html') || 
+                    csvText.trim().toLowerCase().startsWith('<html')) {
+                    throw new Error('Google devolvió una página HTML - el archivo puede no ser público');
+                }
+                
+                logResult(`✅ ${sheetName} cargado exitosamente (${csvText.length} caracteres)`, true);
+                
+                // Mostrar muestra de los datos
+                const lines = csvText.split('\n').slice(0, 3);
+                logResult(`📋 Muestra de datos:`, true, lines);
+                
+                // Convertir CSV a array de objetos
+                const objects = parseCSVToObjects(csvText, sheetName);
+                logResult(`🔢 Objetos procesados: ${objects.length}`, true);
+                
+                return objects;
+                
+            } catch (error) {
+                console.error(`❌ Error cargando ${sheetName}:`, error);
+                logResult(`❌ Error cargando ${sheetName}: ${error.message}`, false);
+                throw error;
+            }
+        }
+
+        async function testCategorySheet() {
+            try {
+                const data = await loadGoogleSheetAsCSV(
+                    GOOGLE_SHEETS_CONFIG.categorySheet.url, 
+                    GOOGLE_SHEETS_CONFIG.categorySheet.name
+                );
+                logResult(`✅ Category Sheet: ${data.length} categorías cargadas`, true, data.slice(0, 3));
+            } catch (error) {
+                logResult(`❌ Category Sheet falló: ${error.message}`, false);
+            }
+        }
+
+        async function testDataSheet() {
+            try {
+                const data = await loadGoogleSheetAsCSV(
+                    GOOGLE_SHEETS_CONFIG.dataSheet.url, 
+                    GOOGLE_SHEETS_CONFIG.dataSheet.name
+                );
+                logResult(`✅ Data Sheet: ${data.length} registros cargados`, true, data.slice(0, 3));
+            } catch (error) {
+                logResult(`❌ Data Sheet falló: ${error.message}`, false);
+            }
+        }
+
+        async function testBothSheets() {
+            logResult(`🚀 Iniciando test completo...`, true);
+            await testCategorySheet();
+            await testDataSheet();
+            logResult(`🏁 Test completo finalizado`, true);
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+        }
+
+        // Auto-test al cargar la página
+        window.addEventListener('load', () => {
+            logResult(`📱 Página cargada desde: ${window.location.protocol}//${window.location.host}`, true);
+            
+            if (window.location.protocol === 'file:') {
+                logResult(`⚠️ ADVERTENCIA: Ejecutando desde archivo local. Esto puede causar problemas CORS.`, false);
+                logResult(`💡 SOLUCIÓN: Ejecuta desde servidor web (python -m http.server 8000)`, true);
+            } else {
+                logResult(`✅ Ejecutando desde servidor web - OK para Google Sheets`, true);
+            }
+        });
+    </script>
+</body>
+</html>

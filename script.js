@@ -33,6 +33,30 @@ let inventoryViewState = {
 // Configuración para Google Apps Script
 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNHLEg0zipYBpd7G7ZTCURdhFhQiB2-wQSiMiRMJDI89G_heWtEFv428aHmz1ghQlo/exec';
 
+// Configuración para Google Sheets - Apps Script Proxy (sin problemas CORS)
+const GOOGLE_SHEETS_CONFIG = {
+  // URL del Apps Script proxy que maneja CORS
+  PROXY_URL: 'https://script.google.com/macros/s/AKfycbyxT3rhTcHPPipuyTZ149Dt3wggz0NuD1iQnz8ChZpTrM3dPI57F0mhEyMwdZUWmY0H/exec',
+  
+  // FASE 1: Carga inicial ligera - Árbol de categorías
+  CATEGORY_SHEET: {
+    SPREADSHEET_ID: '1TU51Xxx50DX5dc_aM9X2xguGBYV_Lsaswztv7WOmoyw',
+    SHEET_NAME: 'category',
+    COLUMNS: ['NamePath', 'Name', 'IdPath', 'Id', 'ObjectTypeName', 'Item Group', 'CMS', 'Vis_color', 'filtro_color']
+  },
+  // FASE 2: Carga bajo demanda - Datos detallados de Asset Groups
+  DATA_SHEET: {
+    SPREADSHEET_ID: '1TU51Xxx50DX5dc_aM9X2xguGBYV_Lsaswztv7WOmoyw',
+    SHEET_NAME: 'asset_groups',
+    COLUMNS: ['Galeria', 'Imagen']
+  },
+  // asset_groups se mantiene del archivo original
+  ASSET_GROUPS_SHEET: {
+    SPREADSHEET_ID: '1TU51Xxx50DX5dc_aM9X2xguGBYV_Lsaswztv7WOmoyw',
+    SHEET_NAME: 'asset_groups'
+  }
+};
+
 // Sistema de cola para auto-guardado (evitar rate limiting)
 let autoSaveQueue = [];
 let isProcessingAutoSave = false;
@@ -616,117 +640,469 @@ function initHorizontalDrag(e, topBoxId, bottomBoxId) {
   e.preventDefault();
 }
 
-// Función para cargar archivo desde SharePoint público
-async function loadFromSharePoint() {
+// Función para cargar datos desde Google Sheets (FASE 1: Carga inicial ligera)
+async function loadFromGoogleSheets() {
   const loadButton = document.getElementById('loadExcelBtn');
   const originalText = loadButton.innerHTML;
   
   try {
     // Mostrar estado de carga
-    loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando';
+    loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando desde Google Sheets';
     loadButton.disabled = true;
     
-    console.log('🔄 Cargando archivo público desde SharePoint...');
+    console.log('🔄 Cargando datos ligeros desde Google Sheets...');
     
-    // URLs públicas de SharePoint para el archivo con permisos de "cualquiera con el enlace"
-    const publicSharePointUrls = [
-      // URL principal con download=1
-      'https://traversmexico-my.sharepoint.com/:x:/g/personal/diego_medel_travers_com_mx/EROdt2NwWp5CvlNKmw8FiAwB_Dgag44EnFb5MDOriRXHNw?e=UFkZ25&download=1',
-      // URL sin parámetros adicionales
-      'https://traversmexico-my.sharepoint.com/:x:/g/personal/diego_medel_travers_com_mx/EROdt2NwWp5CvlNKmw8FiAwB_Dgag44EnFb5MDOriRXHNw?download=1',
-      // URL directa de descarga
-      'https://traversmexico-my.sharepoint.com/personal/diego_medel_travers_com_mx/_layouts/15/download.aspx?share=EROdt2NwWp5CvlNKmw8FiAwB_Dgag44EnFb5MDOriRXHNw'
-    ];
+    // Detectar si estamos en un entorno local (file://)
+    const isLocalFile = window.location.protocol === 'file:';
     
-    for (let i = 0; i < publicSharePointUrls.length; i++) {
-      const url = publicSharePointUrls[i];
-      console.log(`🔄 Intentando URL pública ${i + 1}/${publicSharePointUrls.length}...`);
+    if (isLocalFile) {
+      console.log('⚠️ Detectado entorno local (file://). Usando método alternativo...');
       
-      try {
-        const response = await fetch(url, {
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-cache',
-          headers: {
-            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*'
-          }
-        });
-        
-        console.log(`📊 Respuesta URL ${i + 1}: Status ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
-        
-        if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          
-          if (contentType && (
-            contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
-            contentType.includes('application/vnd.ms-excel') ||
-            contentType.includes('application/octet-stream')
-          )) {
-            console.log('✅ Archivo Excel válido encontrado, descargando...');
-            
-            const arrayBuffer = await response.arrayBuffer();
-            
-            if (arrayBuffer.byteLength > 0) {
-              console.log(`📁 Archivo descargado: ${arrayBuffer.byteLength} bytes`);
-              
-              // Usar la misma lógica que handleCombinedExcel
-              const data = new Uint8Array(arrayBuffer);
-              const workbook = XLSX.read(data, { type: "array" });
-              
-              // Procesar como si fuera un archivo cargado localmente
-              processWorkbook(workbook);
-              
-              console.log('✅ Archivo cargado exitosamente desde SharePoint público');
-              return;
-            } else {
-              console.log(`❌ URL ${i + 1}: Archivo vacío`);
-            }
-          } else {
-            console.log(`❌ URL ${i + 1}: Tipo de contenido incorrecto: ${contentType}`);
-          }
-        } else {
-          console.log(`❌ URL ${i + 1} falló: ${response.status} ${response.statusText}`);
-        }
-      } catch (urlError) {
-        console.log(`❌ Error con URL ${i + 1}:`, urlError.message);
+      // Para entorno local, mostrar instrucciones al usuario
+      const useAlternativeMethod = confirm(`🔄 CARGA DESDE GOOGLE SHEETS
+
+Debido a restricciones CORS del navegador cuando se ejecuta desde archivos locales, necesitamos usar un método alternativo.
+
+OPCIONES:
+
+1️⃣ USAR SERVIDOR LOCAL (Recomendado):
+   • Ejecuta: python -m http.server 8000
+   • O usa Live Server de VS Code
+   • Luego abre: http://localhost:8000
+
+2️⃣ CONTINUAR CON MÉTODO ALTERNATIVO:
+   • Se intentará usar URLs públicas directas
+   • Algunos navegadores pueden bloquear esto
+
+¿Quieres intentar el método alternativo ahora?
+
+Haz clic en "Aceptar" para intentar
+Haz clic en "Cancelar" para cargar archivo local`);
+      
+      if (!useAlternativeMethod) {
+        // El usuario prefiere cargar archivo local
+        document.getElementById('combinedFile')?.click();
+        return;
       }
     }
     
-    throw new Error('No se pudo acceder al archivo público de SharePoint con ninguna de las URLs probadas');
+    // Cargar datos de la pestaña 'category' para el árbol
+    const categoryData = await loadGoogleSheetAsCSV(
+      GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.CSV_URL,
+      'category'
+    );
+    
+    if (!categoryData || categoryData.length === 0) {
+      throw new Error('No se pudieron cargar datos de la pestaña category');
+    }
+    
+    console.log(`✅ Datos de category cargados: ${categoryData.length} registros`);
+    console.log('📊 Muestra de datos:', categoryData.slice(0, 2));
+    
+    // Procesar y filtrar datos para el árbol
+    processCategoryData(categoryData);
+    
+    // Cargar asset_groups si está disponible (mismo archivo que category)
+    try {
+      const assetGroupsCSVUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.SPREADSHEET_ID}/export?format=csv&gid=1`;
+      const assetGroupsData = await loadGoogleSheetAsCSV(assetGroupsCSVUrl, 'asset_groups');
+      
+      if (assetGroupsData && assetGroupsData.length > 0) {
+        currentAssetGroups = assetGroupsData;
+        console.log(`✅ asset_groups cargado: ${assetGroupsData.length} registros`);
+      }
+    } catch (assetGroupsError) {
+      console.warn('⚠️ No se pudo cargar asset_groups:', assetGroupsError.message);
+      currentAssetGroups = [];
+    }
+    
+    console.log('✅ Carga inicial desde Google Sheets completada');
     
   } catch (error) {
-    console.error('❌ Error cargando desde SharePoint público:', error);
+    console.error('❌ Error cargando desde Google Sheets:', error);
     
-    const helpMessage = `❌ No se pudo cargar automáticamente desde SharePoint.
+    const helpMessage = `❌ Error cargando desde Google Sheets
 
-🔧 VERIFICACIONES NECESARIAS:
+🔧 VERIFICACIONES Y SOLUCIONES:
 
-1️⃣ PERMISOS DEL ARCHIVO:
-   • Abre el archivo en SharePoint
-   • Clic en "Compartir" → "Cualquiera con el enlace puede ver"
-   • Copia el enlace público generado
+1️⃣ PROBLEMA CORS (Archivos Locales):
+   • Ejecuta desde un servidor: python -m http.server 8000
+   • O usa VS Code Live Server
+   • O sube a un hosting web
 
-2️⃣ URL CORRECTA:
-   • El enlace debe terminar con ?download=1
-   • Ejemplo: ...archivo.xlsx?download=1
+2️⃣ PERMISOS DEL ARCHIVO:
+   • Verifica: "Cualquiera con el enlace puede ver"
+   • URL actual: ${GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.CSV_URL}
 
-3️⃣ PRUEBA MANUAL:
-   • Abre el enlace en una pestaña privada
-   • Debe descargar automáticamente sin login
+3️⃣ ESTRUCTURA DE DATOS:
+   • Verifica que existe la pestaña 'category'
+   • Verifica las columnas esperadas
 
 Error técnico: ${error.message}
 
-¿Quieres cargar un archivo local mientras verificas los permisos?`;
+¿Quieres cargar un archivo local como alternativa?`;
     
     const useLocalFile = confirm(helpMessage);
     
     if (useLocalFile) {
       document.getElementById('combinedFile')?.click();
     }
+    
   } finally {
     loadButton.innerHTML = originalText;
     loadButton.disabled = false;
   }
+}
+
+// Función auxiliar para cargar datos desde Apps Script proxy (resuelve problemas CORS)
+async function loadGoogleSheetAsCSV(csvUrl, sheetName) {
+  console.log(`🔄 Cargando ${sheetName} desde Apps Script proxy...`);
+  
+  // Construir URL del proxy
+  const proxyUrl = `${GOOGLE_SHEETS_CONFIG.PROXY_URL}?sheet=${sheetName}&format=csv&timestamp=${Date.now()}`;
+  
+  console.log(`🔗 URL del proxy: ${proxyUrl}`);
+  
+  try {
+    const response = await fetch(proxyUrl, {
+      method: 'GET',
+      cache: 'no-cache',
+      headers: {
+        'Accept': 'text/csv,text/plain,application/json,*/*'
+      }
+    });
+    
+    console.log(`📊 Respuesta Apps Script: Status ${response.status}, Type: ${response.type}`);
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const responseText = await response.text();
+    
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error(`Respuesta vacía del Apps Script para ${sheetName}`);
+    }
+    
+    // Verificar si es un JSON de error
+    if (responseText.trim().startsWith('{')) {
+      try {
+        const jsonResponse = JSON.parse(responseText);
+        if (!jsonResponse.success) {
+          throw new Error(`Apps Script error: ${jsonResponse.error}`);
+        }
+        // Si es un JSON exitoso con datos, convertir a CSV
+        if (jsonResponse.data) {
+          const headers = Object.keys(jsonResponse.data[0] || {});
+          const csvLines = [
+            headers.join(','),
+            ...jsonResponse.data.map(row => headers.map(h => row[h] || '').join(','))
+          ];
+          return parseCSVToObjects(csvLines.join('\n'), sheetName);
+        }
+      } catch (parseError) {
+        // Si no es JSON válido, continuar tratando como CSV
+      }
+    }
+    
+    // Verificar si es HTML (error de Google)
+    if (responseText.trim().toLowerCase().startsWith('<!doctype html') || 
+        responseText.trim().toLowerCase().startsWith('<html')) {
+      throw new Error('Apps Script devolvió HTML - posible error de configuración');
+    }
+    
+    console.log(`✅ ${sheetName} cargado exitosamente desde Apps Script`);
+    console.log(`📏 Tamaño de datos: ${responseText.length} caracteres`);
+    console.log(`📋 Primeras líneas:`, responseText.split('\n').slice(0, 3));
+    
+    // Convertir CSV a array de objetos
+    return parseCSVToObjects(responseText, sheetName);
+    
+  } catch (error) {
+    console.error(`❌ Error cargando ${sheetName} desde Apps Script:`, error);
+    
+    // Proporcionar información de debug útil
+    throw new Error(`❌ Error cargando ${sheetName} desde Apps Script: ${error.message}
+
+🔧 INFORMACIÓN DE DEBUG:
+   • Pestaña solicitada: ${sheetName}
+   • Apps Script URL: ${GOOGLE_SHEETS_CONFIG.PROXY_URL}
+   • Error específico: ${error.message}
+
+✅ VERIFICACIONES:
+   • ¿El Apps Script está implementado como "Aplicación web"?
+   • ¿El acceso está configurado como "Cualquier persona"?
+   • ¿La pestaña "${sheetName}" existe en el Google Sheet?
+   
+� SOLUCIÓN:
+   1. Ve a: https://script.google.com/home/projects
+   2. Abre tu proyecto del proxy
+   3. Verifica que esté implementado correctamente
+   4. Ejecuta la función "test" para verificar que funciona`);
+  }
+}
+
+// Función auxiliar para parsear CSV a objetos
+function parseCSVToObjects(csvText, sheetName) {
+  const lines = csvText.split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error(`El archivo ${sheetName} no tiene datos suficientes (necesita al menos 2 líneas)`);
+  }
+  
+  const headers = parseCSVLine(lines[0]);
+  const data = [];
+  
+  console.log(`📋 Headers encontrados en ${sheetName}:`, headers);
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    if (values.length > 0 && values.some(v => v.trim())) { // Solo agregar filas no vacías
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+      data.push(row);
+    }
+  }
+  
+  console.log(`✅ ${sheetName} procesado: ${data.length} filas de datos`);
+  console.log('📊 Muestra de la primera fila:', data[0]);
+  
+  return data;
+}
+
+// Función auxiliar para parsear una línea CSV considerando comillas
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim().replace(/^"|"$/g, '')); // Remover comillas del principio y final
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  result.push(current.trim().replace(/^"|"$/g, '')); // Procesar el último campo
+  return result;
+}
+
+// Función para procesar los datos de category y generar el árbol
+function processCategoryData(categoryData) {
+  try {
+    // Filtrar solo las columnas necesarias del archivo category
+    const expectedColumns = GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.COLUMNS;
+    
+    const filteredData = categoryData.map(row => {
+      const filtered = {};
+      expectedColumns.forEach(col => {
+        // Mapear ObjectTypeName a Object Type para compatibilidad
+        if (col === 'ObjectTypeName') {
+          filtered['Object Type'] = row[col] || '';
+        } else {
+          filtered[col] = row[col] || '';
+        }
+      });
+      return filtered;
+    });
+    
+    // Guardar datos globalmente
+    currentWorkingData = [...filteredData];
+    allLibraryData = [...filteredData];
+    currentColumnsOrder = [...expectedColumns];
+    
+    // Limpiar arrays de comentarios ya que no los tenemos en esta fase
+    currentAssetComments = [];
+    
+    console.log(`📊 Datos procesados para el árbol: ${filteredData.length} registros`);
+    console.log('🔧 Columnas disponibles:', expectedColumns);
+    
+    // Renderizar el árbol
+    const treeContainer = document.getElementById('tree');
+    if (treeContainer && filteredData.length > 0) {
+      console.log('🔄 Iniciando renderizado del árbol...');
+      try {
+        renderAssetLibraryTree(filteredData, treeContainer);
+        console.log('✅ Árbol renderizado exitosamente');
+      } catch (treeError) {
+        console.error('❌ Error renderizando árbol:', treeError);
+      }
+    }
+    
+    // Reinicializar Box 3 y limpiar Box 4
+    try {
+      reinitializeBoxContents();
+      console.log('✅ Boxes reinicializados');
+    } catch (reinitError) {
+      console.error('❌ Error reinicializando boxes:', reinitError);
+    }
+    
+  } catch (error) {
+    console.error("❌ Error procesando datos de category:", error);
+    throw new Error(`Error procesando datos: ${error.message}`);
+  }
+}
+
+// ===== FASE 2: CARGA BAJO DEMANDA =====
+
+// Función para cargar detalles de un Item Group específico (FASE 2: Carga bajo demanda)
+async function loadItemGroupDetails(itemGroupId) {
+  if (!itemGroupId) {
+    throw new Error('ID de Item Group requerido');
+  }
+  
+  console.log(`🔄 Cargando detalles para Item Group: ${itemGroupId}`);
+  
+  try {
+    // Cargar datos de la pestaña 'data' filtrados por Item Group
+    const dataSheetUrl = GOOGLE_SHEETS_CONFIG.DATA_SHEET.CSV_URL;
+    const allData = await loadGoogleSheetAsCSV(dataSheetUrl, 'data');
+    
+    if (!allData || allData.length === 0) {
+      throw new Error('No se pudieron cargar datos de la pestaña data');
+    }
+    
+    // Filtrar solo los datos de este Item Group
+    const itemGroupData = allData.filter(row => 
+      String(row['Item Groups']).trim() === String(itemGroupId).trim()
+    );
+    
+    if (itemGroupData.length === 0) {
+      console.warn(`⚠️ No se encontraron datos para Item Group: ${itemGroupId}`);
+      return null;
+    }
+    
+    console.log(`✅ Datos cargados para Item Group ${itemGroupId}: ${itemGroupData.length} registros`);
+    console.log('📊 Muestra de datos:', itemGroupData.slice(0, 3));
+    
+    // Transformar los datos de formato clave-valor al formato esperado por el grid
+    const transformedData = transformKeyValueData(itemGroupData);
+    
+    console.log(`🔄 Datos transformados: ${Object.keys(transformedData).length} elementos`);
+    
+    return transformedData;
+    
+  } catch (error) {
+    console.error(`❌ Error cargando detalles de Item Group ${itemGroupId}:`, error);
+    throw error;
+  }
+}
+
+// Función para transformar datos de estructura clave-valor al formato esperado por el grid
+function transformKeyValueData(keyValueData) {
+  console.log('🔄 Transformando datos clave-valor...');
+  
+  const transformedItems = {};
+  
+  // Agrupar por ID para reconstruir cada item
+  keyValueData.forEach(row => {
+    const id = row['ID'];
+    const objectType = row['Object Type'];
+    const attribute = row['Attribute'];
+    const value = row['value'];
+    
+    if (!transformedItems[id]) {
+      transformedItems[id] = {
+        Id: id,
+        'Object Type': objectType,
+        // Campos básicos que siempre necesitamos
+        Name: '',
+        NamePath: '',
+        IdPath: '',
+        Marca: '',
+        'Página de Catálogo': '',
+        Título: '',
+        'WA Importancia': '',
+        'WA_VIS_Comment': '',
+        Vis_color: '',
+        filtro_color: '',
+        // Campos de imágenes que se llenarán dinámicamente
+        'WA_Cover_Image_01': '', 'WA_Cover_Image_02': '', 'WA_Cover_Image_03': '', 'WA_Cover_Image_04': '', 'WA_Cover_Image_05': ''
+      };
+      
+      // Agregar campos WA_Gallery dinámicamente
+      for (let i = 1; i <= 25; i++) {
+        transformedItems[id][`WA_Gallery_${String(i).padStart(2, '0')}`] = '';
+      }
+      
+      // Agregar campos WA_Rest dinámicamente
+      for (let i = 1; i <= 25; i++) {
+        transformedItems[id][`WA_Rest_${String(i).padStart(2, '0')}`] = '';
+      }
+    }
+    
+    // Mapear atributos específicos
+    if (attribute === 'Marca') {
+      transformedItems[id]['Marca'] = value;
+    } else if (attribute === 'Página de Catálogo') {
+      transformedItems[id]['Página de Catálogo'] = value;
+    } else if (attribute === 'Título') {
+      transformedItems[id]['Título'] = value;
+    } else if (attribute === 'WA Importancia') {
+      transformedItems[id]['WA Importancia'] = value;
+    } else if (attribute === 'WA_VIS_Gallery') {
+      // Procesar las imágenes de galería (formato: imagen1.jpg, imagen2.jpg, ...)
+      if (value && value.trim()) {
+        const images = value.split(',').map(img => img.trim()).filter(img => img);
+        images.forEach((image, index) => {
+          if (index < 25) { // Máximo 25 imágenes de galería
+            const galField = `WA_Gallery_${String(index + 1).padStart(2, '0')}`;
+            transformedItems[id][galField] = image;
+          }
+        });
+      }
+    } else if (attribute === 'WA_VIS_Cover') {
+      // Procesar las imágenes de portada
+      if (value && value.trim()) {
+        const images = value.split(',').map(img => img.trim()).filter(img => img);
+        images.forEach((image, index) => {
+          if (index < 5) { // Máximo 5 imágenes de portada
+            const coverField = `WA_Cover_Image_${String(index + 1).padStart(2, '0')}`;
+            transformedItems[id][coverField] = image;
+          }
+        });
+      }
+    } else if (attribute === 'WA_VIS_Rest') {
+      // Procesar las imágenes de resto
+      if (value && value.trim()) {
+        const images = value.split(',').map(img => img.trim()).filter(img => img);
+        images.forEach((image, index) => {
+          if (index < 25) { // Máximo 25 imágenes de resto
+            const restField = `WA_Rest_${String(index + 1).padStart(2, '0')}`;
+            transformedItems[id][restField] = image;
+          }
+        });
+      }
+    }
+    // Agregar más mapeos de atributos según sea necesario
+  });
+  
+  // Buscar información adicional en los datos básicos del árbol para completar Name, NamePath, etc.
+  Object.keys(transformedItems).forEach(id => {
+    const basicData = allLibraryData.find(item => 
+      String(item.Id) === String(id)
+    );
+    
+    if (basicData) {
+      transformedItems[id].Name = basicData.Name || '';
+      transformedItems[id].NamePath = basicData.NamePath || '';
+      transformedItems[id].IdPath = basicData.IdPath || '';
+      transformedItems[id].Vis_color = basicData.Vis_color || '';
+      transformedItems[id].filtro_color = basicData.filtro_color || '';
+    }
+  });
+  
+  console.log(`✅ Transformación completada: ${Object.keys(transformedItems).length} items transformados`);
+  console.log('📊 Ejemplo de item transformado:', Object.values(transformedItems)[0]);
+  
+  return transformedItems;
 }
 
 // Función auxiliar para procesar workbook (extraída de handleCombinedExcel)
@@ -1127,7 +1503,7 @@ function initializeTreeControls(treeDiv) {
   // Mensaje inicial
   treeList.innerHTML = `
     <div class="tree-placeholder" style="padding: 40px 20px; text-align: center; color: #6b7280; font-style: italic;">
-      Carga un archivo Excel para ver el árbol de categorías
+      Carga datos desde Google Sheets para ver el árbol de categorías
     </div>
   `;
 
@@ -1406,125 +1782,161 @@ function selectItemGroupInTree(itemGroupPath) {
   }, 500); // Delay más largo para asegurar que el árbol esté expandido
 }
 
-// Función para cargar la retícula de imágenes en box4
-function loadImageGridInBox4(itemGroupPath) {
-  // Buscar el Item Group actual
+// Función para cargar la retícula de imágenes en box4 (NUEVA ARQUITECTURA - Carga bajo demanda)
+async function loadImageGridInBox4(itemGroupPath) {
+  // Buscar el Item Group actual en los datos básicos del árbol
   const itemGroup = currentWorkingData.find(item => {
     return item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath;
   });
 
-  // IMPORTANTE: Guardar el Item Group actual globalmente para otras funciones
-  currentItemGroup = itemGroup;
-  
-  console.log(`🎯 ITEM GROUP SELECCIONADO: ${itemGroup ? itemGroup['Name'] : 'null'}`);
-  console.log(`📝 Item Group ID: ${itemGroup ? itemGroup['Id'] : 'null'}`);
-
-  // Buscar todos los Item Codes que pertenecen a este Item Group
-  const itemCodes = currentWorkingData.filter(item => {
-    return item['Object Type'] === 'Item Code' && item.NamePath.startsWith(itemGroupPath + '/');
-  });
-  
-  console.log(`📦 ITEM CODES ENCONTRADOS: ${itemCodes.length} items`);
-  itemCodes.forEach(code => {
-    console.log(`   - ${code['Id']} (${code['Name']})`);
-  });
-
-  if (itemCodes.length === 0) {
-    addContentToBox4('<div class="p-3"><p>No se encontraron Item Codes para este grupo.</p></div>');
+  if (!itemGroup) {
+    console.error('Item Group no encontrado en los datos básicos:', itemGroupPath);
+    addContentToBox4('<div class="p-3"><p>Item Group no encontrado.</p></div>');
     return;
   }
 
-  // Definir las columnas de imágenes en el orden correcto
-  const imageColumns = [
-    'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
-    ...Array.from({length: 25}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
-    ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
-  ];
-
-  // Guardar datos actuales para regeneración
-  currentItemCodes = [...itemCodes];
-  currentImageColumns = [...imageColumns];
+  // IMPORTANTE: Guardar el Item Group actual globalmente para otras funciones
+  currentItemGroup = itemGroup;
   
-  console.log(`🔧 CONFIGURANDO GRID CON ${itemCodes.length} ITEM CODES`);
-  console.log(`📊 Columnas de imagen disponibles: ${imageColumns.length}`);
-
-  // Crear la retícula
-  const gridHtml = createImageGrid(itemCodes, imageColumns, itemGroup);
+  const itemGroupId = itemGroup.Id;
+  console.log(`🎯 ITEM GROUP SELECCIONADO: ${itemGroup.Name} (ID: ${itemGroupId})`);
   
-  // Crear la estructura con barra de controles separada
-  const fullHtml = `
-    <div class="image-management-container">
-      <div class="controls-bar">
-        <div class="controls-left">
-          <span class="controls-title">Controles de Imágenes</span>
-        </div>
-        <div class="controls-right">
-          <div class="zoom-controls">
-            <button class="zoom-button" id="zoomOut" title="Reducir tamaño">🔍−</button>
-            <span class="zoom-info" id="zoomInfo">100%</span>
-            <button class="zoom-button" id="zoomIn" title="Aumentar tamaño">🔍+</button>
-          </div>
-          <button class="cleanup-button" id="cleanupGalButton" title="Limpiar GAL: Elimina imágenes que no pertenecen a su Item Code">
-            Limpiar GAL
-          </button>
-        </div>
-      </div>
-      ${gridHtml}
+  // Mostrar estado de carga
+  addContentToBox4(`
+    <div class="loading-container" style="display: flex; justify-content: center; align-items: center; height: 200px; flex-direction: column;">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: #007bff; margin-bottom: 1rem;"></i>
+      <p>Cargando datos detallados del Item Group...</p>
     </div>
-  `;
-  
-  addContentToBox4(fullHtml);
-  
-  // Debug: verificar los indicadores de aprobación en el grid
-  setTimeout(() => {
-    // Lógica sin debug logs
-  }, 100);
-  
-  // INICIALIZAR VARIABLES CSS INMEDIATAMENTE para evitar glitch visual
-  const container = document.querySelector('.main-container');
-  if (container) {
-    // Calcular valores usando el zoom persistente global
-    const imageSize = Math.round(80 * globalZoomScale);
-    container.style.setProperty('--image-size', imageSize + 'px');  // Usar zoom persistente
+  `);
+
+  try {
+    // FASE 2: Cargar datos detallados bajo demanda
+    const detailedData = await loadItemGroupDetails(itemGroupId);
     
-    // Calcular font-scale usando el mismo algoritmo que setupZoomControls
-    let fontScale;
-    if (globalZoomScale <= 0.5) {
-      fontScale = '7px';
-    } else if (globalZoomScale <= 0.75) {
-      fontScale = '8px';
-    } else if (globalZoomScale <= 1) {
-      fontScale = '8px';
-    } else if (globalZoomScale <= 1.5) {
-      fontScale = '9px';
-    } else if (globalZoomScale <= 2) {
-      fontScale = '10px';
-    } else if (globalZoomScale <= 2.5) {
-      fontScale = '11px';
-    } else {
-      fontScale = '12px';
+    if (!detailedData || Object.keys(detailedData).length === 0) {
+      addContentToBox4('<div class="p-3"><p>No se encontraron datos detallados para este Item Group.</p></div>');
+      return;
     }
-    container.style.setProperty('--font-scale', fontScale);  // Usar zoom persistente
-  }
-  
-  // Configurar controles de zoom y sincronización después de que se agregue al DOM
-  // Usar un setTimeout más largo para asegurar que el DOM esté listo
-  setTimeout(() => {
-    setupZoomControls();
-    setupScrollSynchronization();
-    setupImageSystemEventListeners(); // Agregar sistema de imágenes
-    setupItemGroupDeleteButton(); // Configurar botón de basura del Item Group
-    setupItemGroupImageClick(); // Configurar click en imagen del Item Group
-    setupBrandFilter(); // Configurar filtro de marcas
     
-    // Actualizar indicadores de múltiples imágenes después de cargar el grid
-    updateMultipleImagesIndicators();
-  }, 500);
-  
-  // Intentar de nuevo la sincronización después de un delay más largo
-  setTimeout(() => {
-    setupScrollSynchronization();
-  }, 1500);
+    // Convertir el objeto transformado a array y separar Item Codes
+    const allItems = Object.values(detailedData);
+    const itemCodes = allItems.filter(item => item['Object Type'] === 'Item Code');
+    
+    console.log(`📦 ITEM CODES ENCONTRADOS: ${itemCodes.length} items`);
+    itemCodes.forEach(code => {
+      console.log(`   - ${code.Id} (${code.Name})`);
+    });
+
+    if (itemCodes.length === 0) {
+      addContentToBox4('<div class="p-3"><p>No se encontraron Item Codes para este grupo.</p></div>');
+      return;
+    }
+
+    // Buscar si hay datos del Item Group en los detalles
+    const itemGroupDetails = allItems.find(item => item['Object Type'] === 'Item Group');
+    if (itemGroupDetails) {
+      // Mezclar datos básicos con datos detallados
+      currentItemGroup = { ...itemGroup, ...itemGroupDetails };
+    }
+
+    // Definir las columnas de imágenes en el orden correcto
+    const imageColumns = [
+      'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
+      ...Array.from({length: 25}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
+      ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
+    ];
+
+    // Guardar datos actuales para regeneración
+    currentItemCodes = [...itemCodes];
+    currentImageColumns = [...imageColumns];
+    
+    console.log(`🔧 CONFIGURANDO GRID CON ${itemCodes.length} ITEM CODES`);
+    console.log(`📊 Columnas de imagen disponibles: ${imageColumns.length}`);
+
+    // Crear la retícula
+    const gridHtml = createImageGrid(itemCodes, imageColumns, currentItemGroup);
+    
+    // Crear la estructura con barra de controles separada
+    const fullHtml = `
+      <div class="image-management-container">
+        <div class="controls-bar">
+          <div class="controls-left">
+            <span class="controls-title">Controles de Imágenes</span>
+          </div>
+          <div class="controls-right">
+            <div class="zoom-controls">
+              <button class="zoom-button" id="zoomOut" title="Reducir tamaño">🔍−</button>
+              <span class="zoom-info" id="zoomInfo">100%</span>
+              <button class="zoom-button" id="zoomIn" title="Aumentar tamaño">🔍+</button>
+            </div>
+            <button class="cleanup-button" id="cleanupGalButton" title="Limpiar GAL: Elimina imágenes que no pertenecen a su Item Code">
+              Limpiar GAL
+            </button>
+          </div>
+        </div>
+        ${gridHtml}
+      </div>
+    `;
+    
+    addContentToBox4(fullHtml);
+    
+    // INICIALIZAR VARIABLES CSS INMEDIATAMENTE para evitar glitch visual
+    const container = document.querySelector('.main-container');
+    if (container) {
+      // Calcular valores usando el zoom persistente global
+      const imageSize = Math.round(80 * globalZoomScale);
+      container.style.setProperty('--image-size', imageSize + 'px');
+      
+      // Calcular font-scale usando el mismo algoritmo que setupZoomControls
+      let fontScale;
+      if (globalZoomScale <= 0.5) {
+        fontScale = '7px';
+      } else if (globalZoomScale <= 0.75) {
+        fontScale = '8px';
+      } else if (globalZoomScale <= 1) {
+        fontScale = '8px';
+      } else if (globalZoomScale <= 1.5) {
+        fontScale = '9px';
+      } else if (globalZoomScale <= 2) {
+        fontScale = '10px';
+      } else if (globalZoomScale <= 2.5) {
+        fontScale = '11px';
+      } else {
+        fontScale = '12px';
+      }
+      container.style.setProperty('--font-scale', fontScale);
+    }
+    
+    // Configurar controles de zoom y sincronización después de que se agregue al DOM
+    setTimeout(() => {
+      setupZoomControls();
+      setupScrollSynchronization();
+      setupImageSystemEventListeners();
+      setupItemGroupDeleteButton();
+      setupItemGroupImageClick();
+      setupBrandFilter();
+      
+      // Actualizar indicadores de múltiples imágenes después de cargar el grid
+      updateMultipleImagesIndicators();
+    }, 500);
+    
+    // Intentar de nuevo la sincronización después de un delay más largo
+    setTimeout(() => {
+      setupScrollSynchronization();
+    }, 1500);
+    
+  } catch (error) {
+    console.error('❌ Error cargando grid de imágenes:', error);
+    addContentToBox4(`
+      <div class="p-3 text-center">
+        <p class="text-danger">❌ Error cargando datos detallados:</p>
+        <p class="small">${error.message}</p>
+        <button class="btn btn-secondary btn-sm" onclick="loadImageGridInBox4('${itemGroupPath}')">
+          Reintentar
+        </button>
+      </div>
+    `);
+  }
 }
 
 // Función para normalizar valores de vis_color del Excel

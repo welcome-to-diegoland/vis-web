@@ -39,10 +39,10 @@
           </select>
         </div>
         
-        <!-- Botón Cargar Excel -->
+        <!-- Botón Cargar datos -->
         <input type="file" id="combinedFile" accept=".xlsx,.xls" style="display:none;">
-        <button id="loadExcelBtn" class="btn btn-primary btn-compact" onclick="loadFromSharePoint()">
-          <i class="fa-solid fa-cloud"></i> SharePoint
+        <button id="loadExcelBtn" class="btn btn-primary btn-compact" onclick="loadFromGoogleSheets()">
+          <i class="fa-solid fa-cloud"></i> Google Sheets
         </button>
         <button id="loadLocalBtn" class="btn btn-primary btn-compact" onclick="document.getElementById('combinedFile').click()" title="Cargar archivo local">
           <i class="fa-solid fa-folder-open"></i> Local
