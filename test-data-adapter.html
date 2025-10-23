@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Data Adapter - VIS Web</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+        }
+        .input-data {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .output-data {
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .data-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .stats {
+            background-color: #e7f3ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { color: #28a745; font-weight: bold; }
+        .warning { color: #ffc107; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .object-type-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .item-group { background-color: #d1ecf1; color: #0c5460; }
+        .item-code { background-color: #d4edda; color: #155724; }
+        .image { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Test Data Adapter - VIS Web</h1>
+        <p>Prueba de transformación de datos concatenados → formato expandido para el sistema principal</p>
+        
+        <button class="button" onclick="runTransformation()">▶️ Ejecutar Transformación</button>
+        <button class="button" onclick="clearResults()">🗑️ Limpiar</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script src="concatenation-system.js"></script>
+    <script src="data-adapter.js"></script>
+    <script>
+        function runTransformation() {
+            const resultsDiv = document.getElementById('results');
+            
+            // Datos de entrada (formato concatenado de Pentaho)
+            const inputData = [
+                {
+                    'Item Groups': '34948',
+                    'ID': '34948',
+                    'Object Type': 'Item Group',
+                    'data_concatenated': 'TTC§Brocas con Hélice Rápida Acero A.V.§19§§§WA_VIS_Cover¬§WA_VIS_Gallery¬01-004-002.jpg§WA_VIS_Rest¬'
+                },
+                {
+                    'Item Groups': '34948',
+                    'ID': '1583',
+                    'Object Type': 'Item Code',
+                    'data_concatenated': 'TTC§Broca Recta 1/32" Hélice Rápida TTC§19§A§§WA_VIS_Cover¬brocas_act8.jpg§WA_VIS_Gallery¬01-004-002.jpg, 01-004-002_act1.jpg, brocas_act19.jpg, brocas_act22.jpg§WA_VIS_Rest¬'
+                },
+                {
+                    'Item Groups': '14416, 14440, 14449',
+                    'ID': '39773',
+                    'Object Type': 'Image',
+                    'data_concatenated': '53-088-600.jpg§Bodegón | aGREGAR BODEGON DONDE VENGAN TODOS LOS TAMAÑOS COMO EN EL BLOQUE DE CATALOGO'
+                }
+            ];
+
+            resultsDiv.innerHTML = `
+                <h2>📊 Resultados de la Transformación</h2>
+                
+                <div class="section input-data">
+                    <h3>📥 Datos de Entrada (Formato Concatenado)</h3>
+                    ${createDataTable(inputData, ['Item Groups', 'ID', 'Object Type', 'data_concatenated'])}
+                    <div class="stats">
+                        <strong>Estadísticas de entrada:</strong> ${inputData.length} filas concatenadas
+                    </div>
+                </div>
+            `;
+
+            // Ejecutar transformación
+            let outputData, transformationStats;
+            try {
+                console.log('🔄 Iniciando transformación...');
+                outputData = transformConcatenatedDataToExpanded(inputData);
+                
+                // Calcular estadísticas
+                transformationStats = {
+                    total: outputData.length,
+                    itemGroup: outputData.filter(r => r['Object Type'] === 'Item Group').length,
+                    itemCode: outputData.filter(r => r['Object Type'] === 'Item Code').length,
+                    image: outputData.filter(r => r['Object Type'] === 'Image').length
+                };
+
+                resultsDiv.innerHTML += `
+                    <div class="section output-data">
+                        <h3>📤 Datos de Salida (Formato Expandido)</h3>
+                        ${createDataTable(outputData, ['Item Groups', 'ID', 'Object Type', 'Attribute', 'value', 'Name'])}
+                        <div class="stats">
+                            <strong>Estadísticas de salida:</strong><br>
+                            Total: ${transformationStats.total} filas expandidas<br>
+                            Item Group: ${transformationStats.itemGroup} filas<br>
+                            Item Code: ${transformationStats.itemCode} filas<br>
+                            Image: ${transformationStats.image} filas
+                        </div>
+                    </div>
+                `;
+
+                // Resumen de la transformación
+                resultsDiv.innerHTML += `
+                    <div class="section">
+                        <h3>📋 Resumen de la Transformación</h3>
+                        <div class="stats">
+                            <span class="success">✅ Transformación exitosa</span><br>
+                            <strong>Ratio de expansión:</strong> ${inputData.length} → ${outputData.length} filas (${(outputData.length / inputData.length).toFixed(1)}x)<br>
+                            <strong>Compatibilidad:</strong> Los datos expandidos son compatibles con el sistema VIS-Web actual<br>
+                            <strong>Estructura:</strong> Cada objeto concatenado se expande en múltiples filas [Attribute, value]
+                        </div>
+                        
+                        <h4>🔍 Detalles por Tipo de Objeto:</h4>
+                        <ul>
+                            <li><strong>Item Group/Item Code:</strong> Se expanden los campos fijos (Marca, Título, etc.) + campos dinámicos (WA_VIS_*)</li>
+                            <li><strong>Image:</strong> Se expanden Name y WA_VIS_Comment como filas separadas</li>
+                        </ul>
+                    </div>
+                `;
+
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <div class="section">
+                        <h3>❌ Error en la Transformación</h3>
+                        <div class="stats">
+                            <span class="error">Error: ${error.message}</span><br>
+                            <pre>${error.stack}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function createDataTable(data, columns) {
+            if (!data || data.length === 0) {
+                return '<p>No hay datos para mostrar</p>';
+            }
+
+            let html = '<table class="data-table"><thead><tr>';
+            
+            // Headers
+            columns.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            // Rows
+            data.forEach(row => {
+                html += '<tr>';
+                columns.forEach(col => {
+                    let value = row[col] || '';
+                    
+                    // Agregar badge para Object Type
+                    if (col === 'Object Type' && value) {
+                        const className = value.toLowerCase().replace(' ', '-');
+                        value = `<span class="object-type-badge ${className}">${value}</span>`;
+                    }
+                    
+                    // Truncar valores muy largos
+                    if (typeof value === 'string' && value.length > 100) {
+                        value = value.substring(0, 100) + '...';
+                    }
+                    
+                    html += `<td>${value}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Ejecutar automáticamente al cargar
+        window.onload = function() {
+            setTimeout(runTransformation, 500);
+        };
+    </script>
+</body>
+</html>

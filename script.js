@@ -826,6 +826,249 @@ async function loadGoogleSheetAsCSV(csvUrl, sheetName) {
   }
 }
 
+// ========================================
+// ADAPTADOR PARA DATOS CONCATENADOS
+// ========================================
+
+/**
+ * Detecta si los datos están concatenados y los transforma al formato expandido
+ * @param {Array} data - Datos originales
+ * @returns {Array} - Datos en formato expandido (compatible con sistema actual)
+ */
+function transformDataIfConcatenated(data) {
+  if (!data || data.length === 0) {
+    return data;
+  }
+  
+  // Detectar si hay columna 'data_concatenated'
+  const firstRow = data[0];
+  const hasConcatenatedColumn = firstRow.hasOwnProperty('data_concatenated');
+  
+  if (!hasConcatenatedColumn) {
+    console.log('📋 Datos en formato original (no concatenados)');
+    return data;
+  }
+  
+  console.log('🔄 Detectados datos concatenados, transformando...');
+  
+  try {
+    // Usar el adaptador que creamos
+    const expandedData = transformConcatenatedDataToExpanded(data);
+    console.log(`✅ Transformación exitosa: ${data.length} → ${expandedData.length} filas`);
+    return expandedData;
+    
+  } catch (error) {
+    console.error('❌ Error transformando datos concatenados:', error);
+    console.log('📋 Usando datos originales como fallback');
+    return data;
+  }
+}
+
+// Función auxiliar para expandir una sola fila concatenada
+function transformConcatenatedDataToExpanded(concatenatedData) {
+  const expandedData = [];
+  
+  concatenatedData.forEach(row => {
+    try {
+      const expandedRows = expandSingleConcatenatedRow(row);
+      expandedData.push(...expandedRows);
+    } catch (error) {
+      console.error('❌ Error procesando fila:', row, error);
+    }
+  });
+  
+  return expandedData;
+}
+
+// Función para expandir una sola fila concatenada a múltiples filas
+function expandSingleConcatenatedRow(concatenatedRow) {
+  const itemGroups = concatenatedRow['Item Groups'];
+  const id = concatenatedRow['ID'] || concatenatedRow['Id'];
+  const objectType = concatenatedRow['Object Type'];
+  const dataConcatenated = concatenatedRow['data_concatenated'];
+  
+  // Parsear según tipo de objeto usando nuestro parser universal
+  const parsedData = parseUniversalConcatenatedData(concatenatedRow);
+  
+  const expandedRows = [];
+  
+  // Agregar filas base con información del objeto
+  const baseRow = {
+    'Item Groups': itemGroups,
+    'ID': id,
+    'Object Type': objectType,
+    'Id': id,
+    'IdPath': id,
+    'NamePath': '', // Se calculará después si es necesario
+    'Name': parsedData.Name || parsedData.Título || id
+  };
+  
+  if (objectType === 'Item Group' || objectType === 'Item Code') {
+    // Expandir campos fijos
+    if (parsedData.Marca) {
+      expandedRows.push({
+        ...baseRow,
+        'Attribute': 'Marca',
+        'value': parsedData.Marca
+      });
+    }
+    
+    if (parsedData.Título) {
+      expandedRows.push({
+        ...baseRow,
+        'Attribute': 'Título',
+        'value': parsedData.Título
+      });
+    }
+    
+    if (parsedData['Página de Catálogo']) {
+      expandedRows.push({
+        ...baseRow,
+        'Attribute': 'Página de Catálogo',
+        'value': parsedData['Página de Catálogo']
+      });
+    }
+    
+    if (parsedData['WA Importancia']) {
+      expandedRows.push({
+        ...baseRow,
+        'Attribute': 'WA Importancia',
+        'value': parsedData['WA Importancia']
+      });
+    }
+    
+    if (parsedData['WA_VIS_Comment']) {
+      expandedRows.push({
+        ...baseRow,
+        'Attribute': 'WA_VIS_Comment',
+        'value': parsedData['WA_VIS_Comment']
+      });
+    }
+    
+    // Expandir campos dinámicos de imágenes
+    ['WA_VIS_Cover', 'WA_VIS_Gallery', 'WA_VIS_Rest'].forEach(imageField => {
+      if (parsedData[imageField]) {
+        expandedRows.push({
+          ...baseRow,
+          'Attribute': imageField,
+          'value': parsedData[imageField]
+        });
+      }
+    });
+    
+  } else if (objectType === 'Image') {
+    // Para objetos Image, expandir Name y WA_VIS_Comment
+    if (parsedData.Name) {
+      expandedRows.push({
+        ...baseRow,
+        'Attribute': 'Name',
+        'value': parsedData.Name
+      });
+    }
+    
+    if (parsedData.WA_VIS_Comment) {
+      expandedRows.push({
+        ...baseRow,
+        'Attribute': 'WA_VIS_Comment', 
+        'value': parsedData.WA_VIS_Comment
+      });
+    }
+  }
+  
+  // Si no se generaron filas expandidas, agregar al menos la fila base
+  if (expandedRows.length === 0) {
+    expandedRows.push(baseRow);
+  }
+  
+  return expandedRows;
+}
+
+// Función auxiliar: Parser universal para datos concatenados
+function parseUniversalConcatenatedData(dataRow) {
+  const objectType = dataRow['Object Type'] || dataRow.Object_Type;
+  const concatenated = dataRow.data_concatenated;
+  
+  if (!concatenated || typeof concatenated !== 'string') {
+    return { ...dataRow, parsedData: {} };
+  }
+  
+  let parsedData = {};
+  
+  switch (objectType) {
+    case 'Item Group':
+    case 'Item Code':
+      parsedData = parseItemCodeData(concatenated);
+      break;
+      
+    case 'Image':
+      parsedData = parseImageData(concatenated);
+      break;
+      
+    default:
+      console.warn(`⚠️ Tipo de objeto desconocido: ${objectType}`);
+      parsedData = {};
+  }
+  
+  return {
+    'Item Groups': dataRow['Item Groups'] || dataRow.Item_Groups,
+    'ID': dataRow.ID,
+    'Object Type': objectType,
+    ...parsedData
+  };
+}
+
+// Parser para Item Group/Item Code
+function parseItemCodeData(concatenated) {
+  const FIELD_SEPARATOR = '§';
+  const KEY_VALUE_SEPARATOR = '¬';
+  
+  const parts = concatenated.split(FIELD_SEPARATOR);
+  const item = {};
+  
+  // Campos fijos (posiciones 0-4)
+  const fixedFieldNames = ['Marca', 'Título', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment'];
+  
+  fixedFieldNames.forEach((fieldName, index) => {
+    if (parts[index] !== undefined) {
+      const value = parts[index].trim();
+      if (value) {
+        item[fieldName] = value;
+      }
+    }
+  });
+  
+  // Campos dinámicos (posición 5+)
+  for (let i = fixedFieldNames.length; i < parts.length; i++) {
+    const part = parts[i];
+    if (part && part.includes(KEY_VALUE_SEPARATOR)) {
+      const separatorIndex = part.indexOf(KEY_VALUE_SEPARATOR);
+      const key = part.substring(0, separatorIndex).trim();
+      const value = part.substring(separatorIndex + 1).trim();
+      
+      if (key) {
+        item[key] = value; // Permitir valores vacíos para imágenes
+      }
+    }
+  }
+  
+  return item;
+}
+
+// Parser específico para objetos Image
+function parseImageData(concatenated) {
+  const FIELD_SEPARATOR = '§';
+  const parts = concatenated.split(FIELD_SEPARATOR);
+  
+  return {
+    'Name': parts[0] ? parts[0].trim() : '',
+    'WA_VIS_Comment': parts[1] ? parts[1].trim() : ''
+  };
+}
+
+// ========================================
+// FIN ADAPTADOR PARA DATOS CONCATENADOS
+// ========================================
+
 // Función auxiliar para parsear CSV a objetos
 function parseCSVToObjects(csvText, sheetName) {
   const lines = csvText.split('\n').filter(line => line.trim());
@@ -1017,14 +1260,17 @@ async function loadItemGroupFromDatabase(itemGroupId) {
     // Convertir CSV a array de objetos
     const allData = parseCSVToObjects(responseText, 'data');
     
-    if (!allData || allData.length === 0) {
+    // 🔄 NUEVO: Detectar si los datos están concatenados y transformarlos
+    const processedData = transformDataIfConcatenated(allData);
+    
+    if (!processedData || processedData.length === 0) {
       throw new Error('No se pudieron cargar datos de la pestaña data');
     }
     
-    console.log(`📊 Total de filas cargadas: ${allData.length}`);
+    console.log(`📊 Total de filas cargadas: ${allData.length} → procesadas: ${processedData.length}`);
     
     // Filtrar solo los datos de este Item Group en el frontend
-    const itemGroupData = allData.filter(row => {
+    const itemGroupData = processedData.filter(row => {
       const rowItemGroupId = String(row['Item Groups'] || '').trim();
       
       // Manejar valores concatenados (ej: "34948,35001,35022")
@@ -1103,6 +1349,11 @@ function transformKeyValueData(keyValueData) {
     const attribute = row['Attribute'];
     const value = row['value'];
     
+    // DEBUG: Mostrar algunos atributos para el Item Group principal
+    if (objectType === 'Item Group' && (attribute === 'Título' || attribute === 'Marca')) {
+      console.log(`🔍 DEBUG Item Group ID ${id}: ${attribute} = "${value}"`);
+    }
+    
     if (!transformedItems[id]) {
       transformedItems[id] = {
         Id: id,
@@ -1143,6 +1394,7 @@ function transformKeyValueData(keyValueData) {
       transformedItems[id]['Página de Catálogo'] = value;
     } else if (attribute === 'Título') {
       transformedItems[id]['Título'] = value;
+      console.log(`🔍 DEBUG: Título encontrado para ID ${id}: "${value}"`);
     } else if (attribute === 'WA Importancia') {
       transformedItems[id]['WA Importancia'] = value;
     } else if (attribute === 'WA_VIS_Comment') {
@@ -5625,12 +5877,15 @@ async function loadAllItemGroupsToCache() {
     const responseText = await response.text();
     const parsedData = parseCSVToObjects(responseText, 'data');
     
-    console.log(`📊 Total de filas cargadas para caché: ${parsedData.length}`);
+    // 🔄 NUEVO: Detectar si los datos están concatenados y transformarlos
+    const processedData = transformDataIfConcatenated(parsedData);
+    
+    console.log(`📊 Total de filas cargadas para caché: ${parsedData.length} → procesadas: ${processedData.length}`);
     
     // Agrupar por Item Group ID
     const itemGroupMap = new Map();
     
-    for (const row of parsedData) {
+    for (const row of processedData) {
       const itemGroups = String(row['Item Groups'] || '');
       const itemGroupIds = itemGroups.split(',').map(id => id.trim()).filter(id => id);
       
