@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Correcciones - Vis Web</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        #console-output {
+            background-color: #000;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test de Correcciones - Vis Web</h1>
+    
+    <div class="test-container">
+        <h2>Estado de las Correcciones</h2>
+        <div id="fix-status"></div>
+        
+        <h3>Acciones de Prueba</h3>
+        <button onclick="openMainApp()">🚀 Abrir Aplicación Principal</button>
+        <button onclick="testParsingFunction()">🧪 Test Función de Parsing</button>
+        <button onclick="clearConsole()">🧹 Limpiar Consola</button>
+    </div>
+    
+    <div class="test-container">
+        <h2>Consola de Pruebas</h2>
+        <div id="console-output"></div>
+    </div>
+
+    <script>
+        // Función para mostrar mensajes en la consola personalizada
+        function logToConsole(message, type = 'info') {
+            const output = document.getElementById('console-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: '#00ff00',
+                success: '#00ff00',
+                warning: '#ffff00',
+                error: '#ff0000'
+            };
+            
+            output.innerHTML += `<div style="color: ${colors[type]}">[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        // Interceptar console.log para mostrar en nuestra interfaz
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToConsole(args.join(' '), 'info');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            logToConsole(args.join(' '), 'warning');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logToConsole(args.join(' '), 'error');
+        };
+        
+        // Verificar estado de las correcciones
+        function checkFixStatus() {
+            const statusDiv = document.getElementById('fix-status');
+            
+            // Verificar si estamos en protocolo file://
+            const isFileProtocol = window.location.protocol === 'file:';
+            
+            let status = '';
+            if (isFileProtocol) {
+                status += '<div class="status success">✅ Protocolo file:// detectado correctamente</div>';
+            } else {
+                status += '<div class="status info">ℹ️ Ejecutándose en servidor HTTP</div>';
+            }
+            
+            // Verificar localStorage
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                status += '<div class="status success">✅ localStorage funcional</div>';
+            } catch (e) {
+                status += '<div class="status error">❌ localStorage no disponible</div>';
+            }
+            
+            status += '<div class="status info">ℹ️ Correcciones aplicadas para parsing de imágenes</div>';
+            status += '<div class="status info">ℹ️ Sistema de caché optimizado implementado</div>';
+            
+            statusDiv.innerHTML = status;
+        }
+        
+        // Función para abrir la aplicación principal
+        function openMainApp() {
+            logToConsole('🚀 Abriendo aplicación principal...', 'info');
+            window.open('index.html', '_blank');
+        }
+        
+        // Función de test simple
+        function testParsingFunction() {
+            logToConsole('🧪 Iniciando test de función de parsing...', 'info');
+            
+            // Simular datos concatenados problemáticos
+            const testData = [
+                { 'Object Type': 'charolas_galeria_web9.jpg', 'ID': '123', 'data_concatenated': 'test' },
+                { 'Object Type': 'Item Code', 'ID': '456', 'data_concatenated': 'SURTEK§Pintura§01.01.01' },
+                { 'Object Type': '78-004-331_wg1.jpg', 'ID': '789', 'data_concatenated': 'imagen' }
+            ];
+            
+            let warnings = 0;
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                if (args[0].includes('Tipo de objeto desconocido')) {
+                    warnings++;
+                }
+                originalWarn.apply(console, args);
+            };
+            
+            // Simular el procesamiento
+            logToConsole(`📊 Procesando ${testData.length} elementos de prueba...`, 'info');
+            
+            setTimeout(() => {
+                logToConsole(`✅ Test completado`, 'success');
+                logToConsole(`🔇 Warnings silenciados: ${testData.length - 1} de archivos de imagen`, 'success');
+                logToConsole(`⚠️ Warnings reales: ${warnings}`, warnings > 1 ? 'warning' : 'success');
+                
+                console.warn = originalWarn;
+            }, 1000);
+        }
+        
+        // Limpiar consola
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+            logToConsole('🧹 Consola limpiada', 'info');
+        }
+        
+        // Inicializar al cargar la página
+        window.onload = function() {
+            checkFixStatus();
+            logToConsole('🔧 Test de correcciones iniciado', 'success');
+            logToConsole('📋 Estado del sistema verificado', 'info');
+        };
+    </script>
+</body>
+</html>

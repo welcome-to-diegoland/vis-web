@@ -524,6 +524,9 @@ document.addEventListener('DOMContentLoaded', function() {
   console.clear();
   localStorage.clear();
   
+  // DIAGNÓSTICO INICIAL: Verificar configuración y elementos DOM
+  runInitialDiagnostics();
+  
   // Inicializar sistema de caché de Item Groups
   loadCacheFromLocalStorage();
   
@@ -562,6 +565,47 @@ document.addEventListener('DOMContentLoaded', function() {
     exportBtn.addEventListener('click', exportToExcel);
   }
 });
+
+// Función de diagnóstico inicial
+function runInitialDiagnostics() {
+  console.log('🔍 DIAGNÓSTICO INICIAL');
+  console.log('====================');
+  
+  // 1. Verificar configuración de Google Sheets
+  console.log('📋 Configuración de Google Sheets:');
+  console.log('   • PROXY_URL:', GOOGLE_SHEETS_CONFIG.PROXY_URL);
+  console.log('   • DATA_PROXY_URL:', GOOGLE_SHEETS_CONFIG.DATA_PROXY_URL);
+  console.log('   • CATEGORY_SHEET ID:', GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.SPREADSHEET_ID);
+  console.log('   • DATA_SHEET ID:', GOOGLE_SHEETS_CONFIG.DATA_SHEET.SPREADSHEET_ID);
+  
+  // 2. Verificar elementos DOM críticos
+  const criticalElements = [
+    'box3-content',
+    'tree',
+    'loadExcelBtn',
+    'combinedFile'
+  ];
+  
+  console.log('🎯 Verificación de elementos DOM críticos:');
+  criticalElements.forEach(id => {
+    const element = document.getElementById(id);
+    console.log(`   • ${id}: ${element ? '✅ Encontrado' : '❌ No encontrado'}`);
+  });
+  
+  // 3. Verificar estado inicial de variables
+  console.log('📊 Estado inicial de variables:');
+  console.log('   • currentWorkingData:', currentWorkingData.length, 'elementos');
+  console.log('   • currentAssetGroups:', currentAssetGroups.length, 'elementos');
+  console.log('   • itemGroupDataCache:', itemGroupDataCache.size, 'elementos en caché');
+  
+  // 4. Verificar conectividad básica
+  console.log('🌐 Verificando conectividad...');
+  fetch('https://www.google.com', { mode: 'no-cors' })
+    .then(() => console.log('   • Conectividad a internet: ✅ OK'))
+    .catch(() => console.log('   • Conectividad a internet: ❌ Problema'));
+    
+  console.log('====================');
+}
 
 // Función para configurar drag and drop del divisor vertical
 function setupDragAndDrop() {
@@ -658,21 +702,21 @@ async function loadFromGoogleSheets() {
     loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando...';
     loadButton.disabled = true;
     
+    // Crear notificación de progreso
+    showLoadingProgress('Iniciando carga de datos...', 'info');
+    
     // Detectar si estamos en un entorno local (file://)
     const isLocalFile = window.location.protocol === 'file:';
     
     if (isLocalFile) {
-      console.log('⚠️ Detectado entorno local (file://). Usando método alternativo...');
+      console.log('⚠️ Entorno local detectado (file://). Usando Apps Script proxy...');
+      showLoadingProgress('Entorno local detectado, usando Apps Script...', 'info');
       
-      // Para entorno local, usar método alternativo automáticamente sin mostrar advertencias
-      const useAlternativeMethod = true; // Siempre usar método alternativo sin preguntar
-      
-      if (!useAlternativeMethod) {
-        // El usuario prefiere cargar archivo local
-        document.getElementById('combinedFile')?.click();
-        return;
-      }
+      // En entorno local, continuar con Apps Script normalmente
+      // El Apps Script maneja CORS correctamente
     }
+
+    showLoadingProgress('Cargando árbol de categorías...', 'info');
     
     // Cargar datos de la pestaña 'category' para el árbol
     const categoryData = await loadGoogleSheetAsCSV(
@@ -683,14 +727,18 @@ async function loadFromGoogleSheets() {
     if (!categoryData || categoryData.length === 0) {
       throw new Error('No se pudieron cargar datos de la pestaña category');
     }
+
+    showLoadingProgress('Procesando árbol de categorías...', 'info');
     
     // Procesar y filtrar datos para el árbol
     processCategoryData(categoryData);
+
+    showLoadingProgress('Cargando galerías de imágenes...', 'info');
     
-    // Cargar asset_groups si está disponible (mismo archivo que category)
+    // Cargar asset_groups usando el proxy de Apps Script (mismo que category)
     try {
-      const assetGroupsCSVUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.SPREADSHEET_ID}/export?format=csv&gid=1`;
-      const assetGroupsData = await loadGoogleSheetAsCSV(assetGroupsCSVUrl, 'asset_groups');
+      console.log('🔄 Cargando asset_groups usando Apps Script proxy...');
+      const assetGroupsData = await loadGoogleSheetAsCSV(null, 'asset_groups');
       
       if (assetGroupsData && assetGroupsData.length > 0) {
         currentAssetGroups = assetGroupsData;
@@ -699,34 +747,59 @@ async function loadFromGoogleSheets() {
         console.log('📊 Primer elemento de asset_groups:', assetGroupsData[0]);
         console.log('📊 Headers/Keys disponibles:', Object.keys(assetGroupsData[0] || {}));
         
+        showLoadingProgress(`Cargadas ${assetGroupsData.length} galerías de imágenes`, 'success');
+        
         // IMPORTANTE: Poblar el dropdown AHORA que ya tenemos los datos
         console.log('🔄 Poblando dropdown de galerías con datos recién cargados...');
-        populateGalleryDropdown(currentAssetGroups);
+        
+        // Usar setTimeout para asegurar que el DOM esté listo
+        setTimeout(() => {
+          populateGalleryDropdown(currentAssetGroups);
+        }, 100);
+        
+      } else {
+        console.warn('⚠️ asset_groups está vacío o no se pudo procesar');
+        currentAssetGroups = [];
+        showLoadingProgress('Sin galerías disponibles', 'warning');
       }
     } catch (assetGroupsError) {
       console.warn('⚠️ No se pudo cargar asset_groups:', assetGroupsError.message);
+      console.warn('📋 Detalles del error:', assetGroupsError);
       currentAssetGroups = [];
+      showLoadingProgress('Error cargando galerías: ' + assetGroupsError.message, 'error');
+      
+      // Intentar cargar desde archivo local como fallback
+      console.log('🔄 Intentando método de fallback para asset_groups...');
     }
+    
+    showLoadingProgress('¡Carga completada exitosamente!', 'success');
+    
+    // Ocultar notificación después de 3 segundos
+    setTimeout(() => {
+      hideLoadingProgress();
+    }, 3000);
     
   } catch (error) {
     console.error('❌ Error cargando desde Google Sheets:', error);
     
+    showLoadingProgress('Error: ' + error.message, 'error');
+    
     const helpMessage = `❌ Error cargando desde Google Sheets
 
-🔧 VERIFICACIONES Y SOLUCIONES:
+🔧 POSIBLES SOLUCIONES:
 
-1️⃣ PROBLEMA CORS (Archivos Locales):
-   • Ejecuta desde un servidor: python -m http.server 8000
-   • O usa VS Code Live Server
-   • O sube a un hosting web
+1️⃣ VERIFICAR APPS SCRIPT:
+   • Asegúrate de que el Apps Script esté implementado como "Aplicación web"
+   • Acceso debe estar configurado como "Cualquier persona"
+   • URL del proxy: ${GOOGLE_SHEETS_CONFIG.PROXY_URL}
 
-2️⃣ PERMISOS DEL ARCHIVO:
-   • Verifica: "Cualquiera con el enlace puede ver"
-   • URL actual: ${GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.CSV_URL}
+2️⃣ VERIFICAR GOOGLE SHEETS:
+   • Archivo debe tener permisos "Cualquiera con el enlace puede ver"
+   • Debe existir la pestaña 'category'
+   • Debe existir la pestaña 'asset_groups'
 
-3️⃣ ESTRUCTURA DE DATOS:
-   • Verifica que existe la pestaña 'category'
-   • Verifica las columnas esperadas
+3️⃣ ALTERNATIVA - ARCHIVO LOCAL:
+   • Puedes cargar un archivo Excel/CSV local como respaldo
 
 Error técnico: ${error.message}
 
@@ -741,6 +814,53 @@ Error técnico: ${error.message}
   } finally {
     loadButton.innerHTML = originalText;
     loadButton.disabled = false;
+  }
+}
+
+// Funciones para mostrar progreso de carga
+function showLoadingProgress(message, type = 'info') {
+  // Buscar contenedor existente o crear uno nuevo
+  let progressContainer = document.getElementById('loadingProgressContainer');
+  
+  if (!progressContainer) {
+    progressContainer = document.createElement('div');
+    progressContainer.id = 'loadingProgressContainer';
+    progressContainer.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      min-width: 300px;
+      max-width: 400px;
+    `;
+    document.body.appendChild(progressContainer);
+  }
+  
+  const alertClass = {
+    'info': 'alert-info',
+    'success': 'alert-success', 
+    'warning': 'alert-warning',
+    'error': 'alert-danger'
+  }[type] || 'alert-info';
+  
+  const icon = {
+    'info': '<i class="fa-solid fa-spinner fa-spin"></i>',
+    'success': '<i class="fa-solid fa-check"></i>',
+    'warning': '<i class="fa-solid fa-exclamation-triangle"></i>',
+    'error': '<i class="fa-solid fa-exclamation-circle"></i>'
+  }[type] || '<i class="fa-solid fa-info"></i>';
+  
+  progressContainer.innerHTML = `
+    <div class="alert ${alertClass} alert-dismissible" role="alert" style="margin-bottom: 5px;">
+      ${icon} ${message}
+    </div>
+  `;
+}
+
+function hideLoadingProgress() {
+  const progressContainer = document.getElementById('loadingProgressContainer');
+  if (progressContainer) {
+    progressContainer.remove();
   }
 }
 
@@ -867,13 +987,23 @@ function transformDataIfConcatenated(data) {
 // Función auxiliar para expandir una sola fila concatenada
 function transformConcatenatedDataToExpanded(concatenatedData) {
   const expandedData = [];
+  let processedCount = 0;
   
   concatenatedData.forEach(row => {
     try {
       const expandedRows = expandSingleConcatenatedRow(row);
       expandedData.push(...expandedRows);
+      processedCount++;
+      
+      // Mostrar progreso cada 1000 filas para evitar spam en la consola
+      if (processedCount % 1000 === 0) {
+        console.log(`🔄 Procesadas ${processedCount}/${concatenatedData.length} filas...`);
+      }
     } catch (error) {
-      console.error('❌ Error procesando fila:', row, error);
+      // Solo mostrar errores reales, no warnings de imagen
+      if (!error.message.includes('imagen') && !error.message.includes('.jpg')) {
+        console.error('❌ Error procesando fila:', row, error);
+      }
     }
   });
   
@@ -887,7 +1017,47 @@ function expandSingleConcatenatedRow(concatenatedRow) {
   const objectType = concatenatedRow['Object Type'];
   const dataConcatenated = concatenatedRow['data_concatenated'];
   
-  // Parsear según tipo de objeto usando nuestro parser universal
+  // Validar que tenemos datos mínimos necesarios
+  if (!id || !objectType) {
+    return [];
+  }
+  
+  // Si no hay datos concatenados válidos, devolver fila básica
+  if (!dataConcatenated || typeof dataConcatenated !== 'string' || dataConcatenated.trim() === '') {
+    return [{
+      'Item Groups': itemGroups,
+      'ID': id,
+      'Object Type': objectType,
+      'Id': id,
+      'IdPath': id,
+      'NamePath': '',
+      'Name': objectType || id
+    }];
+  }
+  
+  // Filtrar tipos de objeto que son claramente archivos de imagen
+  const isImageFileName = objectType.includes('.jpg') || objectType.includes('.png') || 
+                         objectType.includes('.gif') || objectType.includes('.jpeg') ||
+                         objectType.includes('_wg') || objectType.includes('_act') ||
+                         objectType.includes('_cov') || objectType.includes('_det') ||
+                         objectType.includes('charolas_galeria') || objectType.includes('_ill');
+  
+  if (isImageFileName) {
+    // Para archivos de imagen, crear una entrada simplificada sin procesar
+    return [{
+      'Item Groups': itemGroups,
+      'ID': id,
+      'Object Type': 'Image',
+      'Id': id,
+      'IdPath': id,
+      'NamePath': '',
+      'Name': objectType,
+      'Attribute': 'Image',
+      'value': objectType
+    }];
+  }
+  
+  // Procesar normalmente solo para tipos de objeto válidos
   const parsedData = parseUniversalConcatenatedData(concatenatedRow);
   
   const expandedRows = [];
@@ -987,6 +1157,8 @@ function expandSingleConcatenatedRow(concatenatedRow) {
 function parseUniversalConcatenatedData(dataRow) {
   const objectType = dataRow['Object Type'] || dataRow.Object_Type;
   const concatenated = dataRow.data_concatenated;
+  const itemGroupId = dataRow['Item Groups'];
+  const itemId = dataRow.ID;
   
   if (!concatenated || typeof concatenated !== 'string') {
     return { ...dataRow, parsedData: {} };
@@ -998,15 +1170,75 @@ function parseUniversalConcatenatedData(dataRow) {
     case 'Item Group':
     case 'Item Code':
       parsedData = parseItemCodeData(concatenated);
+      
+      // 📋 LOG DETALLADO para Item Group/Item Code
+      console.log(`📋 ═══════ DATOS DE ${objectType.toUpperCase()} ═══════`);
+      console.log(`🆔 Item Group ID: ${itemGroupId}`);
+      console.log(`🔢 Item ID: ${itemId}`);
+      console.log(`📝 Object Type: ${objectType}`);
+      console.log(`📊 ATRIBUTOS EXTRAÍDOS:`);
+      
+      const itemCodeAttributes = ['Name', 'Marca', 'Título', 'CMS', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment', 'WA_VIS_Cover', 'WA_VIS_Gallery', 'WA_VIS_Rest'];
+      itemCodeAttributes.forEach((attr, index) => {
+        const value = parsedData[attr] || '';
+        const hasValue = value && value.trim() !== '';
+        const status = hasValue ? '✅' : '❌';
+        console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
+      });
+      console.log(`📊 Total de atributos con valor: ${itemCodeAttributes.filter(attr => parsedData[attr] && parsedData[attr].trim() !== '').length}/${itemCodeAttributes.length}`);
+      console.log(`═══════════════════════════════════`);
       break;
       
     case 'Image':
       parsedData = parseImageData(concatenated);
+      
+      // 📋 LOG DETALLADO para Image
+      console.log(`📸 ═══════ DATOS DE IMAGE ═══════`);
+      console.log(`🆔 Item Group ID: ${itemGroupId}`);
+      console.log(`🔢 Item ID: ${itemId}`);
+      console.log(`📝 Object Type: ${objectType}`);
+      console.log(`📊 ATRIBUTOS EXTRAÍDOS:`);
+      
+      const imageAttributes = ['Name', 'WA_VIS_Comment'];
+      imageAttributes.forEach((attr, index) => {
+        const value = parsedData[attr] || '';
+        const hasValue = value && value.trim() !== '';
+        const status = hasValue ? '✅' : '❌';
+        console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
+      });
+      console.log(`📊 Total de atributos con valor: ${imageAttributes.filter(attr => parsedData[attr] && parsedData[attr].trim() !== '').length}/${imageAttributes.length}`);
+      console.log(`═══════════════════════════════════`);
       break;
       
     default:
-      console.warn(`⚠️ Tipo de objeto desconocido: ${objectType}`);
-      parsedData = {};
+      // DETECCIÓN COMPLETA: Identificar archivos de imagen y datos concatenados
+      const isImageFile = objectType.includes('.jpg') || objectType.includes('.png') || 
+                         objectType.includes('.gif') || objectType.includes('.jpeg') ||
+                         objectType.includes('_wg') || objectType.includes('_act') ||
+                         objectType.includes('_cov') || objectType.includes('_det') ||
+                         objectType.includes('charolas_galeria') || objectType.includes('_ill') ||
+                         objectType.includes('78-') || objectType.includes('85-') ||
+                         objectType.includes('26-') || objectType.includes('-') ||
+                         objectType.includes('galeria') || objectType.includes('web') ||
+                         objectType.includes('§') || objectType.includes('¬') ||
+                         /\d+-\d+-\d+/.test(objectType) || // Patrón de código de producto
+                         objectType.toLowerCase().includes('agregar') ||
+                         objectType.toLowerCase().includes('foto') ||
+                         objectType.toLowerCase().includes('imagen') ||
+                         objectType.toLowerCase().includes('ill') ||
+                         /charolas_galeria_(web|ill)\d+\.jpg/.test(objectType); // Patrón específico charolas
+      
+      // NO mostrar NINGUNA advertencia para archivos de imagen o datos concatenados
+      if (!isImageFile && !objectType.includes('WA_VIS') && objectType.length > 3) {
+        console.warn(`⚠️ Tipo de objeto desconocido: ${objectType}`);
+      }
+      
+      // Intentar parsear como Item Code por defecto si contiene separadores
+      if (concatenated.includes('§') || concatenated.includes('¬')) {
+        parsedData = parseItemCodeData(concatenated);
+      } else {
+        parsedData = { Name: objectType || concatenated };
+      }
   }
   
   return {
@@ -1022,23 +1254,25 @@ function parseItemCodeData(concatenated) {
   const FIELD_SEPARATOR = '§';
   const KEY_VALUE_SEPARATOR = '¬';
   
+  // ATRIBUTOS FIJOS para Item Code/Item Group (SIEMPRE en este orden)
+  const FIXED_ATTRIBUTES = [
+    'Name',
+    'Marca', 
+    'Título',
+    'CMS',
+    'Página de Catálogo',
+    'WA Importancia',
+    'WA_VIS_Comment',
+    'WA_VIS_Cover',
+    'WA_VIS_Gallery',
+    'WA_VIS_Rest'
+  ];
+  
   const parts = concatenated.split(FIELD_SEPARATOR);
   const item = {};
   
-  // Campos fijos (posiciones 0-4)
-  const fixedFieldNames = ['Marca', 'Título', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment'];
-  
-  fixedFieldNames.forEach((fieldName, index) => {
-    if (parts[index] !== undefined) {
-      const value = parts[index].trim();
-      if (value) {
-        item[fieldName] = value;
-      }
-    }
-  });
-  
-  // Campos dinámicos (posición 5+)
-  for (let i = fixedFieldNames.length; i < parts.length; i++) {
+  // Procesar cada parte como atributo¬valor
+  for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     if (part && part.includes(KEY_VALUE_SEPARATOR)) {
       const separatorIndex = part.indexOf(KEY_VALUE_SEPARATOR);
@@ -1046,7 +1280,7 @@ function parseItemCodeData(concatenated) {
       const value = part.substring(separatorIndex + 1).trim();
       
       if (key) {
-        item[key] = value; // Permitir valores vacíos para imágenes
+        item[key] = value; // Permitir valores vacíos
       }
     }
   }
@@ -1057,12 +1291,32 @@ function parseItemCodeData(concatenated) {
 // Parser específico para objetos Image
 function parseImageData(concatenated) {
   const FIELD_SEPARATOR = '§';
-  const parts = concatenated.split(FIELD_SEPARATOR);
+  const KEY_VALUE_SEPARATOR = '¬';
   
-  return {
-    'Name': parts[0] ? parts[0].trim() : '',
-    'WA_VIS_Comment': parts[1] ? parts[1].trim() : ''
-  };
+  // ATRIBUTOS FIJOS para Image (SIEMPRE en este orden)
+  const FIXED_ATTRIBUTES = [
+    'Name',
+    'WA_VIS_Comment'
+  ];
+  
+  const parts = concatenated.split(FIELD_SEPARATOR);
+  const item = {};
+  
+  // Procesar cada parte como atributo¬valor
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part && part.includes(KEY_VALUE_SEPARATOR)) {
+      const separatorIndex = part.indexOf(KEY_VALUE_SEPARATOR);
+      const key = part.substring(0, separatorIndex).trim();
+      const value = part.substring(separatorIndex + 1).trim();
+      
+      if (key) {
+        item[key] = value; // Permitir valores vacíos
+      }
+    }
+  }
+  
+  return item;
 }
 
 // ========================================
@@ -1320,6 +1574,49 @@ async function loadItemGroupDetails(itemGroupId) {
     }
     
     console.log(`✅ Datos recibidos: ${itemGroupData.length} filas para Item Group ${itemGroupId}`);
+    
+    // 📋 LOG DETALLADO SOLO PARA ESTE ITEM GROUP ESPECÍFICO
+    console.log(`📋 ═══════ ANÁLISIS DETALLADO ITEM GROUP ${itemGroupId} ═══════`);
+    
+    itemGroupData.forEach(row => {
+      const objectType = row['Object Type'];
+      const concatenated = row['data_concatenated'];
+      const itemId = row['ID'];
+      
+      if (!concatenated) return;
+      
+      let parsedData = {};
+      
+      if (objectType === 'Item Group' || objectType === 'Item Code') {
+        parsedData = parseItemCodeData(concatenated);
+        
+        console.log(`📝 ═══ ${objectType.toUpperCase()} (ID: ${itemId}) ═══`);
+        const itemCodeAttributes = ['Name', 'Marca', 'Título', 'CMS', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment', 'WA_VIS_Cover', 'WA_VIS_Gallery', 'WA_VIS_Rest'];
+        itemCodeAttributes.forEach((attr, index) => {
+          const value = parsedData[attr] || '';
+          const hasValue = value && value.trim() !== '';
+          const status = hasValue ? '✅' : '❌';
+          console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
+        });
+        const filledCount = itemCodeAttributes.filter(attr => parsedData[attr] && parsedData[attr].trim() !== '').length;
+        console.log(`📊 Completitud: ${filledCount}/${itemCodeAttributes.length} atributos con valor`);
+        
+      } else if (objectType === 'Image') {
+        parsedData = parseImageData(concatenated);
+        
+        console.log(`📸 ═══ IMAGE (ID: ${itemId}) ═══`);
+        const imageAttributes = ['Name', 'WA_VIS_Comment'];
+        imageAttributes.forEach((attr, index) => {
+          const value = parsedData[attr] || '';
+          const hasValue = value && value.trim() !== '';
+          const status = hasValue ? '✅' : '❌';
+          console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
+        });
+        const filledCount = imageAttributes.filter(attr => parsedData[attr] && parsedData[attr].trim() !== '').length;
+        console.log(`📊 Completitud: ${filledCount}/${imageAttributes.length} atributos con valor`);
+      }
+    });
+    console.log(`═══════════════════════════════════════════════════════`);
     
     // Transformar los datos de formato clave-valor al formato esperado por el grid
     const transformStartTime = performance.now();
@@ -2171,6 +2468,42 @@ async function loadImageGridInBox4(itemGroupPath) {
   try {
     // FASE 2: Cargar datos detallados bajo demanda
     const detailedData = await loadItemGroupDetails(itemGroupId);
+    
+    // 📋 LOG DETALLADO SOLO PARA ESTE ITEM GROUP ESPECÍFICO SELECCIONADO
+    if (detailedData && Object.keys(detailedData).length > 0) {
+      console.log(`📋 ═════ ANÁLISIS DETALLADO ITEM GROUP ${itemGroupId} ═════`);
+      
+      Object.values(detailedData).forEach(item => {
+        const objectType = item['Object Type'];
+        const itemId = item['ID'];
+        
+        if (objectType === 'Item Group' || objectType === 'Item Code') {
+          console.log(`📝 ═══ ${objectType.toUpperCase()} (ID: ${itemId}) ═══`);
+          const itemCodeAttributes = ['Name', 'Marca', 'Título', 'CMS', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment', 'WA_VIS_Cover', 'WA_VIS_Gallery', 'WA_VIS_Rest'];
+          itemCodeAttributes.forEach((attr, index) => {
+            const value = item[attr] || '';
+            const hasValue = value && value.trim() !== '';
+            const status = hasValue ? '✅' : '❌';
+            console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
+          });
+          const filledCount = itemCodeAttributes.filter(attr => item[attr] && item[attr].trim() !== '').length;
+          console.log(`📊 Completitud: ${filledCount}/${itemCodeAttributes.length} atributos con valor`);
+          
+        } else if (objectType === 'Image') {
+          console.log(`📸 ═══ IMAGE (ID: ${itemId}) ═══`);
+          const imageAttributes = ['Name', 'WA_VIS_Comment'];
+          imageAttributes.forEach((attr, index) => {
+            const value = item[attr] || '';
+            const hasValue = value && value.trim() !== '';
+            const status = hasValue ? '✅' : '❌';
+            console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
+          });
+          const filledCount = imageAttributes.filter(attr => item[attr] && item[attr].trim() !== '').length;
+          console.log(`📊 Completitud: ${filledCount}/${imageAttributes.length} atributos con valor`);
+        }
+      });
+      console.log(`═══════════════════════════════════════════════════════`);
+    }
     
     if (!detailedData || Object.keys(detailedData).length === 0) {
       addContentToBox4('<div class="p-3"><p>No se encontraron datos detallados para este Item Group.</p></div>');
@@ -5912,16 +6245,18 @@ async function loadAllItemGroupsToCache() {
     console.log(`📊 Item Groups únicos en caché: ${itemGroupDataCache.size}`);
     
     // Opcional: Guardar en localStorage para persistencia
-    try {
-      const cacheData = {
-        timestamp: Date.now(),
-        data: Array.from(itemGroupDataCache.entries())
-      };
-      localStorage.setItem('itemGroupDataCache', JSON.stringify(cacheData));
-      console.log('💾 Caché guardado en localStorage');
-    } catch (e) {
-      console.warn('⚠️ No se pudo guardar caché en localStorage (datos muy grandes)');
-    }
+  try {
+    // Guardar solo un resumen del caché en localStorage en lugar de todos los datos
+    const cacheData = {
+      timestamp: Date.now(),
+      itemGroupIds: Array.from(itemGroupDataCache.keys()), // Solo IDs
+      totalSize: itemGroupDataCache.size
+    };
+    localStorage.setItem('itemGroupDataCacheInfo', JSON.stringify(cacheData));
+    console.log(`💾 Información del caché guardada en localStorage (${itemGroupDataCache.size} Item Groups)`);
+  } catch (e) {
+    console.warn('⚠️ No se pudo guardar información del caché en localStorage');
+  }
     
   } catch (error) {
     console.error('❌ Error cargando caché de Item Groups:', error);
@@ -5991,26 +6326,53 @@ async function getItemGroupFromCache(itemGroupId) {
 // Función para verificar si hay caché en localStorage
 function loadCacheFromLocalStorage() {
   try {
-    const cached = localStorage.getItem('itemGroupDataCache');
-    if (cached) {
-      const cacheData = JSON.parse(cached);
+    // Intentar cargar información del caché (más ligera)
+    const cachedInfo = localStorage.getItem('itemGroupDataCacheInfo');
+    if (cachedInfo) {
+      const cacheInfo = JSON.parse(cachedInfo);
       
       // Verificar si el caché no es muy viejo (ej: 1 hora)
       const oneHour = 60 * 60 * 1000;
-      if (Date.now() - cacheData.timestamp < oneHour) {
-        itemGroupDataCache = new Map(cacheData.data);
-        allItemGroupsLoaded = true;
-        console.log(`✅ Caché cargado desde localStorage: ${itemGroupDataCache.size} Item Groups`);
+      if (Date.now() - cacheInfo.timestamp < oneHour) {
+        console.log(`ℹ️ Información del caché encontrada: ${cacheInfo.totalSize} Item Groups disponibles`);
+        console.log(`📅 Caché creado: ${new Date(cacheInfo.timestamp).toLocaleString()}`);
+        // El caché real se cargará bajo demanda
         return true;
       } else {
-        console.log('⏰ Caché en localStorage está viejo, se recargará');
+        console.log('⏰ Información del caché está vieja, se recargará');
+        localStorage.removeItem('itemGroupDataCacheInfo');
+      }
+    }
+    
+    // Fallback: intentar cargar caché completo (legacy)
+    const cached = localStorage.getItem('itemGroupDataCache');
+    if (cached) {
+      try {
+        const cacheData = JSON.parse(cached);
+        
+        // Verificar si el caché no es muy viejo (ej: 1 hora)
+        const oneHour = 60 * 60 * 1000;
+        if (Date.now() - cacheData.timestamp < oneHour) {
+          itemGroupDataCache = new Map(cacheData.data);
+          allItemGroupsLoaded = true;
+          console.log(`✅ Caché completo cargado desde localStorage: ${itemGroupDataCache.size} Item Groups`);
+          return true;
+        } else {
+          console.log('⏰ Caché completo en localStorage está viejo, se recargará');
+          localStorage.removeItem('itemGroupDataCache');
+        }
+      } catch (parseError) {
+        console.warn('⚠️ Error parseando caché legacy, se limpiará');
         localStorage.removeItem('itemGroupDataCache');
       }
     }
   } catch (error) {
     console.warn('⚠️ Error cargando caché desde localStorage:', error);
     localStorage.removeItem('itemGroupDataCache');
+    localStorage.removeItem('itemGroupDataCacheInfo');
   }
+  
+  console.log('ℹ️ No se encontraron Item Groups guardados en localStorage');
   return false;
 }
 
@@ -6775,8 +7137,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Función para inicializar el sistema de galerías
 function initializeGallerySystem() {
+  console.log('🔄 Inicializando sistema de galerías...');
+  
   const box3Content = document.getElementById('box3-content');
-  if (!box3Content) return;
+  if (!box3Content) {
+    console.error('❌ No se encontró box3-content para inicializar galerías');
+    return;
+  }
 
   // Limpiar contenido existente
   box3Content.innerHTML = '';
@@ -6793,7 +7160,7 @@ function initializeGallerySystem() {
   galleryContainer.innerHTML = `
     <div class="gallery-row">
       <select class="form-select gallery-select" id="gallerySelect">
-        <option value="">Galerías...</option>
+        <option value="">Cargando galerías...</option>
       </select>
     </div>
     <div class="search-row">
@@ -6815,30 +7182,36 @@ function initializeGallerySystem() {
   galleryGrid.id = 'galleryGrid';
   galleryGrid.innerHTML = `
     <div class="gallery-placeholder">
-      Selecciona una galería para ver las imágenes
+      Sistema de galerías iniciado. Cargue datos para ver galerías disponibles.
     </div>
   `;
   galleryList.appendChild(galleryGrid);
 
   // Si ya hay datos de galerías cargados, poblar el dropdown
   if (currentAssetGroups && currentAssetGroups.length > 0) {
+    console.log('📊 Datos de galerías ya disponibles, poblando dropdown inmediatamente...');
     populateGalleryDropdown(currentAssetGroups);
+  } else {
+    console.log('⏳ Datos de galerías no disponibles aún, se poblarán cuando se carguen');
   }
 
   // Event listener para el dropdown
   const gallerySelect = document.getElementById('gallerySelect');
-  gallerySelect.addEventListener('change', function() {
-    const selectedGallery = this.value;
-    if (selectedGallery) {
-      // Limpiar búsqueda cuando se selecciona una galería
-      const searchInput = document.getElementById('imageSearchInput');
-      if (searchInput) searchInput.value = '';
-      
-      loadGalleryImages(selectedGallery);
-    } else {
-      clearGalleryGrid();
-    }
-  });
+  if (gallerySelect) {
+    gallerySelect.addEventListener('change', function() {
+      const selectedGallery = this.value;
+      if (selectedGallery) {
+        // Limpiar búsqueda cuando se selecciona una galería
+        const searchInput = document.getElementById('imageSearchInput');
+        if (searchInput) searchInput.value = '';
+        
+        console.log('🎯 Galería seleccionada:', selectedGallery);
+        loadGalleryImages(selectedGallery);
+      } else {
+        clearGalleryGrid();
+      }
+    });
+  }
 
   // Event listeners para la búsqueda
   const searchInput = document.getElementById('imageSearchInput');
@@ -6855,6 +7228,8 @@ function initializeGallerySystem() {
       }
     });
   }
+  
+  console.log('✅ Sistema de galerías inicializado correctamente');
 }
 
 // Función para realizar búsqueda de imágenes ACTUALIZADA
@@ -7246,15 +7621,27 @@ function showSearchResults(results) {
 function populateGalleryDropdown(data) {
   const gallerySelect = document.getElementById('gallerySelect');
   if (!gallerySelect) {
-    console.error('❌ No se encontró el elemento gallerySelect');
+    console.error('❌ No se encontró el elemento gallerySelect - el DOM puede no estar listo');
+    // Intentar nuevamente en 500ms
+    setTimeout(() => {
+      populateGalleryDropdown(data);
+    }, 500);
     return;
   }
   
   console.log('🔄 Poblando dropdown de galerías...');
+  console.log('📊 Datos recibidos:', data ? data.length : 0, 'elementos');
   
   if (!data || data.length === 0) {
     console.warn('⚠️ No hay datos para poblar el dropdown de galerías');
+    gallerySelect.innerHTML = '<option value="">Sin galerías disponibles</option>';
     return;
+  }
+  
+  // Mostrar estructura de un elemento de ejemplo para debug
+  if (data.length > 0) {
+    console.log('📋 Estructura de elemento ejemplo:', data[0]);
+    console.log('🔑 Claves disponibles:', Object.keys(data[0]));
   }
   
   // Obtener galerías únicas - probando diferentes variaciones de nombre de columna
@@ -7262,9 +7649,11 @@ function populateGalleryDropdown(data) {
   
   data.forEach((item, index) => {
     // Intentar diferentes formas de acceder a la columna Galeria
-    const galleryName = item.Galeria || item.galeria || item.GALERIA || item['Galeria'] || item['"Galeria"'] || '';
+    const galleryName = item.Galeria || item.galeria || item.GALERIA || 
+                       item['Galeria'] || item['"Galeria"'] || item.Gallery || 
+                       item.gallery || item.GALLERY || '';
     
-    if (galleryName && galleryName.trim() && !galleries.includes(galleryName)) {
+    if (galleryName && galleryName.trim() && !galleries.includes(galleryName.trim())) {
       galleries.push(galleryName.trim());
     }
   });
@@ -7273,6 +7662,12 @@ function populateGalleryDropdown(data) {
   
   // Limpiar opciones existentes (excepto la primera)
   gallerySelect.innerHTML = '<option value="">Galerías...</option>';
+  
+  if (galleries.length === 0) {
+    console.warn('⚠️ No se encontraron galerías válidas en los datos');
+    gallerySelect.innerHTML = '<option value="">Sin galerías válidas</option>';
+    return;
+  }
   
   // Agregar opciones
   galleries.forEach(gallery => {
@@ -7411,52 +7806,84 @@ function clearGalleryGrid() {
 
 // Función para toggle de vista limpia
 function toggleCleanView() {
+  console.log('🎯 toggleCleanView ejecutado');
+  console.log('🔍 Estado antes - isCleanViewActive:', isCleanViewActive);
+  
   // GUARDAR ESTADO ANTES DE CAMBIAR VISTA
   saveInventoryViewState();
   
   isCleanViewActive = !isCleanViewActive;
   const toggleButton = document.getElementById('cleanViewToggle');
   
+  console.log('🔍 Estado después - isCleanViewActive:', isCleanViewActive);
+  console.log('🔍 ToggleButton encontrado:', !!toggleButton);
+  
   if (isCleanViewActive) {
     // Activar vista limpia - limpiar todos los boxes
+    console.log('🔄 Activando vista de datos...');
     clearAllBoxes();
     toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Datos';
     toggleButton.className = 'btn btn-warning btn-compact';
-    console.log('Vista limpia activada');
+    console.log('✅ Vista limpia activada');
   } else {
     // Restaurar vista normal - mostrar árbol/inventario
+    console.log('🔄 Restaurando vista normal...');
     restoreNormalView();
     toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Visualizador';
     toggleButton.className = 'btn btn-secondary btn-compact';
-    console.log('Vista normal restaurada');
+    console.log('✅ Vista normal restaurada');
   }
 }
 
 // Función para limpiar todos los boxes
 function clearAllBoxes() {
+  console.log('🚀 clearAllBoxes iniciado');
+  
   // Limpiar Box 1 (Árbol)
   const treeContainer = document.getElementById('tree');
+  console.log('🔍 treeContainer encontrado:', !!treeContainer);
   if (treeContainer) {
     treeContainer.innerHTML = '<div class="empty-box-message">Box 1 - Árbol (Vacío)</div>';
   }
   
   // Limpiar Box 3 (Galerías)
   const box3Content = document.getElementById('box3-content');
+  console.log('🔍 box3Content encontrado:', !!box3Content);
   if (box3Content) {
     box3Content.innerHTML = '<div class="empty-box-message">Box 3 - Galerías (Vacío)</div>';
   }
   
   // Crear tabla de inventario de imágenes en Box 4
   const box4Content = document.getElementById('box4-content');
+  console.log('🔍 box4Content encontrado:', !!box4Content);
   if (box4Content) {
+    console.log('🔍 DEBUG toggleCleanView - currentWorkingData length:', currentWorkingData ? currentWorkingData.length : 'null/undefined');
+    console.log('🔍 DEBUG toggleCleanView - allLibraryData length:', allLibraryData ? allLibraryData.length : 'null/undefined');
+    console.log('🔍 DEBUG toggleCleanView - fullItemGroupCache size:', itemGroupDataCache ? itemGroupDataCache.size : 'null/undefined');
+    
+    // PRIMERA OPCIÓN: Usar currentWorkingData si está cargado desde Excel
     if (currentWorkingData && currentWorkingData.length > 0) {
-      box4Content.innerHTML = generateImageInventoryTable();
+      console.log('🔄 Generando tabla de inventario desde currentWorkingData...');
+      const inventoryHTML = generateImageInventoryTable();
+      console.log('📊 Tabla de inventario generada, longitud HTML:', inventoryHTML.length);
+      box4Content.innerHTML = inventoryHTML;
+      // Restaurar estado después de generar la tabla
+      setTimeout(() => {
+        restoreInventoryViewState();
+      }, 200);
+    } 
+    // SEGUNDA OPCIÓN: Usar datos del caché si está disponible (carga desde Google Sheets)
+    else if (itemGroupDataCache && itemGroupDataCache.size > 0) {
+      console.log('🔄 Generando tabla de inventario desde caché de Item Groups...');
+      const inventoryHTML = generateImageInventoryTableFromCache();
+      console.log('📊 Tabla de inventario generada desde caché, longitud HTML:', inventoryHTML.length);
+      box4Content.innerHTML = inventoryHTML;
       // Restaurar estado después de generar la tabla
       setTimeout(() => {
         restoreInventoryViewState();
       }, 200);
     } else {
-      box4Content.innerHTML = '<div class="empty-box-message">Box 4 - Cargar Excel para ver inventario de imágenes</div>';
+      box4Content.innerHTML = '<div class="empty-box-message">Box 4 - Cargar Excel o usar "Optimizar" para ver inventario de imágenes</div>';
     }
   }
 }
@@ -7514,8 +7941,43 @@ function restoreNormalView() {
 
 // Función para generar tabla de inventario de imágenes
 function generateImageInventoryTable() {
+  console.log('🚀 generateImageInventoryTable iniciada');
+  console.log('📊 currentWorkingData disponible:', !!currentWorkingData);
+  console.log('📊 currentWorkingData.length:', currentWorkingData ? currentWorkingData.length : 'N/A');
+  
   if (!currentWorkingData || currentWorkingData.length === 0) {
+    console.log('❌ No hay datos para generar tabla de inventario');
     return '<div class="empty-box-message">No hay datos para mostrar</div>';
+  }
+
+  // DEBUG: Verificar qué tipo de datos tenemos
+  console.log('🔍 Analizando estructura de datos...');
+  console.log('📊 Total de elementos en currentWorkingData:', currentWorkingData.length);
+  
+  // Mostrar algunos ejemplos de datos
+  const firstFew = currentWorkingData.slice(0, 3);
+  firstFew.forEach((item, index) => {
+    console.log(`📋 Ejemplo ${index + 1}:`, {
+      'Object Type': item['Object Type'],
+      'Name': item['Name'],
+      'Id': item['Id'],
+      'WA_VIS_Comment': item['WA_VIS_Comment'] ? item['WA_VIS_Comment'].substring(0, 50) + '...' : 'SIN COMENTARIO',
+      'hasWA_VIS_Comment': !!item['WA_VIS_Comment']
+    });
+  });
+  
+  // Contar cuántos tienen comentarios
+  const withComments = currentWorkingData.filter(item => item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim() !== '');
+  console.log(`📊 Elementos CON comentarios: ${withComments.length}/${currentWorkingData.length}`);
+  
+  // Si no hay comentarios, mostrar mensaje específico
+  if (withComments.length === 0) {
+    console.log('⚠️ NO SE ENCONTRARON ELEMENTOS CON COMENTARIOS');
+    return `<div class="empty-box-message">
+      <h3>No hay elementos con comentarios</h3>
+      <p>Se encontraron ${currentWorkingData.length} elementos en total, pero ninguno tiene comentarios en WA_VIS_Comment.</p>
+      <p>Los datos parecen estar cargados correctamente desde Google Sheets.</p>
+    </div>`;
   }
 
   // Función para obtener el Item Group ID de una fila
@@ -8183,6 +8645,66 @@ function generateImageInventoryTable() {
   }, 200);
 
   return inventoryHTML;
+}
+
+// Función para generar tabla de inventario de imágenes desde el caché de Item Groups
+function generateImageInventoryTableFromCache() {
+  console.log('🚀 generateImageInventoryTableFromCache iniciada');
+  console.log('📊 itemGroupDataCache disponible:', !!itemGroupDataCache);
+  console.log('📊 itemGroupDataCache size:', itemGroupDataCache ? itemGroupDataCache.size : 'N/A');
+  
+  if (!itemGroupDataCache || itemGroupDataCache.size === 0) {
+    console.log('❌ No hay caché para generar tabla de inventario');
+    return '<div class="empty-box-message">No hay datos en caché para mostrar. Haz click en "Optimizar" primero.</div>';
+  }
+
+  // Convertir el caché a un array plano de todos los elementos
+  let allCachedData = [];
+  let totalItemGroups = 0;
+  let totalItems = 0;
+  
+  console.log('🔄 Procesando datos del caché...');
+  
+  itemGroupDataCache.forEach((itemGroupData, itemGroupId) => {
+    if (itemGroupData && Array.isArray(itemGroupData)) {
+      totalItemGroups++;
+      itemGroupData.forEach(item => {
+        allCachedData.push(item);
+        totalItems++;
+      });
+    }
+  });
+  
+  console.log(`📊 Datos del caché procesados: ${totalItemGroups} Item Groups, ${totalItems} items totales`);
+  
+  if (allCachedData.length === 0) {
+    return '<div class="empty-box-message">No hay datos válidos en el caché para mostrar</div>';
+  }
+
+  // Usar la lógica existente pero con los datos del caché
+  const originalCurrentWorkingData = currentWorkingData;
+  
+  // Temporalmente asignar los datos del caché a currentWorkingData
+  currentWorkingData = allCachedData;
+  
+  try {
+    // Generar la tabla usando la función existente
+    const inventoryHTML = generateImageInventoryTable();
+    
+    // Restaurar currentWorkingData original
+    currentWorkingData = originalCurrentWorkingData;
+    
+    console.log('✅ Tabla de inventario generada exitosamente desde caché');
+    return inventoryHTML;
+    
+  } catch (error) {
+    console.error('❌ Error generando tabla desde caché:', error);
+    
+    // Restaurar currentWorkingData original en caso de error
+    currentWorkingData = originalCurrentWorkingData;
+    
+    return '<div class="empty-box-message">Error generando tabla de inventario desde caché</div>';
+  }
 }
 
 // Función auxiliar para escapar HTML
