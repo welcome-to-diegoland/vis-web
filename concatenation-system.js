@@ -175,3 +175,150 @@ if (typeof module !== 'undefined' && module.exports) {
     FIXED_FIELDS
   };
 }
+
+// ========================================
+// PARSER EXTENDIDO PARA MULTIPLE OBJECT TYPES
+// ========================================
+
+/**
+ * Parser universal que maneja Item Group, Item Code e Image
+ * @param {Object} dataRow - Fila con {Item_Groups, ID, Object_Type, data_concatenated}
+ * @returns {Object} - Objeto parseado según el tipo
+ */
+function parseUniversalConcatenatedData(dataRow) {
+  const objectType = dataRow['Object Type'] || dataRow.Object_Type;
+  const concatenated = dataRow.data_concatenated;
+  
+  if (!concatenated || typeof concatenated !== 'string') {
+    return { ...dataRow, parsedData: {} };
+  }
+  
+  let parsedData = {};
+  
+  switch (objectType) {
+    case 'Item Group':
+    case 'Item Code':
+      parsedData = parseItemCodeData(concatenated);
+      break;
+      
+    case 'Image':
+      parsedData = parseImageData(concatenated);
+      break;
+      
+    default:
+      console.warn(`⚠️ Tipo de objeto desconocido: ${objectType}`);
+      parsedData = {};
+  }
+  
+  return {
+    'Item Groups': dataRow['Item Groups'] || dataRow.Item_Groups,
+    'ID': dataRow.ID,
+    'Object Type': objectType,
+    ...parsedData
+  };
+}
+
+/**
+ * Parser para Item Group/Item Code (lógica actual)
+ * @param {String} concatenated - Datos concatenados
+ * @returns {Object} - Objeto parseado
+ */
+function parseItemCodeData(concatenated) {
+  const parts = concatenated.split(FIELD_SEPARATOR);
+  const item = {};
+  
+  // 1. Campos fijos (posiciones 0-4)
+  const fixedFieldNames = ['Marca', 'Título', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment'];
+  
+  fixedFieldNames.forEach((fieldName, index) => {
+    if (parts[index] !== undefined) {
+      const value = parts[index].trim();
+      if (value) {
+        item[fieldName] = value;
+      }
+    }
+  });
+  
+  // 2. Campos dinámicos (posición 5+)
+  for (let i = fixedFieldNames.length; i < parts.length; i++) {
+    const part = parts[i];
+    if (part && part.includes(KEY_VALUE_SEPARATOR)) {
+      const separatorIndex = part.indexOf(KEY_VALUE_SEPARATOR);
+      const key = part.substring(0, separatorIndex).trim();
+      const value = part.substring(separatorIndex + 1).trim();
+      
+      if (key) {
+        item[key] = value; // Permitir valores vacíos para imágenes
+      }
+    }
+  }
+  
+  return item;
+}
+
+/**
+ * Parser específico para objetos Image
+ * @param {String} concatenated - Datos concatenados (Name§WA_VIS_Comment)
+ * @returns {Object} - Objeto parseado
+ */
+function parseImageData(concatenated) {
+  const parts = concatenated.split(FIELD_SEPARATOR);
+  
+  return {
+    'Name': parts[0] ? parts[0].trim() : '',
+    'WA_VIS_Comment': parts[1] ? parts[1].trim() : ''
+  };
+}
+
+/**
+ * Función de prueba para todos los tipos de objetos
+ */
+function testUniversalParser() {
+  console.log('🧪 Probando parser universal...');
+  
+  // Datos de prueba basados en tus ejemplos reales
+  const testData = [
+    {
+      'Item Groups': '34948',
+      'ID': '34948',
+      'Object Type': 'Item Group',
+      'data_concatenated': 'TTC§Brocas con Hélice Rápida Acero A.V.§19§§§WA_VIS_Cover¬§WA_VIS_Gallery¬01-004-002.jpg§WA_VIS_Rest¬'
+    },
+    {
+      'Item Groups': '34948',
+      'ID': '1583',
+      'Object Type': 'Item Code',
+      'data_concatenated': 'TTC§Broca Recta 1/32" Hélice Rápida TTC§19§A§§WA_VIS_Cover¬brocas_act8.jpg§WA_VIS_Gallery¬01-004-002.jpg, 01-004-002_act1.jpg, brocas_act19.jpg, brocas_act22.jpg§WA_VIS_Rest¬'
+    },
+    {
+      'Item Groups': '14416, 14440, 14449',
+      'ID': '39773',
+      'Object Type': 'Image',
+      'data_concatenated': '53-088-600.jpg§Bodegón | aGREGAR BODEGON DONDE VENGAN TODOS LOS TAMAÑOS COMO EN EL BLOQUE DE CATALOGO'
+    },
+    {
+      'Item Groups': '7584, 7586, 7591, 7593, 7599, 7601, 7604, 7610, 7633, 34145',
+      'ID': '38305',
+      'Object Type': 'Image',
+      'data_concatenated': '10-315-016.jpg§Agregar IMG adicional | se dejan imagenes adicionales en carpeta'
+    }
+  ];
+  
+  testData.forEach((row, index) => {
+    console.log(`\n--- Test ${index + 1}: ${row['Object Type']} ---`);
+    console.log('Original:', row);
+    
+    const parsed = parseUniversalConcatenatedData(row);
+    console.log('Parseado:', parsed);
+    
+    // Validar según tipo
+    if (row['Object Type'] === 'Item Group' || row['Object Type'] === 'Item Code') {
+      console.log('✅ Campos encontrados:', Object.keys(parsed).filter(k => !['Item Groups', 'ID', 'Object Type'].includes(k)));
+    } else if (row['Object Type'] === 'Image') {
+      console.log('✅ Name:', parsed.Name);
+      console.log('✅ WA_VIS_Comment:', parsed.WA_VIS_Comment);
+    }
+  });
+  
+  console.log('\n🎉 Prueba del parser universal completada');
+}

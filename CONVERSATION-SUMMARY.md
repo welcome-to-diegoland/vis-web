@@ -37,24 +37,45 @@ Format propuesto: [Item Groups, ID, data_concatenated]
 ## 🔧 SISTEMA DE CONCATENACIÓN DISEÑADO
 
 ### Separadores elegidos:
-- `§` para separar campos principales
+- `§` para separar campos principales  
 - `¬` para separar clave¬valor en dinámicos
 
-### Campos fijos (sin nombre):
+### **NUEVO: Soporte para 3 tipos de objetos**
+
+#### **1. Item Group/Item Code:**
+**Campos fijos (posiciones 0-4):**
 1. Marca (posición 0)
 2. Título (posición 1) 
 3. Página de Catálogo (posición 2)
 4. WA Importancia (posición 3)
-5. CMS (posición 4)
+5. WA_VIS_Comment (posición 4)
 
-### Campos dinámicos (con nombre):
+**Campos dinámicos (con nombre):**
 - WA_VIS_Cover¬imagen.jpg
 - WA_VIS_Gallery¬img1.jpg,img2.jpg
 - WA_VIS_Rest¬img3.jpg
 
-### Ejemplo de formato:
+**Ejemplo:**
 ```
-AKUMA§Inserto Romboidal§239§A§01.02.03§WA_VIS_Cover¬tornos_web_1.jpg§WA_VIS_Gallery¬22-800-067.jpg,tornos_web_2.jpg
+TTC§Broca Recta 1/32" Hélice Rápida TTC§19§A§§WA_VIS_Cover¬brocas_act8.jpg§WA_VIS_Gallery¬01-004-002.jpg, brocas_act22.jpg§WA_VIS_Rest¬
+```
+
+#### **2. Image:**
+**Campos fijos (solo 2 campos):**
+1. Name (posición 0)
+2. WA_VIS_Comment (posición 1)
+
+**Ejemplo:**
+```
+53-088-600.jpg§Bodegón | aGREGAR BODEGON DONDE VENGAN TODOS LOS TAMAÑOS COMO EN EL BLOQUE DE CATALOGO
+```
+
+### Estructura final de datos:
+```csv
+Item Groups,ID,Object Type,data_concatenated
+34948,34948,Item Group,"TTC§Brocas con Hélice Rápida..."
+34948,1583,Item Code,"TTC§Broca Recta 1/32..."
+14416,39773,Image,"53-088-600.jpg§Bodegón | aGREGAR..."
 ```
 
 ## 📊 MEJORAS ESPERADAS
@@ -86,15 +107,19 @@ AKUMA§Inserto Romboidal§239§A§01.02.03§WA_VIS_Cover¬tornos_web_1.jpg§WA_V
 ## 🛠️ ARCHIVOS CREADOS
 
 ### En repositorio:
-- `concatenation-system.js`: Sistema de concatenación completo
+- `concatenation-system.js`: Sistema de concatenación completo + Parser universal
 - `performance-test.js`: Simulador de mejoras
 - `cache-system.js`: Sistema de caché optimizado  
-- `test-concatenation.html`: Pruebas del sistema
+- `test-concatenation.html`: Pruebas del sistema original
+- `test-universal-parser.html`: **NUEVO** - Pruebas del parser universal
 - `function-replacement.js`: Función optimizada con caché
 
 ### Funciones principales:
 - `createConcatenatedData()`: Crear datos concatenados
 - `parseConcatenatedData()`: Parsear datos concatenados  
+- `parseUniversalConcatenatedData()`: **NUEVO** - Parser para Item Group/Item Code/Image
+- `parseItemCodeData()`: **NUEVO** - Parser específico para Item Code/Item Group
+- `parseImageData()`: **NUEVO** - Parser específico para objetos Image
 - `loadAllItemGroupsToCache()`: Cargar caché completo
 - `getItemGroupFromCache()`: Acceso rápido a caché
 - `optimizeCache()`: Interface de optimización
@@ -123,8 +148,49 @@ const FIXED_FIELDS = ['Marca', 'Título', 'Página de Catálogo', 'WA Importanci
 ## 🎯 ESTADO ACTUAL
 - ✅ Sistema base funcionando
 - ✅ Caché implementado y operativo
-- 🔄 Optimización de concatenación diseñada
+- ✅ Optimización de concatenación diseñada
+- ✅ **NUEVO**: Parser universal para 3 tipos de objetos implementado
+- ✅ **NUEVO**: Validación de mapeo completada con datos reales
 - ⏳ Pendiente: Implementación en Pentaho
+
+## 📋 **VALIDACIÓN DE MAPEO COMPLETADA** ✅
+
+### **Datos reales procesados correctamente:**
+
+**Item Group (ID: 34948):**
+```
+✅ Marca: TTC
+✅ Título: Brocas con Hélice Rápida Acero A.V.
+✅ Página Catálogo: 19
+✅ WA_VIS_Gallery: 01-004-002.jpg
+```
+
+**Item Code (ID: 1583):**
+```
+✅ Marca: TTC  
+✅ Título: Broca Recta 1/32" Hélice Rápida TTC
+✅ Página Catálogo: 19
+✅ WA Importancia: A
+✅ WA_VIS_Cover: brocas_act8.jpg
+✅ WA_VIS_Gallery: 01-004-002.jpg, 01-004-002_act1.jpg, brocas_act19.jpg, brocas_act22.jpg
+```
+
+**Image (ID: 39773):**
+```
+✅ Name: 53-088-600.jpg
+✅ WA_VIS_Comment: Bodegón | aGREGAR BODEGON DONDE VENGAN TODOS LOS TAMAÑOS...
+```
+
+**Image (ID: 38305):**
+```
+✅ Name: 10-315-016.jpg
+✅ WA_VIS_Comment: Agregar IMG adicional | se dejan imagenes adicionales en carpeta
+```
+
+### **Próximo paso:** 
+Implementar en Pentaho con la lógica:
+- `Object_Type = 'Item_Group'|'Item_Code'` → Usar lógica de campos fijos + dinámicos
+- `Object_Type = 'Image'` → Usar lógica simple `Name§WA_VIS_Comment`
 
 ## 📞 CONTACTO TÉCNICO
 - **Repositorio**: vis-web (welcome-to-diegoland)

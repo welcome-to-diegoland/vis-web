@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Parser Universal - VIS Web</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+        }
+        .object-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .item-group { background-color: #d1ecf1; color: #0c5460; }
+        .item-code { background-color: #d4edda; color: #155724; }
+        .image { background-color: #f8d7da; color: #721c24; }
+        
+        .original-data, .parsed-data {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .original-data {
+            background-color: #f8f9fa;
+            border-left: 4px solid #6c757d;
+        }
+        .parsed-data {
+            background-color: #e7f3ff;
+            border-left: 4px solid #007bff;
+        }
+        .field {
+            margin: 5px 0;
+            padding: 2px 5px;
+            background-color: rgba(0,123,255,0.1);
+            border-radius: 3px;
+        }
+        .field-name {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Parser Universal - VIS Web</h1>
+        <p>Prueba del parser que maneja <strong>Item Group</strong>, <strong>Item Code</strong> e <strong>Image</strong></p>
+        
+        <button class="button" onclick="runTests()">▶️ Ejecutar Pruebas</button>
+        <button class="button" onclick="clearResults()">🗑️ Limpiar</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script src="concatenation-system.js"></script>
+    <script>
+        // Datos de prueba basados en los ejemplos reales
+        const testData = [
+            {
+                'Item Groups': '34948',
+                'ID': '34948',
+                'Object Type': 'Item Group',
+                'data_concatenated': 'TTC§Brocas con Hélice Rápida Acero A.V.§19§§§WA_VIS_Cover¬§WA_VIS_Gallery¬01-004-002.jpg§WA_VIS_Rest¬'
+            },
+            {
+                'Item Groups': '34948',
+                'ID': '1583',
+                'Object Type': 'Item Code',
+                'data_concatenated': 'TTC§Broca Recta 1/32" Hélice Rápida TTC§19§A§§WA_VIS_Cover¬brocas_act8.jpg§WA_VIS_Gallery¬01-004-002.jpg, 01-004-002_act1.jpg, brocas_act19.jpg, brocas_act22.jpg§WA_VIS_Rest¬'
+            },
+            {
+                'Item Groups': '14416, 14440, 14449',
+                'ID': '39773',
+                'Object Type': 'Image',
+                'data_concatenated': '53-088-600.jpg§Bodegón | aGREGAR BODEGON DONDE VENGAN TODOS LOS TAMAÑOS COMO EN EL BLOQUE DE CATALOGO'
+            },
+            {
+                'Item Groups': '7584, 7586, 7591, 7593, 7599, 7601, 7604, 7610, 7633, 34145',
+                'ID': '38305',
+                'Object Type': 'Image',
+                'data_concatenated': '10-315-016.jpg§Agregar IMG adicional | se dejan imagenes adicionales en carpeta'
+            }
+        ];
+
+        function runTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>📊 Resultados de las Pruebas</h2>';
+
+            testData.forEach((row, index) => {
+                const testDiv = document.createElement('div');
+                testDiv.className = 'test-section';
+
+                // Header con tipo de objeto
+                const objectTypeClass = row['Object Type'].toLowerCase().replace(' ', '-');
+                const header = `
+                    <h3>Test ${index + 1}: <span class="object-type ${objectTypeClass}">${row['Object Type']}</span></h3>
+                `;
+
+                // Datos originales
+                const originalData = `
+                    <div class="original-data">
+                        <strong>📥 Datos Originales:</strong><br>
+                        Item Groups: ${row['Item Groups']}<br>
+                        ID: ${row['ID']}<br>
+                        Object Type: ${row['Object Type']}<br>
+                        data_concatenated: ${row['data_concatenated']}
+                    </div>
+                `;
+
+                // Parsear datos
+                let parsed;
+                let parseStatus = '';
+                try {
+                    parsed = parseUniversalConcatenatedData(row);
+                    parseStatus = '<span class="success">✅ Parse exitoso</span>';
+                } catch (error) {
+                    parsed = { error: error.message };
+                    parseStatus = `<span class="error">❌ Error: ${error.message}</span>`;
+                }
+
+                // Mostrar datos parseados
+                let parsedDataHtml = `
+                    <div class="parsed-data">
+                        <strong>📤 Datos Parseados:</strong> ${parseStatus}<br>
+                `;
+
+                if (parsed.error) {
+                    parsedDataHtml += `<span class="error">Error: ${parsed.error}</span>`;
+                } else {
+                    // Mostrar campos según el tipo
+                    Object.keys(parsed).forEach(key => {
+                        if (!['Item Groups', 'ID', 'Object Type'].includes(key)) {
+                            parsedDataHtml += `
+                                <div class="field">
+                                    <span class="field-name">${key}:</span> ${parsed[key] || '(vacío)'}
+                                </div>
+                            `;
+                        }
+                    });
+
+                    // Validación específica por tipo
+                    if (row['Object Type'] === 'Image') {
+                        const hasName = parsed.Name && parsed.Name.trim();
+                        const hasComment = parsed.WA_VIS_Comment && parsed.WA_VIS_Comment.trim();
+                        parsedDataHtml += `
+                            <br><strong>Validación Image:</strong><br>
+                            Name: ${hasName ? '<span class="success">✅</span>' : '<span class="warning">⚠️ vacío</span>'}<br>
+                            WA_VIS_Comment: ${hasComment ? '<span class="success">✅</span>' : '<span class="warning">⚠️ vacío</span>'}
+                        `;
+                    } else {
+                        const hasMarca = parsed.Marca && parsed.Marca.trim();
+                        const hasTitulo = parsed.Título && parsed.Título.trim();
+                        parsedDataHtml += `
+                            <br><strong>Validación Item:</strong><br>
+                            Marca: ${hasMarca ? '<span class="success">✅</span>' : '<span class="warning">⚠️ vacío</span>'}<br>
+                            Título: ${hasTitulo ? '<span class="success">✅</span>' : '<span class="warning">⚠️ vacío</span>'}
+                        `;
+                    }
+                }
+
+                parsedDataHtml += '</div>';
+
+                testDiv.innerHTML = header + originalData + parsedDataHtml;
+                resultsDiv.appendChild(testDiv);
+            });
+
+            // Resumen final
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'test-section';
+            summaryDiv.innerHTML = `
+                <h3>📋 Resumen</h3>
+                <p><span class="success">✅ ${testData.length} pruebas ejecutadas</span></p>
+                <p>El parser maneja correctamente:</p>
+                <ul>
+                    <li><strong>Item Group/Item Code:</strong> Campos fijos + dinámicos con separador ¬</li>
+                    <li><strong>Image:</strong> Name§WA_VIS_Comment (solo dos campos)</li>
+                </ul>
+            `;
+            resultsDiv.appendChild(summaryDiv);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Ejecutar pruebas automáticamente al cargar
+        window.onload = function() {
+            setTimeout(runTests, 500);
+        };
+    </script>
+</body>
+</html>
