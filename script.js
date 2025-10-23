@@ -686,6 +686,14 @@ async function loadFromGoogleSheets() {
       
       if (assetGroupsData && assetGroupsData.length > 0) {
         currentAssetGroups = assetGroupsData;
+        console.log('✅ asset_groups cargado con éxito');
+        console.log('📊 Cantidad de elementos en asset_groups:', assetGroupsData.length);
+        console.log('📊 Primer elemento de asset_groups:', assetGroupsData[0]);
+        console.log('📊 Headers/Keys disponibles:', Object.keys(assetGroupsData[0] || {}));
+        
+        // IMPORTANTE: Poblar el dropdown AHORA que ya tenemos los datos
+        console.log('🔄 Poblando dropdown de galerías con datos recién cargados...');
+        populateGalleryDropdown(currentAssetGroups);
       }
     } catch (assetGroupsError) {
       console.warn('⚠️ No se pudo cargar asset_groups:', assetGroupsError.message);
@@ -1262,10 +1270,17 @@ function reinitializeBoxContents() {
   initializeGallerySystem();
   
   // Si hay datos de galerías, poblar el dropdown
+  console.log('🔄 reinitializeBoxContents - verificando currentAssetGroups...');
+  console.log('📊 currentAssetGroups disponible:', !!currentAssetGroups);
+  console.log('📊 currentAssetGroups.length:', currentAssetGroups ? currentAssetGroups.length : 'undefined');
+  
   if (currentAssetGroups && currentAssetGroups.length > 0) {
+    console.log('✅ Llamando populateGalleryDropdown con timeout desde reinitializeBoxContents...');
     setTimeout(() => {
       populateGalleryDropdown(currentAssetGroups);
     }, 100);
+  } else {
+    console.warn('⚠️ No hay currentAssetGroups para poblar el dropdown (se poblará cuando se carguen los asset_groups)');
   }
   
   // Limpiar Box 4
@@ -6488,14 +6503,30 @@ function populateGalleryDropdown(data) {
   }
   
   console.log('🔄 Poblando dropdown de galerías...');
+  console.log('📊 Datos recibidos:', data);
+  console.log('📊 Cantidad de elementos:', data ? data.length : 'undefined');
+  console.log('📊 Primer elemento:', data && data.length > 0 ? data[0] : 'sin datos');
+  console.log('📊 Keys del primer elemento:', data && data.length > 0 ? Object.keys(data[0]) : 'sin keys');
+  
+  if (!data || data.length === 0) {
+    console.warn('⚠️ No hay datos para poblar el dropdown de galerías');
+    return;
+  }
   
   // Obtener galerías únicas - probando diferentes variaciones de nombre de columna
   const galleries = [];
   
-  data.forEach(item => {
-    const galleryName = item.Galeria || item.galeria || item.GALERIA || item['Galeria'] || '';
+  data.forEach((item, index) => {
+    console.log(`🔍 Procesando item ${index}:`, item);
+    
+    // Intentar diferentes formas de acceder a la columna Galeria
+    const galleryName = item.Galeria || item.galeria || item.GALERIA || item['Galeria'] || item['"Galeria"'] || '';
+    
+    console.log(`🎯 Item ${index} - Galeria extraída: "${galleryName}"`);
+    
     if (galleryName && galleryName.trim() && !galleries.includes(galleryName)) {
       galleries.push(galleryName.trim());
+      console.log(`✅ Galería agregada: "${galleryName.trim()}"`);
     }
   });
   
