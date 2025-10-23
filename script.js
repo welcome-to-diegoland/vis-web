@@ -2324,10 +2324,8 @@ function generateEmptyImageCell() {
   `;
 }
 
-// Función para actualizar los indicadores de múltiples imágenes
+// Función optimizada para actualizar los indicadores de múltiples imágenes
 function updateMultipleImagesIndicators() {
-  console.log('🔄 Actualizando indicadores de múltiples imágenes...');
-  
   // Buscar todas las filas en las secciones COV y REST
   const covRows = document.querySelectorAll('.cov-wrapper .table-row');
   const restRows = document.querySelectorAll('.rest-wrapper .table-row');
@@ -4554,7 +4552,7 @@ function handleImageSelection(event, imageCell, imageThumbnail) {
   updateWorkingImagePlaceholder();
 }
 
-// Función para manejar la asignación de imagen (Cmd+Click en Mac / Ctrl+Click en Windows)
+// Función optimizada para manejar la asignación de imagen (Cmd+Click en Mac / Ctrl+Click en Windows)
 function handleImageAssignment(event, imageCell) {
   event.preventDefault();
   
@@ -4564,9 +4562,6 @@ function handleImageAssignment(event, imageCell) {
   const targetSection = imageCell.getAttribute('data-section');
   const targetRowIndex = parseInt(imageCell.getAttribute('data-row-index'));
   const targetColIndex = parseInt(imageCell.getAttribute('data-col-index'));
-  
-  console.log('Cmd+Click en celda:', {targetItemCode, targetSection, targetRowIndex, targetColIndex});
-  console.log('Imagen de trabajo actual:', workingImage);
   
   // CASO 1: No hay imagen de trabajo - quitar imagen existente
   if (!workingImage) {
@@ -4637,8 +4632,8 @@ function handleImageRemoval(event, imageCell, imageThumbnail) {
     }
   }
   
-  // Actualizar sincronización
-  updateCurrentWorkingDataWithGridState();
+  // Actualizar sincronización (con debouncing)
+  updateCurrentWorkingDataWithGridState(100);
 }
 
 // Función para configurar el event listener del botón de basura del Item Group
@@ -4864,23 +4859,23 @@ function handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIn
     moveImageToRest(imageName, targetItemCode, targetRowIndex, targetColIndex, targetSection);
     // Marcar Item Group como modificado automáticamente
     markItemGroupAsModified();
-    // Actualizar currentWorkingData
-    updateCurrentWorkingDataWithGridState();
+    // Actualizar currentWorkingData (con debouncing)
+    updateCurrentWorkingDataWithGridState(100);
   } else {
     // Si es de diferente Item Code, solo quitar
     console.log('Quitando imagen de diferente Item Code');
     removeImageFromGrid(targetRowIndex, targetColIndex, targetSection);
     // Marcar Item Group como modificado automáticamente
     markItemGroupAsModified();
-    // Actualizar currentWorkingData
-    updateCurrentWorkingDataWithGridState();
+    // Actualizar currentWorkingData (con debouncing)
+    updateCurrentWorkingDataWithGridState(100);
   }
   
   // Recorrer imágenes hacia la izquierda para llenar el espacio vacío
   shiftImagesLeft(targetRowIndex, targetColIndex, targetSection);
 }
 
-// Función para asignar la imagen de trabajo
+// Función optimizada para asignar la imagen de trabajo
 function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIndex, targetColIndex) {
   // Verificar si la imagen ya existe en este Item Code (misma fila)
   const existingPosition = findImageInItemCode(workingImage.imageName, targetItemCode);
@@ -4891,7 +4886,6 @@ function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIn
         existingPosition.col === targetColIndex && 
         existingPosition.section === targetSection)) {
     
-    console.log('Imagen duplicada encontrada en diferente posición, quitando de posición original...');
     // Quitar de posición original con compactación automática
     const itemCode = imageCell.getAttribute('data-item-code');
     removeImageFromGrid(existingPosition.row, existingPosition.col, existingPosition.section, true);
@@ -4900,7 +4894,6 @@ function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIn
              existingPosition.col === targetColIndex && 
              existingPosition.section === targetSection) {
     
-    console.log('🔄 Imagen ya está en esta posición, no se hace nada');
     return; // No hacer nada si es la misma posición
   }
   
@@ -4910,129 +4903,74 @@ function handleAssignImage(imageCell, targetItemCode, targetSection, targetRowIn
   // Marcar Item Group como modificado automáticamente
   markItemGroupAsModified();
   
-  console.log('Imagen asignada exitosamente');
-  
-  // Actualizar currentWorkingData con el nuevo estado
-  updateCurrentWorkingDataWithGridState();
+  // Actualizar currentWorkingData con el nuevo estado (con debouncing)
+  updateCurrentWorkingDataWithGridState(50);
   
   // Actualizar indicadores de múltiples imágenes
   updateMultipleImagesIndicators();
 }
 
-// Función para actualizar currentWorkingData con el estado actual de las imágenes
-function updateCurrentWorkingDataWithGridState() {
-  console.log('🔄 DEBUG updateCurrentWorkingDataWithGridState iniciando...');
+// Variable para debouncing de updateCurrentWorkingDataWithGridState
+let updateGridStateTimeout = null;
+
+// Función optimizada para actualizar currentWorkingData con el estado actual de las imágenes
+function updateCurrentWorkingDataWithGridState(debounceMs = 100) {
+  // Debouncing para evitar múltiples llamadas consecutivas
+  if (updateGridStateTimeout) {
+    clearTimeout(updateGridStateTimeout);
+  }
   
-  if (!currentWorkingData) {
-    console.log('❌ currentWorkingData no existe');
+  updateGridStateTimeout = setTimeout(() => {
+    updateCurrentWorkingDataWithGridStateImmediate();
+  }, debounceMs);
+}
+
+// Función inmediata optimizada (sin debouncing)
+function updateCurrentWorkingDataWithGridStateImmediate() {
+  if (!currentWorkingData || !currentItemGroup) {
     return;
   }
   
-  if (!currentItemGroup) {
-    console.log('❌ currentItemGroup no existe');
-    return;
-  }
-  
-  console.log('🔄 Actualizando currentWorkingData con cambios de imágenes...');
-  console.log('📋 currentItemGroup:', currentItemGroup.Name, 'NamePath:', currentItemGroup.NamePath);
-  
-  // Encontrar todos los Item Codes del Item Group actual
+  // Encontrar todos los Item Codes del Item Group actual (cached)
   const itemCodesInGroup = currentWorkingData.filter(row => 
     row['Object Type'] === 'Item Code' && 
     row.NamePath && 
     row.NamePath.startsWith(currentItemGroup.NamePath + '/')
   );
   
-  console.log(`📋 Item Codes en el grupo: ${itemCodesInGroup.length}`, itemCodesInGroup.map(r => r.Name));
+  // Configuración de secciones (cached)
+  const sections = {
+    'cov': { prefix: 'WA_Cover_Image_', count: 5 },
+    'gallery': { prefix: 'WA_Gallery_', count: 22 },
+    'rest': { prefix: 'WA_Rest_', count: 25 }
+  };
   
   // Para cada Item Code, leer las imágenes de la grilla y actualizar currentWorkingData
   itemCodesInGroup.forEach(itemCodeRow => {
     const itemCode = itemCodeRow['Item Code'] || itemCodeRow.Name;
-    console.log(`🔍 Procesando Item Code: ${itemCode}`);
     
-    // DEBUG: Mostrar qué datos tiene actualmente este Item Code
-    const imageColumns = Object.keys(itemCodeRow).filter(key => 
-      key.includes('WA_Cover') || key.includes('WA_Gallery') || key.includes('WA_Rest')
-    ).filter(key => itemCodeRow[key]);
-    console.log(`🔍 DEBUG: ${itemCode} tiene imágenes en:`, imageColumns);
-    imageColumns.forEach(col => {
-      console.log(`🔍 DEBUG: ${itemCode}.${col} = "${itemCodeRow[col]}"`);
+    // Procesar cada sección
+    Object.keys(sections).forEach(section => {
+      // Buscar las celdas de imagen para esta sección y este item code
+      const imageCells = document.querySelectorAll(`.image-cell[data-item-code="${itemCode}"][data-section="${section}"]`);
+      
+      if (imageCells.length > 0) {
+        imageCells.forEach((cell, index) => {
+          const img = cell.querySelector('.image-thumbnail');
+          const imageName = img && !img.src.includes('data:image/svg+xml') 
+            ? img.alt || '' 
+            : '';
+          
+          // Actualizar en currentWorkingData usando los nombres correctos
+          const columnName = `${sections[section].prefix}${String(index + 1).padStart(2, '0')}`;
+          
+          if (itemCodeRow[columnName] !== undefined) {
+            itemCodeRow[columnName] = imageName;
+          }
+        });
+      }
     });
-    
-    // Buscar la fila del Item Code en la grilla (la fila completa, no solo la celda del nombre)
-    let itemCodeGridRow = document.querySelector(`.table-row:has([data-item-code="${itemCode}"])`);
-    
-    // Fallback si :has() no está soportado
-    if (!itemCodeGridRow) {
-      const allRows = document.querySelectorAll('.table-row');
-      itemCodeGridRow = Array.from(allRows).find(row => 
-        row.querySelector(`[data-item-code="${itemCode}"]`)
-      );
-    }
-    
-    if (itemCodeGridRow) {
-      console.log(`✅ Fila encontrada en grilla para: ${itemCode}`);
-      console.log(`🔍 DEBUG: HTML de la fila:`, itemCodeGridRow.outerHTML.substring(0, 200) + '...');
-      
-      // CORRECCIÓN: Buscar las celdas de imagen por data-item-code, no dentro de la fila del item code
-      const allImageCellsForItem = document.querySelectorAll(`.image-cell[data-item-code="${itemCode}"]`);
-      console.log(`🔍 DEBUG: Total celdas de imagen para ${itemCode}:`, allImageCellsForItem.length);
-      
-      // Leer las imágenes de cada sección con los nombres correctos de columnas
-      const sections = {
-        'cov': { prefix: 'WA_Cover_Image_', count: 5 },
-        'gallery': { prefix: 'WA_Gallery_', count: 22 },
-        'rest': { prefix: 'WA_Rest_', count: 25 }
-      };
-      
-      console.log(`🔍 DEBUG: Sections a procesar para ${itemCode}:`, Object.keys(sections));
-      
-      Object.keys(sections).forEach(section => {
-        // Buscar las celdas de imagen para esta sección y este item code
-        const selector = `.image-cell[data-item-code="${itemCode}"][data-section="${section}"]`;
-        console.log(`🔍 DEBUG: Buscando con selector: "${selector}"`);
-        const imageCells = document.querySelectorAll(selector);
-        console.log(`🔍 DEBUG: Section ${section} encontrada: ${imageCells.length} celdas`);
-        
-        if (imageCells.length > 0) {
-          imageCells.forEach((cell, index) => {
-            const img = cell.querySelector('.image-thumbnail');
-            const imageName = img && !img.src.includes('data:image/svg+xml') 
-              ? img.alt || '' 
-              : '';
-            
-            // Actualizar en currentWorkingData usando los nombres correctos
-            const columnName = `${sections[section].prefix}${String(index + 1).padStart(2, '0')}`;
-            const oldValue = itemCodeRow[columnName];
-            
-            // Log detallado para debug
-            console.log(`🔍 ${itemCode}.${columnName}: Grilla="${imageName}" | CurrentData="${oldValue}"`);
-            
-            if (itemCodeRow[columnName] !== undefined) {
-              itemCodeRow[columnName] = imageName;
-              
-              if (oldValue !== imageName) {
-                console.log(`📝 CAMBIO DETECTADO ${itemCode}.${columnName}: "${oldValue}" → "${imageName}"`);
-              }
-            } else {
-              console.log(`⚠️ Columna no encontrada: ${columnName} en ${itemCode}`);
-              if (index === 0) {
-                console.log(`📋 Columnas disponibles en ${itemCode}:`, Object.keys(itemCodeRow).filter(key => key.includes('WA_')));
-              }
-            }
-          });
-        } else {
-          console.log(`❌ No se encontraron celdas para sección ${section} en ${itemCode}`);
-        }
-      });
-      
-      console.log(`✅ Actualizado Item Code: ${itemCode} con imágenes actuales`);
-    } else {
-      console.log(`❌ No se encontró fila en grilla para: ${itemCode}`);
-    }
   });
-  
-  console.log('✅ updateCurrentWorkingDataWithGridState completado');
 }
 
 // Función para manejar eliminación masiva de imágenes (botón basura)
