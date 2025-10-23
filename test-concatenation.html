@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Concatenación</title>
+</head>
+<body>
+    <h1>Prueba del Sistema de Concatenación</h1>
+    <div id="results"></div>
+    
+    <script src="concatenation-system.js"></script>
+    <script>
+        // Ejecutar prueba
+        const results = testConcatenationSystem();
+        
+        // Mostrar resultados
+        document.getElementById('results').innerHTML = `
+            <h2>Resultados:</h2>
+            <h3>Original:</h3>
+            <pre>${JSON.stringify(results.original, null, 2)}</pre>
+            
+            <h3>Concatenado:</h3>
+            <p><strong>${results.concatenated}</strong></p>
+            <p>Tamaño: ${results.concatenated.length} caracteres</p>
+            
+            <h3>Parseado:</h3>
+            <pre>${JSON.stringify(results.parsed, null, 2)}</pre>
+            
+            <h3>Integridad:</h3>
+            <p style="color: ${results.isIntact ? 'green' : 'red'}">
+                ${results.isIntact ? '✅ PERFECTA' : '❌ FALLÓ'}
+            </p>
+        `;
+    </script>
+</body>
+</html>

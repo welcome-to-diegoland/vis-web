@@ -524,6 +524,9 @@ document.addEventListener('DOMContentLoaded', function() {
   console.clear();
   localStorage.clear();
   
+  // Inicializar sistema de caché de Item Groups
+  loadCacheFromLocalStorage();
+  
   setupDragAndDrop();
   
   // Inicializar sistema de usuarios
@@ -929,7 +932,23 @@ function processCategoryData(categoryData) {
 
 // Función para cargar datos de un Item Group específico (MÉTODO OPTIMIZADO + FALLBACK)
 async function loadItemGroupFromDatabase(itemGroupId) {
+  const totalStartTime = performance.now();
+  
   try {
+    console.log(`🚀 Obteniendo Item Group ${itemGroupId} del caché...`);
+    
+    // MÉTODO CACHÉ: Verificar si ya tenemos el caché cargado
+    if (allItemGroupsLoaded && itemGroupDataCache.has(itemGroupId)) {
+      const cachedData = itemGroupDataCache.get(itemGroupId);
+      const totalTime = performance.now() - totalStartTime;
+      console.log(`✅ Datos obtenidos del caché en ${totalTime.toFixed(2)}ms`);
+      console.log(`📊 Filas obtenidas del caché: ${cachedData.length}`);
+      return cachedData;
+    }
+    
+    // Si no hay caché, usar método directo
+    console.log(`⚠️ Caché no disponible, usando método directo...`);
+    
     // MÉTODO DIRECTO: Intentar primero el filtrado en Apps Script (más rápido)
     console.log(`� Intentando método directo para Item Group ${itemGroupId}...`);
     
@@ -938,6 +957,7 @@ async function loadItemGroupFromDatabase(itemGroupId) {
     try {
       console.log(`🔗 Llamando a Apps Script (método directo): ${directUrl}`);
       
+      const fetchStartTime = performance.now();
       const directResponse = await fetch(directUrl, {
         method: 'GET',
         cache: 'no-cache',
@@ -946,14 +966,19 @@ async function loadItemGroupFromDatabase(itemGroupId) {
         },
         timeout: 10000  // Timeout más corto para método directo
       });
+      const fetchEndTime = performance.now();
+      console.log(`⏱️ Tiempo de FETCH (directo): ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
       
       if (directResponse.ok) {
+        const parseStartTime = performance.now();
         const directData = await directResponse.text();
         console.log(`✅ Método directo exitoso, parseando datos...`);
         console.log(`📏 Tamaño de datos (directo): ${directData.length} caracteres`);
         
         const parsedDirectData = parseCSVToObjects(directData, 'data');
+        const parseEndTime = performance.now();
         console.log(`📊 Filas cargadas (método directo): ${parsedDirectData.length}`);
+        console.log(`⏱️ Tiempo de PARSING CSV: ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
         
         return parsedDirectData;
       }
@@ -1028,6 +1053,8 @@ async function loadItemGroupFromDatabase(itemGroupId) {
 
 // Función para cargar detalles de un Item Group específico (FASE 2: Carga bajo demanda)
 async function loadItemGroupDetails(itemGroupId) {
+  const processStartTime = performance.now();
+  
   if (!itemGroupId) {
     throw new Error('ID de Item Group requerido');
   }
@@ -1036,7 +1063,10 @@ async function loadItemGroupDetails(itemGroupId) {
     console.log(`🔄 Cargando datos para Item Group ID: ${itemGroupId} desde nuevo Apps Script...`);
     
     // Llamar al NUEVO Apps Script que filtra por Item Group ID
+    const loadStartTime = performance.now();
     const itemGroupData = await loadItemGroupFromDatabase(itemGroupId);
+    const loadEndTime = performance.now();
+    console.log(`⏱️ TIEMPO TOTAL de loadItemGroupFromDatabase: ${(loadEndTime - loadStartTime).toFixed(2)}ms`);
     
     if (!itemGroupData || itemGroupData.length === 0) {
       console.warn(`⚠️ No se encontraron datos para Item Group: ${itemGroupId}`);
@@ -1046,7 +1076,13 @@ async function loadItemGroupDetails(itemGroupId) {
     console.log(`✅ Datos recibidos: ${itemGroupData.length} filas para Item Group ${itemGroupId}`);
     
     // Transformar los datos de formato clave-valor al formato esperado por el grid
+    const transformStartTime = performance.now();
     const transformedData = transformKeyValueData(itemGroupData);
+    const transformEndTime = performance.now();
+    console.log(`⏱️ TIEMPO de transformKeyValueData: ${(transformEndTime - transformStartTime).toFixed(2)}ms`);
+    
+    const processEndTime = performance.now();
+    console.log(`🎯 TIEMPO TOTAL DE TODO EL PROCESO: ${(processEndTime - processStartTime).toFixed(2)}ms`);
     
     return transformedData;
     
@@ -5607,6 +5643,176 @@ function loadFromLocalStorage() {
     console.error('❌ Error cargando desde localStorage:', error);
     return false;
   }
+}
+
+// ===== SISTEMA DE CACHÉ PARA ITEM GROUPS =====
+let itemGroupDataCache = new Map(); // Cache en memoria para Item Groups
+let allItemGroupsLoaded = false; // Flag para saber si ya cargamos todo
+
+// Función para cargar TODOS los Item Groups una sola vez y cachearlos
+let loadingCache = false; // Flag para evitar cargas múltiples
+async function loadAllItemGroupsToCache() {
+  if (allItemGroupsLoaded) {
+    console.log('✅ Todos los Item Groups ya están en caché');
+    return;
+  }
+  
+  if (loadingCache) {
+    console.log('⏳ Ya se está cargando el caché, esperando...');
+    return;
+  }
+  
+  loadingCache = true;
+  
+  try {
+    console.log('🔄 Cargando TODOS los Item Groups en caché (una sola vez)...');
+    const cacheStartTime = performance.now();
+    
+    // Cargar toda la data sheet
+    const dataSheetUrl = `${GOOGLE_SHEETS_CONFIG.DATA_PROXY_URL}?sheet=data&format=csv&timestamp=${Date.now()}`;
+    
+    const response = await fetch(dataSheetUrl, {
+      method: 'GET',
+      cache: 'no-cache',
+      headers: {
+        'Accept': 'text/csv,text/plain,application/json,*/*'
+      },
+      timeout: 60000 // Timeout más largo para carga completa
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const responseText = await response.text();
+    const parsedData = parseCSVToObjects(responseText, 'data');
+    
+    console.log(`📊 Total de filas cargadas para caché: ${parsedData.length}`);
+    
+    // Agrupar por Item Group ID
+    const itemGroupMap = new Map();
+    
+    for (const row of parsedData) {
+      const itemGroups = String(row['Item Groups'] || '');
+      const itemGroupIds = itemGroups.split(',').map(id => id.trim()).filter(id => id);
+      
+      for (const itemGroupId of itemGroupIds) {
+        if (!itemGroupMap.has(itemGroupId)) {
+          itemGroupMap.set(itemGroupId, []);
+        }
+        itemGroupMap.get(itemGroupId).push(row);
+      }
+    }
+    
+    // Guardar en caché
+    itemGroupDataCache = itemGroupMap;
+    allItemGroupsLoaded = true;
+    
+    const cacheEndTime = performance.now();
+    console.log(`✅ Caché completo creado en ${(cacheEndTime - cacheStartTime).toFixed(2)}ms`);
+    console.log(`📊 Item Groups únicos en caché: ${itemGroupDataCache.size}`);
+    
+    // Opcional: Guardar en localStorage para persistencia
+    try {
+      const cacheData = {
+        timestamp: Date.now(),
+        data: Array.from(itemGroupDataCache.entries())
+      };
+      localStorage.setItem('itemGroupDataCache', JSON.stringify(cacheData));
+      console.log('💾 Caché guardado en localStorage');
+    } catch (e) {
+      console.warn('⚠️ No se pudo guardar caché en localStorage (datos muy grandes)');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error cargando caché de Item Groups:', error);
+    throw error;
+  } finally {
+    loadingCache = false;
+  }
+}
+
+// Función para optimizar caché con feedback visual
+async function optimizeCache() {
+  const btn = document.getElementById('loadCacheBtn');
+  if (!btn) return;
+  
+  const originalHTML = btn.innerHTML;
+  
+  try {
+    // Cambiar botón a estado de carga
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Optimizando...';
+    
+    await loadAllItemGroupsToCache();
+    
+    // Mostrar éxito
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> ¡Optimizado!';
+    btn.className = 'btn btn-success btn-compact';
+    
+    // Restaurar después de 3 segundos
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }, 3000);
+    
+  } catch (error) {
+    console.error('Error optimizando caché:', error);
+    
+    // Mostrar error
+    btn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Error';
+    btn.className = 'btn btn-danger btn-compact';
+    
+    // Restaurar después de 3 segundos
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+      btn.className = 'btn btn-success btn-compact';
+    }, 3000);
+  }
+}
+
+// Función para obtener un Item Group del caché (súper rápida)
+async function getItemGroupFromCache(itemGroupId) {
+  // Si no está cargado el caché, cargarlo primero
+  if (!allItemGroupsLoaded) {
+    await loadAllItemGroupsToCache();
+  }
+  
+  const cachedData = itemGroupDataCache.get(itemGroupId);
+  if (!cachedData) {
+    console.warn(`⚠️ Item Group ${itemGroupId} no encontrado en caché`);
+    return [];
+  }
+  
+  console.log(`✅ Item Group ${itemGroupId} obtenido del caché: ${cachedData.length} filas`);
+  return cachedData;
+}
+
+// Función para verificar si hay caché en localStorage
+function loadCacheFromLocalStorage() {
+  try {
+    const cached = localStorage.getItem('itemGroupDataCache');
+    if (cached) {
+      const cacheData = JSON.parse(cached);
+      
+      // Verificar si el caché no es muy viejo (ej: 1 hora)
+      const oneHour = 60 * 60 * 1000;
+      if (Date.now() - cacheData.timestamp < oneHour) {
+        itemGroupDataCache = new Map(cacheData.data);
+        allItemGroupsLoaded = true;
+        console.log(`✅ Caché cargado desde localStorage: ${itemGroupDataCache.size} Item Groups`);
+        return true;
+      } else {
+        console.log('⏰ Caché en localStorage está viejo, se recargará');
+        localStorage.removeItem('itemGroupDataCache');
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Error cargando caché desde localStorage:', error);
+    localStorage.removeItem('itemGroupDataCache');
+  }
+  return false;
 }
 
 // Función para sincronizar todos los cambios hechos en la interfaz de vuelta a currentWorkingData
