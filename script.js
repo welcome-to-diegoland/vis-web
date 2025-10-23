@@ -6845,19 +6845,236 @@ function initializeGallerySystem() {
   const searchButton = document.getElementById('imageSearchButton');
   
   if (searchButton) {
-    searchButton.addEventListener('click', performImageSearch);
+    searchButton.addEventListener('click', performImageSearchNew);
   }
   
   if (searchInput) {
     searchInput.addEventListener('keypress', function(event) {
       if (event.key === 'Enter') {
-        performImageSearch();
+        performImageSearchNew();
       }
     });
   }
 }
 
-// Función para realizar búsqueda de imágenes
+// Función para realizar búsqueda de imágenes ACTUALIZADA
+function performImageSearchNew() {
+  const searchInput = document.getElementById('imageSearchInput');
+  const gallerySelect = document.getElementById('gallerySelect');
+  
+  if (!searchInput) return;
+  
+  const searchTerm = searchInput.value.trim();
+  
+  if (!searchTerm) {
+    clearGalleryGrid();
+    return;
+  }
+  
+  // Limpiar selección de galería cuando se busca
+  if (gallerySelect) {
+    gallerySelect.value = '';
+  }
+  
+  console.log('🔍 Iniciando búsqueda ACTUALIZADA para:', searchTerm);
+  
+  // Array para almacenar todos los resultados
+  let allResults = [];
+  
+  // 1. BÚSQUEDA EN ASSETS (funcionalidad original - si existe)
+  if (currentAssetComments && currentAssetComments.length > 0) {
+    console.log('🔍 Buscando en Assets:', currentAssetComments.length, 'registros');
+    
+    const assetResults = currentAssetComments.filter(asset => {
+      const imageName = asset.Name || '';
+      return imageName.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+    
+    console.log('📸 Resultados en Assets:', assetResults.length, 'imágenes encontradas');
+    allResults = [...assetResults];
+  } else {
+    console.log('⚠️ No hay datos de Assets cargados');
+  }
+  
+  // 2. NUEVA BÚSQUEDA EN DATOS ACTUALES (allLibraryData + currentWorkingData)
+  console.log('🔍 Buscando en datos actuales...');
+  
+  // A. Buscar objetos Image directos que contengan el término
+  if (allLibraryData && allLibraryData.length > 0) {
+    const directImageMatches = allLibraryData.filter(item => {
+      if (item['Object Type'] === 'Image') {
+        const imageName = item.Name || '';
+        return imageName.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      return false;
+    });
+    
+    console.log('🖼️ Objetos Image directos encontrados:', directImageMatches.length);
+    
+    directImageMatches.forEach(imageItem => {
+      allResults.push({
+        Name: imageItem.Name,
+        ID: imageItem.Id || imageItem.ID,
+        Source: 'DirectImage',
+        ObjectType: 'Image'
+      });
+    });
+    
+    // B. Buscar Item Codes que contengan el término
+    const itemCodeMatches = allLibraryData.filter(item => {
+      if (item['Object Type'] === 'Item Code') {
+        const itemName = item.Name || '';
+        return itemName.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      return false;
+    });
+    
+    console.log('📦 Item Codes que contienen el término:', itemCodeMatches.length);
+    
+    // Para cada Item Code, buscar sus imágenes en el caché de Item Groups
+    for (const itemCode of itemCodeMatches) {
+      const itemCodeId = itemCode.Id || itemCode.ID;
+      console.log(`🔍 Buscando imágenes para Item Code: ${itemCode.Name} (ID: ${itemCodeId})`);
+      
+      // Buscar en el caché de Item Groups si está disponible
+      if (itemGroupDataCache && itemGroupDataCache.size > 0) {
+        let foundImages = false;
+        
+        // Revisar todos los Item Groups en caché
+        for (const [groupId, groupData] of itemGroupDataCache) {
+          // Buscar si este Item Code está en este grupo
+          const itemCodeInGroup = groupData.find(row => 
+            (row.ID === itemCodeId || row.Id === itemCodeId) && 
+            row['Object Type'] === 'Item Code'
+          );
+          
+          if (itemCodeInGroup) {
+            console.log(`✅ Item Code ${itemCode.Name} encontrado en grupo ${groupId}`);
+            
+            // Transformar los datos para obtener las columnas de imagen
+            const transformedData = transformKeyValueData(groupData);
+            const transformedItemCode = transformedData[itemCodeId];
+            
+            if (transformedItemCode) {
+              // Extraer todas las imágenes de este Item Code
+              const imageColumns = [
+                'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
+                'WA_Gallery_01', 'WA_Gallery_02', 'WA_Gallery_03', 'WA_Gallery_04', 'WA_Gallery_05',
+                'WA_Gallery_06', 'WA_Gallery_07', 'WA_Gallery_08', 'WA_Gallery_09', 'WA_Gallery_10',
+                'WA_Gallery_11', 'WA_Gallery_12', 'WA_Gallery_13', 'WA_Gallery_14', 'WA_Gallery_15',
+                'WA_Gallery_16', 'WA_Gallery_17', 'WA_Gallery_18', 'WA_Gallery_19', 'WA_Gallery_20',
+                'WA_Gallery_21', 'WA_Gallery_22', 'WA_Gallery_23', 'WA_Gallery_24', 'WA_Gallery_25',
+                'WA_Rest_01', 'WA_Rest_02', 'WA_Rest_03', 'WA_Rest_04', 'WA_Rest_05',
+                'WA_Rest_06', 'WA_Rest_07', 'WA_Rest_08', 'WA_Rest_09', 'WA_Rest_10',
+                'WA_Rest_11', 'WA_Rest_12', 'WA_Rest_13', 'WA_Rest_14', 'WA_Rest_15',
+                'WA_Rest_16', 'WA_Rest_17', 'WA_Rest_18', 'WA_Rest_19', 'WA_Rest_20',
+                'WA_Rest_21', 'WA_Rest_22', 'WA_Rest_23', 'WA_Rest_24', 'WA_Rest_25'
+              ];
+              
+              imageColumns.forEach(column => {
+                const imageName = transformedItemCode[column];
+                if (imageName && imageName.trim() !== '') {
+                  allResults.push({
+                    Name: imageName.trim(),
+                    ID: itemCodeId,
+                    Source: 'ItemCodeCached',
+                    ItemCodeName: itemCode.Name,
+                    ItemGroupId: groupId,
+                    ObjectType: 'Item Code Image'
+                  });
+                  foundImages = true;
+                }
+              });
+            }
+            break; // Salir del loop una vez encontrado
+          }
+        }
+        
+        if (!foundImages) {
+          // Si no se encontraron imágenes en caché, agregar el Item Code como referencia
+          allResults.push({
+            Name: itemCode.Name,
+            ID: itemCodeId,
+            Source: 'ItemCodeMatch',
+            ObjectType: 'Item Code',
+            Note: 'Sin imágenes en caché - seleccionar Item Group para cargar'
+          });
+        }
+      } else {
+        // Si no hay caché, agregar el Item Code como referencia
+        allResults.push({
+          Name: itemCode.Name,
+          ID: itemCodeId,
+          Source: 'ItemCodeMatch',
+          ObjectType: 'Item Code',
+          Note: 'Cargar caché con "Optimizar" para ver imágenes'
+        });
+      }
+    }
+  }
+  
+  // C. BÚSQUEDA DIRECTA POR NOMBRE DE IMAGEN en datos transformados (currentWorkingData)
+  if (currentWorkingData && currentWorkingData.length > 0) {
+    console.log('🔍 Búsqueda directa por nombre de imagen en datos transformados...');
+    
+    const imageColumns = [
+      'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
+      'WA_Gallery_01', 'WA_Gallery_02', 'WA_Gallery_03', 'WA_Gallery_04', 'WA_Gallery_05',
+      'WA_Gallery_06', 'WA_Gallery_07', 'WA_Gallery_08', 'WA_Gallery_09', 'WA_Gallery_10',
+      'WA_Gallery_11', 'WA_Gallery_12', 'WA_Gallery_13', 'WA_Gallery_14', 'WA_Gallery_15',
+      'WA_Gallery_16', 'WA_Gallery_17', 'WA_Gallery_18', 'WA_Gallery_19', 'WA_Gallery_20',
+      'WA_Gallery_21', 'WA_Gallery_22', 'WA_Gallery_23', 'WA_Gallery_24', 'WA_Gallery_25',
+      'WA_Rest_01', 'WA_Rest_02', 'WA_Rest_03', 'WA_Rest_04', 'WA_Rest_05',
+      'WA_Rest_06', 'WA_Rest_07', 'WA_Rest_08', 'WA_Rest_09', 'WA_Rest_10',
+      'WA_Rest_11', 'WA_Rest_12', 'WA_Rest_13', 'WA_Rest_14', 'WA_Rest_15',
+      'WA_Rest_16', 'WA_Rest_17', 'WA_Rest_18', 'WA_Rest_19', 'WA_Rest_20',
+      'WA_Rest_21', 'WA_Rest_22', 'WA_Rest_23', 'WA_Rest_24', 'WA_Rest_25'
+    ];
+    
+    currentWorkingData.forEach(item => {
+      imageColumns.forEach(column => {
+        const imageName = item[column];
+        if (imageName && imageName.trim() !== '' && 
+            imageName.toLowerCase().includes(searchTerm.toLowerCase())) {
+          
+          allResults.push({
+            Name: imageName.trim(),
+            ID: item.Id || item.ID,
+            Source: 'TransformedData',
+            ParentName: item.Name,
+            ObjectType: item['Object Type']
+          });
+        }
+      });
+    });
+  }
+  
+  // 3. DEDUPLICACIÓN - Eliminar imágenes repetidas por nombre
+  const uniqueResults = [];
+  const seenImages = new Set();
+  
+  allResults.forEach(result => {
+    const identifier = result.Name.toLowerCase() + '_' + (result.Source || 'unknown');
+    if (!seenImages.has(identifier)) {
+      seenImages.add(identifier);
+      uniqueResults.push(result);
+    }
+  });
+  
+  console.log('✨ Resultados finales después de deduplicación:', uniqueResults.length, 'elementos únicos');
+  console.log('📊 Fuentes encontradas:', {
+    Assets: allResults.filter(r => !r.Source).length,
+    DirectImage: allResults.filter(r => r.Source === 'DirectImage').length,
+    ItemCodeMatch: allResults.filter(r => r.Source === 'ItemCodeMatch').length,
+    ItemCodeCached: allResults.filter(r => r.Source === 'ItemCodeCached').length,
+    TransformedData: allResults.filter(r => r.Source === 'TransformedData').length
+  });
+  
+  // Mostrar resultados
+  showSearchResults(uniqueResults);
+}
+
+// Función para realizar búsqueda de imágenes (ORIGINAL - mantener como backup)
 function performImageSearch() {
   const searchInput = document.getElementById('imageSearchInput');
   const gallerySelect = document.getElementById('gallerySelect');
@@ -6982,22 +7199,45 @@ function showSearchResults(results) {
       Imagen: asset.Name
     };
     
-    // Si viene de Library, agregar información adicional como metadatos
+    // Agregar información adicional según la fuente
     if (asset.Source === 'Library') {
       result.LibrarySource = true;
       result.LibraryItem = asset.LibraryItem;
+      result.ObjectType = asset.ObjectType;
+    } else if (asset.Source === 'DirectImage') {
+      result.DirectImageSource = true;
+      result.ObjectType = asset.ObjectType;
+    } else if (asset.Source === 'ItemCodeMatch') {
+      result.ItemCodeMatchSource = true;
+      result.ObjectType = asset.ObjectType;
+      result.Note = asset.Note;
+    } else if (asset.Source === 'ItemCodeCached') {
+      result.ItemCodeCachedSource = true;
+      result.ItemCodeName = asset.ItemCodeName;
+      result.ItemGroupId = asset.ItemGroupId;
+      result.ObjectType = asset.ObjectType;
+    } else if (asset.Source === 'TransformedData') {
+      result.TransformedDataSource = true;
+      result.ParentName = asset.ParentName;
       result.ObjectType = asset.ObjectType;
     }
     
     return result;
   });
   
-  console.log('🎨 Renderizando', formattedResults.length, 'resultados de búsqueda (Assets + Library)');
+  console.log('🎨 Renderizando', formattedResults.length, 'resultados de búsqueda ACTUALIZADOS');
   
-  // Mostrar estadísticas de la búsqueda
-  const assetCount = results.filter(r => !r.Source).length;
-  const libraryCount = results.filter(r => r.Source === 'Library').length;
-  console.log(`📊 Estadísticas: ${assetCount} de Assets, ${libraryCount} de Library`);
+  // Mostrar estadísticas detalladas de la búsqueda
+  const sourceStats = {
+    Assets: results.filter(r => !r.Source).length,
+    DirectImage: results.filter(r => r.Source === 'DirectImage').length,
+    ItemCodeMatch: results.filter(r => r.Source === 'ItemCodeMatch').length,
+    ItemCodeCached: results.filter(r => r.Source === 'ItemCodeCached').length,
+    TransformedData: results.filter(r => r.Source === 'TransformedData').length,
+    Library: results.filter(r => r.Source === 'Library').length
+  };
+  
+  console.log('📊 Estadísticas de fuentes:', sourceStats);
   
   renderGalleryGrid(formattedResults);
 }
