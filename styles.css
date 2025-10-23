@@ -2717,6 +2717,27 @@ html, body {
   content: "🆔";
 }
 
+/* Estilos para el link del ID del Item Group */
+.group-id-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border-radius: 3px;
+  padding: 2px 4px;
+}
+
+.group-id-link:hover {
+  color: #0056b3;
+  background-color: rgba(0, 123, 255, 0.1);
+  text-decoration: underline;
+  transform: translateY(-1px);
+}
+
+.group-id-link:active {
+  transform: translateY(0);
+}
+
 .group-cms::before {
   content: "💾";
 }

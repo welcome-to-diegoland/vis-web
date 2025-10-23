@@ -2363,7 +2363,13 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
               <div class="group-meta">
                 <span class="group-brand">${itemGroup ? (itemGroup['Marca'] || 'Sin marca') : ''}</span>
                 <span class="group-page">${itemGroup ? (itemGroup['Página de Catálogo'] || itemGroup['Catalog Page'] || 'Sin página') : ''}</span>
-                <span class="group-id">${itemGroup ? (itemGroup['Id'] || itemGroup['ID'] || 'Sin ID') : ''}</span>
+                <span class="group-id">
+                  ${itemGroup ? (
+                    itemGroup['Id'] || itemGroup['ID'] ? 
+                      `<a href="https://www.travers.com.mx/${itemGroup['Id'] || itemGroup['ID']}" target="_blank" class="group-id-link" title="Ver en Travers.com.mx">${itemGroup['Id'] || itemGroup['ID']}</a>` 
+                      : 'Sin ID'
+                  ) : ''}
+                </span>
                 <span class="group-cms">${itemGroup ? (itemGroup['CMS'] || 'Sin CMS') : ''}</span>
                 <span class="group-items">${itemCodes.length} items</span>
               </div>
