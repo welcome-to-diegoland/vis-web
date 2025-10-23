@@ -35,22 +35,27 @@ const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNHLEg0
 
 // Configuración para Google Sheets - Apps Script Proxy (sin problemas CORS)
 const GOOGLE_SHEETS_CONFIG = {
-  // URL del Apps Script proxy que maneja CORS
+  // URL del Apps Script proxy que maneja CORS - DOCUMENTO 1 (existente)
   PROXY_URL: 'https://script.google.com/macros/s/AKfycbyxT3rhTcHPPipuyTZ149Dt3wggz0NuD1iQnz8ChZpTrM3dPI57F0mhEyMwdZUWmY0H/exec',
   
-  // FASE 1: Carga inicial ligera - Árbol de categorías
+  // URL del Apps Script proxy para DOCUMENTO 2 (nuevo) - Base de datos
+  DATA_PROXY_URL: 'https://script.google.com/macros/s/AKfycbzzML3WRHcxtS1LILmuCWBNIU3PDSH0m6861HhGH7X5JOZRs9EjT8WtYqUVPFLvhJluZg/exec',
+  
+  // FASE 1: Carga inicial ligera - Árbol de categorías (DOCUMENTO 1)
   CATEGORY_SHEET: {
     SPREADSHEET_ID: '1TU51Xxx50DX5dc_aM9X2xguGBYV_Lsaswztv7WOmoyw',
     SHEET_NAME: 'category',
     COLUMNS: ['NamePath', 'Name', 'IdPath', 'Id', 'ObjectTypeName', 'Item Group', 'CMS', 'Vis_color', 'filtro_color']
   },
-  // FASE 2: Carga bajo demanda - Datos detallados de Asset Groups
+  
+  // FASE 2: Carga bajo demanda - Datos detallados en formato base de datos (DOCUMENTO 2)
   DATA_SHEET: {
-    SPREADSHEET_ID: '1TU51Xxx50DX5dc_aM9X2xguGBYV_Lsaswztv7WOmoyw',
-    SHEET_NAME: 'asset_groups',
-    COLUMNS: ['Galeria', 'Imagen']
+    SPREADSHEET_ID: '1uD6eUpDiDheO8aplzwzOz-d8fr4D8eoc8tcqJj04p4o',
+    SHEET_NAME: 'data',
+    COLUMNS: ['Item Groups', 'ID', 'Object Type', 'Attribute', 'value']
   },
-  // asset_groups se mantiene del archivo original
+  
+  // asset_groups se mantiene del archivo original (DOCUMENTO 1)
   ASSET_GROUPS_SHEET: {
     SPREADSHEET_ID: '1TU51Xxx50DX5dc_aM9X2xguGBYV_Lsaswztv7WOmoyw',
     SHEET_NAME: 'asset_groups'
@@ -922,6 +927,105 @@ function processCategoryData(categoryData) {
 
 // ===== FASE 2: CARGA BAJO DEMANDA =====
 
+// Función para cargar datos de un Item Group específico (MÉTODO OPTIMIZADO + FALLBACK)
+async function loadItemGroupFromDatabase(itemGroupId) {
+  try {
+    // MÉTODO DIRECTO: Intentar primero el filtrado en Apps Script (más rápido)
+    console.log(`� Intentando método directo para Item Group ${itemGroupId}...`);
+    
+    const directUrl = `${GOOGLE_SHEETS_CONFIG.DATA_PROXY_URL}?action=getItemGroupData&itemGroupId=${itemGroupId}&timestamp=${Date.now()}`;
+    
+    try {
+      console.log(`🔗 Llamando a Apps Script (método directo): ${directUrl}`);
+      
+      const directResponse = await fetch(directUrl, {
+        method: 'GET',
+        cache: 'no-cache',
+        headers: {
+          'Accept': 'text/csv,text/plain,application/json,*/*'
+        },
+        timeout: 10000  // Timeout más corto para método directo
+      });
+      
+      if (directResponse.ok) {
+        const directData = await directResponse.text();
+        console.log(`✅ Método directo exitoso, parseando datos...`);
+        console.log(`📏 Tamaño de datos (directo): ${directData.length} caracteres`);
+        
+        const parsedDirectData = parseCSVToObjects(directData, 'data');
+        console.log(`📊 Filas cargadas (método directo): ${parsedDirectData.length}`);
+        
+        return parsedDirectData;
+      }
+    } catch (directError) {
+      console.warn(`⚠️ Método directo falló: ${directError.message}`);
+    }
+    
+    // FALLBACK: Si el método directo falla, usar el método completo
+    console.log(`🔄 Usando método fallback - cargando TODA la pestaña data y filtrando por Item Group ${itemGroupId}...`);
+    
+    const dataSheetUrl = `${GOOGLE_SHEETS_CONFIG.DATA_PROXY_URL}?sheet=data&format=csv&timestamp=${Date.now()}`;
+    
+    console.log(`🔗 Llamando a Apps Script (método fallback): ${dataSheetUrl}`);
+    
+    const response = await fetch(dataSheetUrl, {
+      method: 'GET',
+      cache: 'no-cache',
+      headers: {
+        'Accept': 'text/csv,text/plain,application/json,*/*'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const responseText = await response.text();
+    
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error(`Respuesta vacía del Apps Script`);
+    }
+    
+    console.log(`✅ Datos completos cargados, parseando...`);
+    console.log(`📏 Tamaño de datos: ${responseText.length} caracteres`);
+    
+    // Convertir CSV a array de objetos
+    const allData = parseCSVToObjects(responseText, 'data');
+    
+    if (!allData || allData.length === 0) {
+      throw new Error('No se pudieron cargar datos de la pestaña data');
+    }
+    
+    console.log(`📊 Total de filas cargadas: ${allData.length}`);
+    
+    // Filtrar solo los datos de este Item Group en el frontend
+    const itemGroupData = allData.filter(row => {
+      const rowItemGroupId = String(row['Item Groups'] || '').trim();
+      
+      // Manejar valores concatenados (ej: "34948,35001,35022")
+      if (rowItemGroupId.includes(',')) {
+        const itemGroupIds = rowItemGroupId.split(',').map(id => id.trim());
+        return itemGroupIds.includes(String(itemGroupId));
+      } else {
+        return rowItemGroupId === String(itemGroupId);
+      }
+    });
+    
+    console.log(`🎯 Filas filtradas para Item Group ${itemGroupId}: ${itemGroupData.length}`);
+    
+    if (itemGroupData.length === 0) {
+      console.warn(`⚠️ No se encontraron datos para Item Group: ${itemGroupId}`);
+      return [];
+    }
+    
+    return itemGroupData;
+    
+  } catch (error) {
+    console.error(`❌ Error cargando Item Group ${itemGroupId}:`, error);
+    throw new Error(`❌ Error cargando Item Group ${itemGroupId}: ${error.message}`);
+  }
+}
+
 // Función para cargar detalles de un Item Group específico (FASE 2: Carga bajo demanda)
 async function loadItemGroupDetails(itemGroupId) {
   if (!itemGroupId) {
@@ -929,23 +1033,17 @@ async function loadItemGroupDetails(itemGroupId) {
   }
   
   try {
-    // Cargar datos de la pestaña 'data' filtrados por Item Group
-    const dataSheetUrl = GOOGLE_SHEETS_CONFIG.DATA_SHEET.CSV_URL;
-    const allData = await loadGoogleSheetAsCSV(dataSheetUrl, 'data');
+    console.log(`🔄 Cargando datos para Item Group ID: ${itemGroupId} desde nuevo Apps Script...`);
     
-    if (!allData || allData.length === 0) {
-      throw new Error('No se pudieron cargar datos de la pestaña data');
-    }
+    // Llamar al NUEVO Apps Script que filtra por Item Group ID
+    const itemGroupData = await loadItemGroupFromDatabase(itemGroupId);
     
-    // Filtrar solo los datos de este Item Group
-    const itemGroupData = allData.filter(row => 
-      String(row['Item Groups']).trim() === String(itemGroupId).trim()
-    );
-    
-    if (itemGroupData.length === 0) {
+    if (!itemGroupData || itemGroupData.length === 0) {
       console.warn(`⚠️ No se encontraron datos para Item Group: ${itemGroupId}`);
       return null;
     }
+    
+    console.log(`✅ Datos recibidos: ${itemGroupData.length} filas para Item Group ${itemGroupId}`);
     
     // Transformar los datos de formato clave-valor al formato esperado por el grid
     const transformedData = transformKeyValueData(itemGroupData);
@@ -977,6 +1075,7 @@ function transformKeyValueData(keyValueData) {
         Name: '',
         NamePath: '',
         IdPath: '',
+        CMS: '',
         Marca: '',
         'Página de Catálogo': '',
         Título: '',
@@ -1000,7 +1099,9 @@ function transformKeyValueData(keyValueData) {
     }
     
     // Mapear atributos específicos
-    if (attribute === 'Marca') {
+    if (attribute === 'CMS') {
+      transformedItems[id]['CMS'] = value;
+    } else if (attribute === 'Marca') {
       transformedItems[id]['Marca'] = value;
     } else if (attribute === 'Página de Catálogo') {
       transformedItems[id]['Página de Catálogo'] = value;
@@ -1008,6 +1109,8 @@ function transformKeyValueData(keyValueData) {
       transformedItems[id]['Título'] = value;
     } else if (attribute === 'WA Importancia') {
       transformedItems[id]['WA Importancia'] = value;
+    } else if (attribute === 'WA_VIS_Comment') {
+      transformedItems[id]['WA_VIS_Comment'] = value;
     } else if (attribute === 'WA_VIS_Gallery') {
       // Procesar las imágenes de galería (formato: imagen1.jpg, imagen2.jpg, ...)
       if (value && value.trim()) {
@@ -1275,12 +1378,12 @@ function reinitializeBoxContents() {
   console.log('📊 currentAssetGroups.length:', currentAssetGroups ? currentAssetGroups.length : 'undefined');
   
   if (currentAssetGroups && currentAssetGroups.length > 0) {
-    console.log('✅ Llamando populateGalleryDropdown con timeout desde reinitializeBoxContents...');
+    console.log('✅ Llamando populateGalleryDropdown con timeout...');
     setTimeout(() => {
       populateGalleryDropdown(currentAssetGroups);
     }, 100);
   } else {
-    console.warn('⚠️ No hay currentAssetGroups para poblar el dropdown (se poblará cuando se carguen los asset_groups)');
+    console.warn('⚠️ No hay currentAssetGroups para poblar el dropdown');
   }
   
   // Limpiar Box 4
@@ -6503,10 +6606,6 @@ function populateGalleryDropdown(data) {
   }
   
   console.log('🔄 Poblando dropdown de galerías...');
-  console.log('📊 Datos recibidos:', data);
-  console.log('📊 Cantidad de elementos:', data ? data.length : 'undefined');
-  console.log('📊 Primer elemento:', data && data.length > 0 ? data[0] : 'sin datos');
-  console.log('📊 Keys del primer elemento:', data && data.length > 0 ? Object.keys(data[0]) : 'sin keys');
   
   if (!data || data.length === 0) {
     console.warn('⚠️ No hay datos para poblar el dropdown de galerías');
@@ -6517,16 +6616,11 @@ function populateGalleryDropdown(data) {
   const galleries = [];
   
   data.forEach((item, index) => {
-    console.log(`🔍 Procesando item ${index}:`, item);
-    
     // Intentar diferentes formas de acceder a la columna Galeria
     const galleryName = item.Galeria || item.galeria || item.GALERIA || item['Galeria'] || item['"Galeria"'] || '';
     
-    console.log(`🎯 Item ${index} - Galeria extraída: "${galleryName}"`);
-    
     if (galleryName && galleryName.trim() && !galleries.includes(galleryName)) {
       galleries.push(galleryName.trim());
-      console.log(`✅ Galería agregada: "${galleryName.trim()}"`);
     }
   });
   
