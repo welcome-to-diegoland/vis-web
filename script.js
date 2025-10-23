@@ -647,10 +647,8 @@ async function loadFromGoogleSheets() {
   
   try {
     // Mostrar estado de carga
-    loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando desde Google Sheets';
+    loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando...';
     loadButton.disabled = true;
-    
-    console.log('🔄 Cargando datos ligeros desde Google Sheets...');
     
     // Detectar si estamos en un entorno local (file://)
     const isLocalFile = window.location.protocol === 'file:';
@@ -658,26 +656,8 @@ async function loadFromGoogleSheets() {
     if (isLocalFile) {
       console.log('⚠️ Detectado entorno local (file://). Usando método alternativo...');
       
-      // Para entorno local, mostrar instrucciones al usuario
-      const useAlternativeMethod = confirm(`🔄 CARGA DESDE GOOGLE SHEETS
-
-Debido a restricciones CORS del navegador cuando se ejecuta desde archivos locales, necesitamos usar un método alternativo.
-
-OPCIONES:
-
-1️⃣ USAR SERVIDOR LOCAL (Recomendado):
-   • Ejecuta: python -m http.server 8000
-   • O usa Live Server de VS Code
-   • Luego abre: http://localhost:8000
-
-2️⃣ CONTINUAR CON MÉTODO ALTERNATIVO:
-   • Se intentará usar URLs públicas directas
-   • Algunos navegadores pueden bloquear esto
-
-¿Quieres intentar el método alternativo ahora?
-
-Haz clic en "Aceptar" para intentar
-Haz clic en "Cancelar" para cargar archivo local`);
+      // Para entorno local, usar método alternativo automáticamente sin mostrar advertencias
+      const useAlternativeMethod = true; // Siempre usar método alternativo sin preguntar
       
       if (!useAlternativeMethod) {
         // El usuario prefiere cargar archivo local
@@ -696,9 +676,6 @@ Haz clic en "Cancelar" para cargar archivo local`);
       throw new Error('No se pudieron cargar datos de la pestaña category');
     }
     
-    console.log(`✅ Datos de category cargados: ${categoryData.length} registros`);
-    console.log('📊 Muestra de datos:', categoryData.slice(0, 2));
-    
     // Procesar y filtrar datos para el árbol
     processCategoryData(categoryData);
     
@@ -709,14 +686,11 @@ Haz clic en "Cancelar" para cargar archivo local`);
       
       if (assetGroupsData && assetGroupsData.length > 0) {
         currentAssetGroups = assetGroupsData;
-        console.log(`✅ asset_groups cargado: ${assetGroupsData.length} registros`);
       }
     } catch (assetGroupsError) {
       console.warn('⚠️ No se pudo cargar asset_groups:', assetGroupsError.message);
       currentAssetGroups = [];
     }
-    
-    console.log('✅ Carga inicial desde Google Sheets completada');
     
   } catch (error) {
     console.error('❌ Error cargando desde Google Sheets:', error);
@@ -756,12 +730,8 @@ Error técnico: ${error.message}
 
 // Función auxiliar para cargar datos desde Apps Script proxy (resuelve problemas CORS)
 async function loadGoogleSheetAsCSV(csvUrl, sheetName) {
-  console.log(`🔄 Cargando ${sheetName} desde Apps Script proxy...`);
-  
   // Construir URL del proxy
   const proxyUrl = `${GOOGLE_SHEETS_CONFIG.PROXY_URL}?sheet=${sheetName}&format=csv&timestamp=${Date.now()}`;
-  
-  console.log(`🔗 URL del proxy: ${proxyUrl}`);
   
   try {
     const response = await fetch(proxyUrl, {
@@ -771,8 +741,6 @@ async function loadGoogleSheetAsCSV(csvUrl, sheetName) {
         'Accept': 'text/csv,text/plain,application/json,*/*'
       }
     });
-    
-    console.log(`📊 Respuesta Apps Script: Status ${response.status}, Type: ${response.type}`);
     
     if (!response.ok) {
       throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
@@ -865,9 +833,6 @@ function parseCSVToObjects(csvText, sheetName) {
     }
   }
   
-  console.log(`✅ ${sheetName} procesado: ${data.length} filas de datos`);
-  console.log('📊 Muestra de la primera fila:', data[0]);
-  
   return data;
 }
 
@@ -921,9 +886,6 @@ function processCategoryData(categoryData) {
     // Limpiar arrays de comentarios ya que no los tenemos en esta fase
     currentAssetComments = [];
     
-    console.log(`📊 Datos procesados para el árbol: ${filteredData.length} registros`);
-    console.log('🔧 Columnas disponibles:', expectedColumns);
-    
     // Renderizar el árbol
     const treeContainer = document.getElementById('tree');
     if (treeContainer && filteredData.length > 0) {
@@ -958,8 +920,6 @@ async function loadItemGroupDetails(itemGroupId) {
     throw new Error('ID de Item Group requerido');
   }
   
-  console.log(`🔄 Cargando detalles para Item Group: ${itemGroupId}`);
-  
   try {
     // Cargar datos de la pestaña 'data' filtrados por Item Group
     const dataSheetUrl = GOOGLE_SHEETS_CONFIG.DATA_SHEET.CSV_URL;
@@ -979,13 +939,8 @@ async function loadItemGroupDetails(itemGroupId) {
       return null;
     }
     
-    console.log(`✅ Datos cargados para Item Group ${itemGroupId}: ${itemGroupData.length} registros`);
-    console.log('📊 Muestra de datos:', itemGroupData.slice(0, 3));
-    
     // Transformar los datos de formato clave-valor al formato esperado por el grid
     const transformedData = transformKeyValueData(itemGroupData);
-    
-    console.log(`🔄 Datos transformados: ${Object.keys(transformedData).length} elementos`);
     
     return transformedData;
     
@@ -997,8 +952,6 @@ async function loadItemGroupDetails(itemGroupId) {
 
 // Función para transformar datos de estructura clave-valor al formato esperado por el grid
 function transformKeyValueData(keyValueData) {
-  console.log('🔄 Transformando datos clave-valor...');
-  
   const transformedItems = {};
   
   // Agrupar por ID para reconstruir cada item
@@ -1247,7 +1200,7 @@ function handleCombinedExcel(event) {
       // Lee la hoja principal
       const assetSheet = workbook.Sheets["VIS_AG_Library_Structure"];
       if (!assetSheet) {
-        alert("No se encontró la hoja VIS_AG_Library_Structure.");
+        console.error("No se encontró la hoja VIS_AG_Library_Structure.");
         return;
       }
       const allRows = XLSX.utils.sheet_to_json(assetSheet, { defval: "" });
@@ -1297,7 +1250,7 @@ function handleCombinedExcel(event) {
       reinitializeBoxContents();
     } catch (error) {
       console.error("Error procesando archivo combinado:", error);
-      alert("Ocurrió un error procesando el archivo combinado: " + error.message);
+      console.error("Ocurrió un error procesando el archivo combinado:", error.message);
     }
   };
   reader.readAsArrayBuffer(file);
