@@ -1170,44 +1170,10 @@ function parseUniversalConcatenatedData(dataRow) {
     case 'Item Group':
     case 'Item Code':
       parsedData = parseItemCodeData(concatenated);
-      
-      // 📋 LOG DETALLADO para Item Group/Item Code
-      console.log(`📋 ═══════ DATOS DE ${objectType.toUpperCase()} ═══════`);
-      console.log(`🆔 Item Group ID: ${itemGroupId}`);
-      console.log(`🔢 Item ID: ${itemId}`);
-      console.log(`📝 Object Type: ${objectType}`);
-      console.log(`📊 ATRIBUTOS EXTRAÍDOS:`);
-      
-      const itemCodeAttributes = ['Name', 'Marca', 'Título', 'CMS', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment', 'WA_VIS_Cover', 'WA_VIS_Gallery', 'WA_VIS_Rest'];
-      itemCodeAttributes.forEach((attr, index) => {
-        const value = parsedData[attr] || '';
-        const hasValue = value && value.trim() !== '';
-        const status = hasValue ? '✅' : '❌';
-        console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
-      });
-      console.log(`📊 Total de atributos con valor: ${itemCodeAttributes.filter(attr => parsedData[attr] && parsedData[attr].trim() !== '').length}/${itemCodeAttributes.length}`);
-      console.log(`═══════════════════════════════════`);
       break;
       
     case 'Image':
       parsedData = parseImageData(concatenated);
-      
-      // 📋 LOG DETALLADO para Image
-      console.log(`📸 ═══════ DATOS DE IMAGE ═══════`);
-      console.log(`🆔 Item Group ID: ${itemGroupId}`);
-      console.log(`🔢 Item ID: ${itemId}`);
-      console.log(`📝 Object Type: ${objectType}`);
-      console.log(`📊 ATRIBUTOS EXTRAÍDOS:`);
-      
-      const imageAttributes = ['Name', 'WA_VIS_Comment'];
-      imageAttributes.forEach((attr, index) => {
-        const value = parsedData[attr] || '';
-        const hasValue = value && value.trim() !== '';
-        const status = hasValue ? '✅' : '❌';
-        console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
-      });
-      console.log(`📊 Total de atributos con valor: ${imageAttributes.filter(attr => parsedData[attr] && parsedData[attr].trim() !== '').length}/${imageAttributes.length}`);
-      console.log(`═══════════════════════════════════`);
       break;
       
     default:
@@ -1434,6 +1400,23 @@ async function loadItemGroupFromDatabase(itemGroupId) {
   try {
     console.log(`🚀 Obteniendo Item Group ${itemGroupId} del caché...`);
     
+    // 🔍 DEBUG: Verificar estado del caché
+    console.log(`🔍 DEBUG: allItemGroupsLoaded = ${allItemGroupsLoaded}`);
+    console.log(`🔍 DEBUG: itemGroupDataCache.has(${itemGroupId}) = ${itemGroupDataCache.has(itemGroupId)}`);
+    console.log(`🔍 DEBUG: Tamaño del caché = ${itemGroupDataCache.size}`);
+    
+    // FORZAR LIMPIEZA DEL CACHÉ PARA OBTENER DATOS FRESCOS
+    if (itemGroupDataCache.has(itemGroupId)) {
+      console.log(`🧹 LIMPIANDO caché para Item Group ${itemGroupId}...`);
+      itemGroupDataCache.delete(itemGroupId);
+    }
+    
+    // TAMBIÉN LIMPIAR TODO EL CACHÉ Y LOCALSTORAGE
+    console.log(`🧹 LIMPIANDO TODO EL CACHÉ Y LOCALSTORAGE...`);
+    itemGroupDataCache.clear();
+    localStorage.clear();
+    allItemGroupsLoaded = false;
+    
     // MÉTODO CACHÉ: Verificar si ya tenemos el caché cargado
     if (allItemGroupsLoaded && itemGroupDataCache.has(itemGroupId)) {
       const cachedData = itemGroupDataCache.get(itemGroupId);
@@ -1575,46 +1558,11 @@ async function loadItemGroupDetails(itemGroupId) {
     
     console.log(`✅ Datos recibidos: ${itemGroupData.length} filas para Item Group ${itemGroupId}`);
     
-    // 📋 LOG DETALLADO SOLO PARA ESTE ITEM GROUP ESPECÍFICO
-    console.log(`📋 ═══════ ANÁLISIS DETALLADO ITEM GROUP ${itemGroupId} ═══════`);
-    
-    itemGroupData.forEach(row => {
-      const objectType = row['Object Type'];
-      const concatenated = row['data_concatenated'];
-      const itemId = row['ID'];
-      
-      if (!concatenated) return;
-      
-      let parsedData = {};
-      
-      if (objectType === 'Item Group' || objectType === 'Item Code') {
-        parsedData = parseItemCodeData(concatenated);
-        
-        console.log(`📝 ═══ ${objectType.toUpperCase()} (ID: ${itemId}) ═══`);
-        const itemCodeAttributes = ['Name', 'Marca', 'Título', 'CMS', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment', 'WA_VIS_Cover', 'WA_VIS_Gallery', 'WA_VIS_Rest'];
-        itemCodeAttributes.forEach((attr, index) => {
-          const value = parsedData[attr] || '';
-          const hasValue = value && value.trim() !== '';
-          const status = hasValue ? '✅' : '❌';
-          console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
-        });
-        const filledCount = itemCodeAttributes.filter(attr => parsedData[attr] && parsedData[attr].trim() !== '').length;
-        console.log(`📊 Completitud: ${filledCount}/${itemCodeAttributes.length} atributos con valor`);
-        
-      } else if (objectType === 'Image') {
-        parsedData = parseImageData(concatenated);
-        
-        console.log(`📸 ═══ IMAGE (ID: ${itemId}) ═══`);
-        const imageAttributes = ['Name', 'WA_VIS_Comment'];
-        imageAttributes.forEach((attr, index) => {
-          const value = parsedData[attr] || '';
-          const hasValue = value && value.trim() !== '';
-          const status = hasValue ? '✅' : '❌';
-          console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
-        });
-        const filledCount = imageAttributes.filter(attr => parsedData[attr] && parsedData[attr].trim() !== '').length;
-        console.log(`📊 Completitud: ${filledCount}/${imageAttributes.length} atributos con valor`);
-      }
+    // 🔍 LOG COMPLETO DE DATOS RAW RECIBIDOS
+    console.log(`🔍 ═══════ DATOS RAW COMPLETOS DESDE BD ═══════`);
+    console.log(`📊 Total de filas: ${itemGroupData.length}`);
+    itemGroupData.forEach((row, index) => {
+      console.log(`   [${index + 1}] ID: ${row.ID}, Object Type: "${row['Object Type']}", Attribute: "${row.Attribute}", Value: "${row.value}"`);
     });
     console.log(`═══════════════════════════════════════════════════════`);
     
@@ -1635,24 +1583,26 @@ async function loadItemGroupDetails(itemGroupId) {
   }
 }
 
-// Función para transformar datos de estructura clave-valor al formato esperado por el grid
+// Función para transformar datos de estructura concatenada al formato esperado por el grid
 function transformKeyValueData(keyValueData) {
+  console.log(`🔍 ═══════ INICIANDO TRANSFORMACIÓN DE DATOS CONCATENADOS ═══════`);
+  console.log(`📊 Datos de entrada: ${keyValueData.length} filas`);
+  
   const transformedItems = {};
   
-  // Agrupar por ID para reconstruir cada item
-  keyValueData.forEach(row => {
+  // Procesar cada fila que viene con data_concatenated
+  keyValueData.forEach((row, index) => {
     const id = row['ID'];
     const objectType = row['Object Type'];
-    const attribute = row['Attribute'];
-    const value = row['value'];
+    const dataConcatenated = row['data_concatenated'];
     
-    // DEBUG: Mostrar algunos atributos para el Item Group principal
-    if (objectType === 'Item Group' && (attribute === 'Título' || attribute === 'Marca')) {
-      console.log(`🔍 DEBUG Item Group ID ${id}: ${attribute} = "${value}"`);
-    }
+    console.log(`   [${index + 1}] Procesando: ID=${id}, ObjectType="${objectType}", data_concatenated="${dataConcatenated}"`);
     
     if (!transformedItems[id]) {
+      console.log(`     🆕 Creando nuevo item para ID: ${id}`);
       transformedItems[id] = {
+        'Item Groups': row['Item Groups'],
+        'ID': id,
         Id: id,
         'Object Type': objectType,
         // Campos básicos que siempre necesitamos
@@ -1682,55 +1632,77 @@ function transformKeyValueData(keyValueData) {
       }
     }
     
-    // Mapear atributos específicos
-    if (attribute === 'CMS') {
-      transformedItems[id]['CMS'] = value;
-    } else if (attribute === 'Marca') {
-      transformedItems[id]['Marca'] = value;
-    } else if (attribute === 'Página de Catálogo') {
-      transformedItems[id]['Página de Catálogo'] = value;
-    } else if (attribute === 'Título') {
-      transformedItems[id]['Título'] = value;
-      console.log(`🔍 DEBUG: Título encontrado para ID ${id}: "${value}"`);
-    } else if (attribute === 'WA Importancia') {
-      transformedItems[id]['WA Importancia'] = value;
-    } else if (attribute === 'WA_VIS_Comment') {
-      transformedItems[id]['WA_VIS_Comment'] = value;
-    } else if (attribute === 'WA_VIS_Gallery') {
-      // Procesar las imágenes de galería (formato: imagen1.jpg, imagen2.jpg, ...)
-      if (value && value.trim()) {
-        const images = value.split(',').map(img => img.trim()).filter(img => img);
-        images.forEach((image, index) => {
-          if (index < 25) { // Máximo 25 imágenes de galería
-            const galField = `WA_Gallery_${String(index + 1).padStart(2, '0')}`;
-            transformedItems[id][galField] = image;
+    // PARSEAR LOS DATOS CONCATENADOS usando parseUniversalConcatenatedData
+    if (dataConcatenated && dataConcatenated.trim() !== '') {
+      console.log(`     🔍 Parseando datos concatenados para ID ${id}...`);
+      const parsedData = parseUniversalConcatenatedData(row);
+      
+      // Mapear los campos parseados al item transformado
+      Object.keys(parsedData).forEach(key => {
+        if (key !== 'Item Groups' && key !== 'ID' && key !== 'Object Type') {
+          transformedItems[id][key] = parsedData[key];
+          
+          // Logs específicos para campos importantes
+          if (key === 'CMS') {
+            console.log(`     ✅ Mapeando CMS para ID ${id}: "${parsedData[key]}"`);
+          } else if (key === 'Marca') {
+            console.log(`     ✅ Mapeando Marca para ID ${id}: "${parsedData[key]}"`);
+          } else if (key === 'Título') {
+            console.log(`     ✅ Mapeando Título para ID ${id}: "${parsedData[key]}"`);
+          }
+        }
+      });
+
+      // 🖼️ DIVIDIR IMÁGENES CONCATENADAS EN COLUMNAS INDIVIDUALES
+      // Procesar WA_VIS_Cover -> WA_Cover_Image_01, WA_Cover_Image_02, etc.
+      if (parsedData['WA_VIS_Cover'] && parsedData['WA_VIS_Cover'].trim()) {
+        const coverImages = parsedData['WA_VIS_Cover'].split(',').map(img => img.trim()).filter(img => img);
+        console.log(`     🖼️ Dividiendo WA_VIS_Cover para ID ${id}: ${coverImages.length} imágenes`);
+        coverImages.forEach((image, index) => {
+          if (index < 5) { // Máximo 5 imágenes cover
+            const fieldName = `WA_Cover_Image_${String(index + 1).padStart(2, '0')}`;
+            transformedItems[id][fieldName] = image;
+            console.log(`     ✅ ${fieldName}: "${image}"`);
           }
         });
       }
-    } else if (attribute === 'WA_VIS_Cover') {
-      // Procesar las imágenes de portada
-      if (value && value.trim()) {
-        const images = value.split(',').map(img => img.trim()).filter(img => img);
-        images.forEach((image, index) => {
-          if (index < 5) { // Máximo 5 imágenes de portada
-            const coverField = `WA_Cover_Image_${String(index + 1).padStart(2, '0')}`;
-            transformedItems[id][coverField] = image;
+
+      // Procesar WA_VIS_Gallery -> WA_Gallery_01, WA_Gallery_02, etc.
+      if (parsedData['WA_VIS_Gallery'] && parsedData['WA_VIS_Gallery'].trim()) {
+        const galleryImages = parsedData['WA_VIS_Gallery'].split(',').map(img => img.trim()).filter(img => img);
+        console.log(`     🖼️ Dividiendo WA_VIS_Gallery para ID ${id}: ${galleryImages.length} imágenes`);
+        galleryImages.forEach((image, index) => {
+          if (index < 25) { // Máximo 25 imágenes gallery
+            const fieldName = `WA_Gallery_${String(index + 1).padStart(2, '0')}`;
+            transformedItems[id][fieldName] = image;
+            if (index < 4) { // Solo mostrar las primeras 4 en logs
+              console.log(`     ✅ ${fieldName}: "${image}"`);
+            } else if (index === 4) {
+              console.log(`     ✅ ... y ${galleryImages.length - 4} imágenes más`);
+            }
           }
         });
       }
-    } else if (attribute === 'WA_VIS_Rest') {
-      // Procesar las imágenes de resto
-      if (value && value.trim()) {
-        const images = value.split(',').map(img => img.trim()).filter(img => img);
-        images.forEach((image, index) => {
-          if (index < 25) { // Máximo 25 imágenes de resto
-            const restField = `WA_Rest_${String(index + 1).padStart(2, '0')}`;
-            transformedItems[id][restField] = image;
+
+      // Procesar WA_VIS_Rest -> WA_Rest_01, WA_Rest_02, etc.
+      if (parsedData['WA_VIS_Rest'] && parsedData['WA_VIS_Rest'].trim()) {
+        const restImages = parsedData['WA_VIS_Rest'].split(',').map(img => img.trim()).filter(img => img);
+        console.log(`     🖼️ Dividiendo WA_VIS_Rest para ID ${id}: ${restImages.length} imágenes`);
+        restImages.forEach((image, index) => {
+          if (index < 25) { // Máximo 25 imágenes rest
+            const fieldName = `WA_Rest_${String(index + 1).padStart(2, '0')}`;
+            transformedItems[id][fieldName] = image;
+            if (index < 4) { // Solo mostrar las primeras 4 en logs
+              console.log(`     ✅ ${fieldName}: "${image}"`);
+            } else if (index === 4) {
+              console.log(`     ✅ ... y ${restImages.length - 4} imágenes más`);
+            }
           }
         });
       }
+    } else {
+      console.log(`     ⚠️ No hay datos concatenados para ID ${id}`);
     }
-    // Agregar más mapeos de atributos según sea necesario
   });
   
   // Buscar información adicional en los datos básicos del árbol para completar Name, NamePath, etc.
@@ -1740,7 +1712,7 @@ function transformKeyValueData(keyValueData) {
     );
     
     if (basicData) {
-      transformedItems[id].Name = basicData.Name || '';
+      transformedItems[id].Name = basicData.Name || transformedItems[id].Name || '';
       transformedItems[id].NamePath = basicData.NamePath || '';
       transformedItems[id].IdPath = basicData.IdPath || '';
       transformedItems[id].Vis_color = basicData.Vis_color || '';
@@ -1748,8 +1720,20 @@ function transformKeyValueData(keyValueData) {
     }
   });
   
+  console.log(`🔍 ═══════ RESULTADO DE LA TRANSFORMACIÓN ═══════`);
   console.log(`✅ Transformación completada: ${Object.keys(transformedItems).length} items transformados`);
-  console.log('📊 Ejemplo de item transformado:', Object.values(transformedItems)[0]);
+  
+  // Mostrar cada item transformado con detalles
+  Object.values(transformedItems).forEach((item, index) => {
+    console.log(`   [${index + 1}] ID: ${item.Id}, ObjectType: "${item['Object Type']}", CMS: "${item.CMS}", Marca: "${item.Marca}", Título: "${item.Título}"`);
+  });
+  
+  console.log(`🔍 ═══════ VARIABLE DE ALMACENAMIENTO ═══════`);
+  console.log(`📁 Los datos transformados se almacenan en la variable: transformedItems`);
+  console.log(`📁 Esta variable se retorna y se usa como: detailedData`);
+  console.log(`📁 Luego se almacena globalmente en: currentWorkingData (array de items)`);
+  console.log(`📁 Y el Item Group específico se guarda en: currentItemGroup`);
+  console.log(`═══════════════════════════════════════════════════════`);
   
   return transformedItems;
 }
@@ -2514,7 +2498,11 @@ async function loadImageGridInBox4(itemGroupPath) {
     const allItems = Object.values(detailedData);
     const itemCodes = allItems.filter(item => item['Object Type'] === 'Item Code');
     
-    console.log(`📦 ITEM CODES ENCONTRADOS: ${itemCodes.length} items`);
+    console.log(`� ═══════ ALMACENAMIENTO EN VARIABLES GLOBALES ═══════`);
+    console.log(`�📦 ITEM CODES ENCONTRADOS: ${itemCodes.length} items`);
+    console.log(`📁 detailedData (objeto transformado):`, detailedData);
+    console.log(`📁 allItems (array de todos los objetos):`, allItems);
+    console.log(`📁 itemCodes (array solo Item Codes):`, itemCodes);
     itemCodes.forEach(code => {
       console.log(`   - ${code.Id} (${code.Name})`);
     });
@@ -2527,8 +2515,28 @@ async function loadImageGridInBox4(itemGroupPath) {
     // Buscar si hay datos del Item Group en los detalles
     const itemGroupDetails = allItems.find(item => item['Object Type'] === 'Item Group');
     if (itemGroupDetails) {
-      // Mezclar datos básicos con datos detallados
-      currentItemGroup = { ...itemGroup, ...itemGroupDetails };
+      console.log(`🔍 itemGroupDetails encontrado:`, itemGroupDetails);
+      
+      // Mezclar datos detallados con datos básicos, pero mantener datos básicos cuando los detallados estén vacíos
+      currentItemGroup = { ...itemGroupDetails, ...itemGroup };
+      
+      // Específicamente para campos críticos, si están vacíos en itemGroupDetails, usar los del itemGroup original
+      if (!currentItemGroup.CMS && itemGroup.CMS) {
+        currentItemGroup.CMS = itemGroup.CMS;
+      }
+      if (!currentItemGroup.Marca && itemGroup.Marca) {
+        currentItemGroup.Marca = itemGroup.Marca;
+      }
+      if (!currentItemGroup['Página de Catálogo'] && itemGroup['Página de Catálogo']) {
+        currentItemGroup['Página de Catálogo'] = itemGroup['Página de Catálogo'];
+      }
+      
+      console.log(`🔍 ═══════ VARIABLE GLOBAL FINAL ═══════`);
+      console.log(`📁 currentItemGroup (variable global que usa el HTML):`, currentItemGroup);
+      console.log(`📁 CMS final en currentItemGroup:`, currentItemGroup.CMS);
+      console.log(`📁 Marca final en currentItemGroup:`, currentItemGroup.Marca);
+      console.log(`📁 Título final en currentItemGroup:`, currentItemGroup.Título);
+      console.log(`═══════════════════════════════════════════════════════`);
     }
 
     // Definir las columnas de imágenes en el orden correcto
