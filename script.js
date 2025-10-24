@@ -12,7 +12,7 @@ let originalExcelSheets = {}; // Para guardar las hojas del Excel
 let currentWorkingData = []; // Para guardar los datos que se están trabajando
 let allLibraryData = []; // Para guardar TODOS los datos de la library (no se sobrescribe)
 let currentColumnsOrder = []; // Para mantener el orden original de las columnas
-let currentAssetComments = []; // Para guardar los comentarios de las imágenes
+// Los comentarios de imágenes ahora se obtienen directamente desde objetos tipo 'Image' en currentWorkingData
 let currentAssetGroups = []; // Para guardar los datos de galerías
 
 // Variable global para mantener el zoom persistente
@@ -975,6 +975,41 @@ function transformDataIfConcatenated(data) {
     // Usar el adaptador que creamos
     const expandedData = transformConcatenatedDataToExpanded(data);
     console.log(`✅ Transformación exitosa: ${data.length} → ${expandedData.length} filas`);
+    
+    // Guardar todos los datos expandidos globalmente para búsqueda de comentarios
+    window.allItemGroupsData = expandedData;
+    console.log(`🌐 Datos globales guardados: ${expandedData.length} elementos para búsqueda de comentarios`);
+    
+    // DEBUG: Buscar objetos con comentarios para verificar
+    const itemsWithComments = expandedData.filter(item => 
+      item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim()
+    );
+    console.log(`💬 Total objetos con comentarios encontrados: ${itemsWithComments.length}`);
+    
+    if (itemsWithComments.length > 0) {
+      console.log('📋 Muestra de objetos con comentarios:', itemsWithComments.slice(0, 5).map(item => ({
+        ID: item.ID,
+        ObjectType: item['Object Type'],
+        Name: item.Name,
+        Comment: item['WA_VIS_Comment'].substring(0, 50) + '...'
+      })));
+      
+      // Buscar específicamente el objeto que mencionaste
+      const specificItem = itemsWithComments.find(item => 
+        item.Name === '99-000-373_ill1.jpg' || 
+        item['WA_VIS_Comment'].includes('Editar color a que corresponda')
+      );
+      
+      if (specificItem) {
+        console.log('🎯 Objeto específico encontrado:', {
+          ID: specificItem.ID,
+          ObjectType: specificItem['Object Type'],
+          Name: specificItem.Name,
+          Comment: specificItem['WA_VIS_Comment']
+        });
+      }
+    }
+    
     return expandedData;
     
   } catch (error) {
@@ -1363,7 +1398,7 @@ function processCategoryData(categoryData) {
     currentColumnsOrder = [...expectedColumns];
     
     // Limpiar arrays de comentarios ya que no los tenemos en esta fase
-    currentAssetComments = [];
+    // Los comentarios de imágenes se cargan automáticamente desde objetos tipo 'Image'
     
     // Renderizar el árbol
     const treeContainer = document.getElementById('tree');
@@ -1776,14 +1811,8 @@ function processWorkbook(workbook) {
       }
     }
     
-    // Procesar hoja VIS_AG_Asset_Structure para comentarios (igual que en handleCombinedExcel)
-    if (originalExcelSheets['VIS_AG_Asset_Structure']) {
-      const assetCommentsSheet = workbook.Sheets["VIS_AG_Asset_Structure"];
-      if (assetCommentsSheet) {
-        currentAssetComments = XLSX.utils.sheet_to_json(assetCommentsSheet, { defval: "" });
-        console.log(`✅ VIS_AG_Asset_Structure cargado: ${currentAssetComments.length} registros`);
-      }
-    }
+    // Los comentarios de imágenes ahora se obtienen directamente desde los datos procesados
+    // (objetos con Object Type = 'Image' que vienen desde Google Sheets pestaña 'data')
     
     // Procesar hoja asset_groups para galerías (igual que en handleCombinedExcel)
     if (originalExcelSheets['asset_groups']) {
@@ -1885,16 +1914,9 @@ function handleCombinedExcel(event) {
       }
       const allRows = XLSX.utils.sheet_to_json(assetSheet, { defval: "" });
 
-      // Lee la hoja de comentarios de assets
-      const assetCommentsSheet = workbook.Sheets["VIS_AG_Asset_Structure"];
+      // Los comentarios de imágenes ahora se obtienen desde los datos procesados (Object Type = 'Image')
+      // No necesitamos cargar VIS_AG_Asset_Structure ya que toda la información está en Google Sheets pestaña 'data'
       let assetCommentsData = [];
-      if (assetCommentsSheet) {
-        const assetCommentsRows = XLSX.utils.sheet_to_json(assetCommentsSheet, { defval: "" });
-        // Guardar TODOS los registros de VIS_AG_Asset_Structure, no solo los que tienen comentarios
-        assetCommentsData = assetCommentsRows;
-      } else {
-        console.warn("No se encontró la hoja VIS_AG_Asset_Structure para comentarios de imágenes.");
-      }
 
       // Leer la hoja asset_groups del mismo archivo
       const assetGroupsSheet = workbook.Sheets["asset_groups"];
@@ -1917,11 +1939,14 @@ function handleCombinedExcel(event) {
         return filtered;
       });
 
-      // Guarda los datos para trabajar, el orden de las columnas y los comentarios de assets
+      // Guarda los datos para trabajar, el orden de las columnas
       currentWorkingData = [...assetRows];
       allLibraryData = [...assetRows]; // Guardar todos los datos globalmente (no se sobrescribe)
-      currentAssetComments = [...assetCommentsData];
       currentColumnsOrder = [...columnsToRead];
+      
+      // Extraer comentarios de imágenes desde los datos procesados (ya no desde VIS_AG_Asset_Structure)
+      console.log('🖼️ Extrayendo comentarios de imágenes desde datos procesados...');
+      extractImageCommentsFromProcessedData();
       
       // Renderiza el árbol usando solo las columnas filtradas
       renderAssetLibraryTree(assetRows, document.getElementById('tree'));
@@ -2497,6 +2522,9 @@ async function loadImageGridInBox4(itemGroupPath) {
     // Convertir el objeto transformado a array y separar Item Codes
     const allItems = Object.values(detailedData);
     const itemCodes = allItems.filter(item => item['Object Type'] === 'Item Code');
+    
+    // Asignar a variable global para que las funciones de comentarios puedan acceder
+    currentWorkingData = allItems;
     
     console.log(`� ═══════ ALMACENAMIENTO EN VARIABLES GLOBALES ═══════`);
     console.log(`�📦 ITEM CODES ENCONTRADOS: ${itemCodes.length} items`);
@@ -3487,21 +3515,143 @@ function parseCommentsFromExcel(commentString) {
   return parsedComments;
 }
 
-// Función para verificar si una imagen tiene comentarios
-function hasImageComments(imageName) {
-  if (!currentAssetComments || !imageName) return false;
+// Función para extraer comentarios de imágenes desde datos procesados (Object Type = Image)
+function extractImageCommentsFromProcessedData() {
+  if (!currentWorkingData || !Array.isArray(currentWorkingData)) {
+    console.log('🔍 No hay currentWorkingData disponible para extraer comentarios de imágenes');
+    return;
+  }
+
+  // Filtrar objetos de tipo Image con comentarios desde currentWorkingData
+  const imageComments = currentWorkingData
+    .filter(item => item['Object Type'] === 'Image' && item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim())
+    .map(item => ({
+      Name: item.Name,
+      WA_VIS_Comment: item['WA_VIS_Comment'],
+      ID: item.ID || item.Id
+    }));
+
+  console.log(`🖼️ Comentarios de imágenes extraídos: ${imageComments.length} imágenes con comentarios`);
+  console.log('📋 Muestra de comentarios:', imageComments.slice(0, 3));
+
+  return imageComments;
+}
+
+// Función helper para encontrar un objeto Image en los datos procesados
+function findImageAssetByName(imageName) {
+  if (!currentWorkingData || !imageName) return null;
   
-  return currentAssetComments.some(asset => 
-    asset.Name === imageName && asset.WA_VIS_Comment && asset.WA_VIS_Comment.trim()
+  return currentWorkingData.find(item => 
+    item['Object Type'] === 'Image' && item.Name === imageName
   );
 }
 
-// Función para obtener los comentarios de una imagen
-function getImageComments(imageName) {
-  if (!currentAssetComments || !imageName) return '';
+// Función helper para encontrar un objeto Image por ID en los datos procesados
+function findImageAssetById(imageId) {
+  if (!currentWorkingData || !imageId) return null;
   
-  const asset = currentAssetComments.find(asset => asset.Name === imageName);
-  return asset ? asset.WA_VIS_Comment : '';
+  return currentWorkingData.find(item => 
+    item['Object Type'] === 'Image' && (item.ID == imageId || item.Id == imageId)
+  );
+}
+
+// Función para verificar si una imagen tiene comentarios (VERSIÓN CORREGIDA - solo busca objetos tipo "Image" por nombre exacto)
+function hasImageComments(imageName) {
+  if (!imageName) return false;
+  
+  console.log(`🔍 DEBUG hasImageComments - Buscando imagen: "${imageName}"`);
+  
+  // Buscar SOLO objetos tipo "Image" con nombre exacto en TODOS los datos
+  if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+    console.log(`📊 Total items en datos globales: ${window.allItemGroupsData.length}`);
+    
+    const imageObject = window.allItemGroupsData.find(item => {
+      // SOLO buscar objetos tipo "Image" con nombre exacto
+      return item['Object Type'] === 'Image' && 
+             item.Name === imageName &&
+             item['WA_VIS_Comment'] && 
+             item['WA_VIS_Comment'].trim();
+    });
+    
+    if (imageObject) {
+      console.log(`� Objetos con imagen "${imageName}" y comentario en currentWorkingData: ${localResults.length}`);
+      console.log(`🎯 Objeto tipo "Image" encontrado con comentario en datos globales:`, {
+        ID: imageObject.ID,
+        Name: imageObject.Name,
+        Comment: imageObject['WA_VIS_Comment']
+      });
+      console.log(`✅ Resultado hasImageComments("${imageName}"): true`);
+      return true;
+    }
+  }
+  
+  // PASO 2: Buscar en currentWorkingData como respaldo (datos locales más completos)
+  if (currentWorkingData && currentWorkingData.length > 0) {
+    console.log(`🔍 No encontrado en datos globales, buscando en currentWorkingData...`);
+    
+    const localImageObject = currentWorkingData.find(item => {
+      return item['Object Type'] === 'Image' && 
+             item.Name === imageName &&
+             item['WA_VIS_Comment'] && 
+             item['WA_VIS_Comment'].trim();
+    });
+    
+    if (localImageObject) {
+      console.log(`🎯 Objeto tipo "Image" encontrado con comentario en datos locales:`, {
+        ID: localImageObject.ID,
+        Name: localImageObject.Name,
+        Comment: localImageObject['WA_VIS_Comment']
+      });
+      console.log(`✅ Resultado hasImageComments("${imageName}"): true`);
+      return true;
+    }
+  }
+  
+  console.log(`✅ Resultado hasImageComments("${imageName}"): false`);
+  return false;
+}
+
+// Función para obtener los comentarios de una imagen (VERSIÓN CORREGIDA - búsqueda global con respaldo)
+function getImageComments(imageName) {
+  if (!imageName) return '';
+  
+  console.log(`🔍 DEBUG getImageComments - Buscando imagen: "${imageName}"`);
+  
+  // PASO 1: Buscar en datos globales primero (más rápido)
+  if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+    const imageObject = window.allItemGroupsData.find(item => {
+      // SOLO buscar objetos tipo "Image" con nombre exacto
+      return item['Object Type'] === 'Image' && 
+             item.Name === imageName &&
+             item['WA_VIS_Comment'] && 
+             item['WA_VIS_Comment'].trim();
+    });
+    
+    if (imageObject) {
+      console.log(`🎯 Comentario encontrado en datos globales para imagen "${imageName}":`, imageObject['WA_VIS_Comment']);
+      return imageObject['WA_VIS_Comment'] || '';
+    }
+  }
+  
+  // PASO 2: Buscar en currentWorkingData como respaldo (datos locales más completos)
+  if (currentWorkingData && currentWorkingData.length > 0) {
+    console.log(`🔍 No encontrado en datos globales, buscando en currentWorkingData...`);
+    
+    const localImageObject = currentWorkingData.find(item => {
+      return item['Object Type'] === 'Image' && 
+             item.Name === imageName &&
+             item['WA_VIS_Comment'] && 
+             item['WA_VIS_Comment'].trim();
+    });
+    
+    if (localImageObject) {
+      console.log(`🎯 Comentario encontrado en datos locales para imagen "${imageName}":`, localImageObject['WA_VIS_Comment']);
+      return localImageObject['WA_VIS_Comment'] || '';
+    }
+  }
+  
+  console.log(`❌ No se encontró comentario específico para imagen "${imageName}"`);
+  return '';
 }
 
 // Función para formatear fecha para mostrar
@@ -3985,24 +4135,28 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
   console.log('📋 String de comentario formateado:', newCommentString);
   
   if (type === 'image' && imageName) {
-    // Es un comentario de imagen
-    let assetData = currentAssetComments.find(asset => asset.Name === imageName);
+    // Es un comentario de imagen - buscar en datos procesados (Object Type = 'Image')
+    let assetData = findImageAssetByName(imageName);
     
     if (assetData) {
-      // Ya existe el asset, agregar al comentario existente
-      const existingComments = assetData.WA_VIS_Comment || '';
-      assetData.WA_VIS_Comment = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      // Ya existe el asset Image, agregar al comentario existente
+      const existingComments = assetData['WA_VIS_Comment'] || '';
+      assetData['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
     } else {
-      // No existe, crear nuevo registro
-      const newAssetComment = {
+      // No existe, crear nuevo registro de tipo Image
+      const newImageAsset = {
         Name: imageName,
-        WA_VIS_Comment: newCommentString
+        'Object Type': 'Image',
+        'WA_VIS_Comment': newCommentString,
+        ID: Date.now(),
+        Id: Date.now()
       };
-      currentAssetComments.push(newAssetComment);
+      currentWorkingData.push(newImageAsset);
+      allLibraryData.push(newImageAsset);
     }
     
     console.log('Comentario puesto:', newComment, 'para:', imageName);
-    console.log('currentAssetComments después de agregar:', currentAssetComments.length, 'assets');
+    console.log('✅ Comentario agregado a objeto Image en currentWorkingData');
     console.log('Asset agregado/actualizado:', assetData || newAssetComment);
     
     // Marcar Item Group como modificado automáticamente
@@ -7264,19 +7418,20 @@ function performImageSearchNew() {
   // Array para almacenar todos los resultados
   let allResults = [];
   
-  // 1. BÚSQUEDA EN ASSETS (funcionalidad original - si existe)
-  if (currentAssetComments && currentAssetComments.length > 0) {
-    console.log('🔍 Buscando en Assets:', currentAssetComments.length, 'registros');
+  // 1. BÚSQUEDA EN OBJETOS IMAGE (desde datos procesados)
+  if (currentWorkingData && currentWorkingData.length > 0) {
+    console.log('🔍 Buscando en objetos Image:', currentWorkingData.filter(item => item['Object Type'] === 'Image').length, 'registros');
     
-    const assetResults = currentAssetComments.filter(asset => {
-      const imageName = asset.Name || '';
+    const assetResults = currentWorkingData.filter(item => {
+      if (item['Object Type'] !== 'Image') return false;
+      const imageName = item.Name || '';
       return imageName.toLowerCase().includes(searchTerm.toLowerCase());
     });
     
-    console.log('📸 Resultados en Assets:', assetResults.length, 'imágenes encontradas');
+    console.log('📸 Resultados en objetos Image:', assetResults.length, 'imágenes encontradas');
     allResults = [...assetResults];
   } else {
-    console.log('⚠️ No hay datos de Assets cargados');
+    console.log('⚠️ No hay datos de objetos Image cargados');
   }
   
   // 2. NUEVA BÚSQUEDA EN DATOS ACTUALES (allLibraryData + currentWorkingData)
