@@ -1433,36 +1433,50 @@ async function loadItemGroupFromDatabase(itemGroupId) {
   const totalStartTime = performance.now();
   
   try {
-    console.log(`🚀 Obteniendo Item Group ${itemGroupId} del caché...`);
+    console.log(`🚀 Obteniendo Item Group ${itemGroupId}...`);
     
     // 🔍 DEBUG: Verificar estado del caché
     console.log(`🔍 DEBUG: allItemGroupsLoaded = ${allItemGroupsLoaded}`);
     console.log(`🔍 DEBUG: itemGroupDataCache.has(${itemGroupId}) = ${itemGroupDataCache.has(itemGroupId)}`);
     console.log(`🔍 DEBUG: Tamaño del caché = ${itemGroupDataCache.size}`);
+    console.log(`🔍 DEBUG: window.allItemGroupsData disponible = ${window.allItemGroupsData ? window.allItemGroupsData.length : 'No'}`);
     
-    // FORZAR LIMPIEZA DEL CACHÉ PARA OBTENER DATOS FRESCOS
-    if (itemGroupDataCache.has(itemGroupId)) {
-      console.log(`🧹 LIMPIANDO caché para Item Group ${itemGroupId}...`);
-      itemGroupDataCache.delete(itemGroupId);
+    // PRIORIDAD 1: Buscar en window.allItemGroupsData (datos del botón Optimizar)
+    if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+      console.log(`🎯 Buscando en window.allItemGroupsData (${window.allItemGroupsData.length} items)...`);
+      
+      // DEBUG: Verificar estructura de los datos
+      const firstItem = window.allItemGroupsData[0];
+      console.log(`🔍 DEBUG: Estructura de primer item en window.allItemGroupsData:`, Object.keys(firstItem));
+      console.log(`🔍 DEBUG: ¿Tiene 'Marca'?`, firstItem.hasOwnProperty('Marca'));
+      console.log(`🔍 DEBUG: ¿Tiene 'data_concatenated'?`, firstItem.hasOwnProperty('data_concatenated'));
+      
+      const itemGroupData = window.allItemGroupsData.filter(item => {
+        const itemGroups = String(item['Item Groups'] || '');
+        const itemGroupIds = itemGroups.split(',').map(id => id.trim()).filter(id => id);
+        return itemGroupIds.includes(itemGroupId);
+      });
+      
+      if (itemGroupData && itemGroupData.length > 0) {
+        const totalTime = performance.now() - totalStartTime;
+        console.log(`✅ Datos obtenidos de window.allItemGroupsData en ${totalTime.toFixed(2)}ms`);
+        console.log(`📊 Filas obtenidas: ${itemGroupData.length}`);
+        console.log(`🔍 DEBUG: Primer item obtenido:`, itemGroupData[0]);
+        return itemGroupData;
+      }
     }
     
-    // TAMBIÉN LIMPIAR TODO EL CACHÉ Y LOCALSTORAGE
-    console.log(`🧹 LIMPIANDO TODO EL CACHÉ Y LOCALSTORAGE...`);
-    itemGroupDataCache.clear();
-    localStorage.clear();
-    allItemGroupsLoaded = false;
-    
-    // MÉTODO CACHÉ: Verificar si ya tenemos el caché cargado
+    // PRIORIDAD 2: Buscar en caché local (itemGroupDataCache)
     if (allItemGroupsLoaded && itemGroupDataCache.has(itemGroupId)) {
       const cachedData = itemGroupDataCache.get(itemGroupId);
       const totalTime = performance.now() - totalStartTime;
-      console.log(`✅ Datos obtenidos del caché en ${totalTime.toFixed(2)}ms`);
+      console.log(`✅ Datos obtenidos del caché local en ${totalTime.toFixed(2)}ms`);
       console.log(`📊 Filas obtenidas del caché: ${cachedData.length}`);
       return cachedData;
     }
     
-    // Si no hay caché, usar método directo
-    console.log(`⚠️ Caché no disponible, usando método directo...`);
+    // PRIORIDAD 3: Solo si no hay datos en caché, hacer fetch a Google
+    console.log(`⚠️ No hay datos en caché, haciendo fetch a Google...`);
     
     // MÉTODO DIRECTO: Intentar primero el filtrado en Apps Script (más rápido)
     console.log(`� Intentando método directo para Item Group ${itemGroupId}...`);
@@ -1601,11 +1615,14 @@ async function loadItemGroupDetails(itemGroupId) {
     });
     console.log(`═══════════════════════════════════════════════════════`);
     
-    // Transformar los datos de formato clave-valor al formato esperado por el grid
+    // Los datos vienen en formato Attribute-Value, necesitan transformación específica
+    console.log(`🔄 Aplicando transformación de Attribute-Value a formato expandido...`);
+    
+    // Transformar los datos de formato Attribute-Value al formato esperado por el grid
     const transformStartTime = performance.now();
-    const transformedData = transformKeyValueData(itemGroupData);
+    const transformedData = transformAttributeValueData(itemGroupData);
     const transformEndTime = performance.now();
-    console.log(`⏱️ TIEMPO de transformKeyValueData: ${(transformEndTime - transformStartTime).toFixed(2)}ms`);
+    console.log(`⏱️ TIEMPO de transformAttributeValueData: ${(transformEndTime - transformStartTime).toFixed(2)}ms`);
     
     const processEndTime = performance.now();
     console.log(`🎯 TIEMPO TOTAL DE TODO EL PROCESO: ${(processEndTime - processStartTime).toFixed(2)}ms`);
@@ -1796,6 +1813,116 @@ function transformKeyValueData(keyValueData) {
   console.log(`═══════════════════════════════════════════════════════`);
   
   return transformedItems;
+}
+
+// Función para transformar datos de formato Attribute-Value al formato esperado por el grid
+function transformAttributeValueData(attributeValueData) {
+  console.log(`🔍 ═══════ INICIANDO TRANSFORMACIÓN DE DATOS ATTRIBUTE-VALUE ═══════`);
+  console.log(`📊 Datos de entrada: ${attributeValueData.length} filas`);
+  
+  const transformedItems = {};
+  
+  // Procesar cada fila que viene con Attribute y value
+  attributeValueData.forEach((row, index) => {
+    const id = row['ID'];
+    const objectType = row['Object Type'];
+    const attribute = row['Attribute'];
+    const value = row['value'];
+    
+    console.log(`   [${index + 1}] Procesando: ID=${id}, ObjectType="${objectType}", Attribute="${attribute}", Value="${value}"`);
+    
+    if (!transformedItems[id]) {
+      console.log(`     🆕 Creando nuevo item para ID: ${id}`);
+      transformedItems[id] = {
+        'Item Groups': row['Item Groups'],
+        'ID': id,
+        Id: id,
+        'Object Type': objectType,
+        // Campos básicos que siempre necesitamos
+        Name: row['Name'] || '',
+        NamePath: row['NamePath'] || '',
+        IdPath: row['IdPath'] || '',
+        CMS: '',
+        Marca: '',
+        'Página de Catálogo': '',
+        Título: '',
+        'WA Importancia': '',
+        'WA_VIS_Comment': '',
+        Vis_color: '',
+        filtro_color: '',
+        // Campos de galería
+        'WA_Gallery_01': '',
+        'WA_Gallery_02': '',
+        'WA_Gallery_03': '',
+        'WA_Gallery_04': '',
+        'WA_Gallery_05': '',
+        'WA_Gallery_06': '',
+        'WA_Gallery_07': '',
+        'WA_Gallery_08': '',
+        'WA_Gallery_09': '',
+        'WA_Gallery_10': '',
+        'WA_Gallery_11': '',
+        'WA_Gallery_12': '',
+        'WA_VIS_Cover': '',
+        'WA_VIS_Gallery': '',
+        'WA_VIS_Rest': ''
+      };
+    } else {
+      // Preservar Object Type del Item Group sobre Item Code cuando comparten ID
+      if (transformedItems[id]['Object Type'] === 'Item Group' && objectType === 'Item Code') {
+        console.log(`     🔄 Actualizando item existente ID ${id} - preservando Object Type: Item Group`);
+      } else {
+        transformedItems[id]['Object Type'] = objectType;
+      }
+    }
+    
+    // Asignar el valor al atributo correspondiente
+    if (attribute && value) {
+      transformedItems[id][attribute] = value;
+      console.log(`     ✅ Asignado: ${attribute} = "${value}"`);
+      
+      // Procesar WA_VIS_Gallery -> WA_Gallery_01, WA_Gallery_02, etc.
+      if (attribute === 'WA_VIS_Gallery' && value.trim()) {
+        const galleryImages = value.split(',').map(img => img.trim()).filter(img => img);
+        console.log(`     🖼️ Dividiendo WA_VIS_Gallery para ID ${id} (${objectType}): ${galleryImages.length} imágenes`);
+        
+        // SOLO actualizar galería si es Item Group O si no hay galería existente
+        const shouldUpdateGallery = objectType === 'Item Group' || !transformedItems[id]['WA_Gallery_01'] || !transformedItems[id]['WA_Gallery_01'].trim();
+        
+        if (shouldUpdateGallery) {
+          console.log(`     ✅ Actualizando galería para ${objectType} ID ${id}`);
+          galleryImages.forEach((image, index) => {
+            if (index < 25) { // Máximo 25 imágenes gallery
+              const fieldName = `WA_Gallery_${String(index + 1).padStart(2, '0')}`;
+              transformedItems[id][fieldName] = image;
+              console.log(`     ✅ ${fieldName}: "${image}"`);
+            }
+          });
+        } else {
+          console.log(`     🔄 Preservando galería existente del Item Group para ID ${id} (actual: "${transformedItems[id]['WA_Gallery_01']}")`);
+        }
+      }
+    }
+  });
+  
+  // Convertir objeto a array
+  const resultArray = Object.values(transformedItems);
+  
+  console.log(`🔍 ═══════ RESULTADO DE LA TRANSFORMACIÓN ═══════`);
+  console.log(`✅ Transformación completada: ${resultArray.length} items transformados`);
+  
+  resultArray.forEach((item, index) => {
+    console.log(`   [${index + 1}] ID: ${item.ID}, ObjectType: "${item['Object Type']}", CMS: "${item.CMS}", Marca: "${item.Marca}", Título: "${item.Título}"`);
+  });
+  
+  console.log(`🔍 ═══════ VARIABLE DE ALMACENAMIENTO ═══════`);
+  console.log(`📁 Los datos transformados se almacenan en la variable: transformedItems`);
+  console.log(`📁 Esta variable se retorna y se usa como: detailedData`);
+  console.log(`📁 Luego se almacena globalmente en: currentWorkingData (array de items)`);
+  console.log(`📁 Y el Item Group específico se guarda en: currentItemGroup`);
+  console.log(`═══════════════════════════════════════════════════════`);
+  
+  return resultArray;
 }
 
 // Función auxiliar para procesar workbook (extraída de handleCombinedExcel)
