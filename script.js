@@ -1851,18 +1851,17 @@ function transformAttributeValueData(attributeValueData) {
         Vis_color: '',
         filtro_color: '',
         // Campos de galería
-        'WA_Gallery_01': '',
-        'WA_Gallery_02': '',
-        'WA_Gallery_03': '',
-        'WA_Gallery_04': '',
-        'WA_Gallery_05': '',
-        'WA_Gallery_06': '',
-        'WA_Gallery_07': '',
-        'WA_Gallery_08': '',
-        'WA_Gallery_09': '',
-        'WA_Gallery_10': '',
-        'WA_Gallery_11': '',
-        'WA_Gallery_12': '',
+        'WA_Cover_Image_01': '', 'WA_Cover_Image_02': '', 'WA_Cover_Image_03': '', 'WA_Cover_Image_04': '', 'WA_Cover_Image_05': '',
+        'WA_Gallery_01': '', 'WA_Gallery_02': '', 'WA_Gallery_03': '', 'WA_Gallery_04': '', 'WA_Gallery_05': '',
+        'WA_Gallery_06': '', 'WA_Gallery_07': '', 'WA_Gallery_08': '', 'WA_Gallery_09': '', 'WA_Gallery_10': '',
+        'WA_Gallery_11': '', 'WA_Gallery_12': '', 'WA_Gallery_13': '', 'WA_Gallery_14': '', 'WA_Gallery_15': '',
+        'WA_Gallery_16': '', 'WA_Gallery_17': '', 'WA_Gallery_18': '', 'WA_Gallery_19': '', 'WA_Gallery_20': '',
+        'WA_Gallery_21': '', 'WA_Gallery_22': '', 'WA_Gallery_23': '', 'WA_Gallery_24': '', 'WA_Gallery_25': '',
+        'WA_Rest_Image_01': '', 'WA_Rest_Image_02': '', 'WA_Rest_Image_03': '', 'WA_Rest_Image_04': '', 'WA_Rest_Image_05': '',
+        'WA_Rest_Image_06': '', 'WA_Rest_Image_07': '', 'WA_Rest_Image_08': '', 'WA_Rest_Image_09': '', 'WA_Rest_Image_10': '',
+        'WA_Rest_Image_11': '', 'WA_Rest_Image_12': '', 'WA_Rest_Image_13': '', 'WA_Rest_Image_14': '', 'WA_Rest_Image_15': '',
+        'WA_Rest_Image_16': '', 'WA_Rest_Image_17': '', 'WA_Rest_Image_18': '', 'WA_Rest_Image_19': '', 'WA_Rest_Image_20': '',
+        'WA_Rest_Image_21': '', 'WA_Rest_Image_22': '', 'WA_Rest_Image_23': '', 'WA_Rest_Image_24': '', 'WA_Rest_Image_25': '',
         'WA_VIS_Cover': '',
         'WA_VIS_Gallery': '',
         'WA_VIS_Rest': ''
@@ -1880,6 +1879,28 @@ function transformAttributeValueData(attributeValueData) {
     if (attribute && value) {
       transformedItems[id][attribute] = value;
       console.log(`     ✅ Asignado: ${attribute} = "${value}"`);
+      
+      // Procesar WA_VIS_Cover -> WA_Cover_Image_01, WA_Cover_Image_02, etc.
+      if (attribute === 'WA_VIS_Cover' && value.trim()) {
+        const coverImages = value.split(',').map(img => img.trim()).filter(img => img);
+        console.log(`     🖼️ Dividiendo WA_VIS_Cover para ID ${id} (${objectType}): ${coverImages.length} imágenes`);
+        
+        // SOLO actualizar cover si es Item Group O si no hay cover existente
+        const shouldUpdateCover = objectType === 'Item Group' || !transformedItems[id]['WA_Cover_Image_01'] || !transformedItems[id]['WA_Cover_Image_01'].trim();
+        
+        if (shouldUpdateCover) {
+          console.log(`     ✅ Actualizando cover para ${objectType} ID ${id}`);
+          coverImages.forEach((image, index) => {
+            if (index < 5) { // Máximo 5 imágenes cover
+              const fieldName = `WA_Cover_Image_${String(index + 1).padStart(2, '0')}`;
+              transformedItems[id][fieldName] = image;
+              console.log(`     ✅ ${fieldName}: "${image}"`);
+            }
+          });
+        } else {
+          console.log(`     🔄 Preservando cover existente del Item Group para ID ${id}`);
+        }
+      }
       
       // Procesar WA_VIS_Gallery -> WA_Gallery_01, WA_Gallery_02, etc.
       if (attribute === 'WA_VIS_Gallery' && value.trim()) {
@@ -1900,6 +1921,28 @@ function transformAttributeValueData(attributeValueData) {
           });
         } else {
           console.log(`     🔄 Preservando galería existente del Item Group para ID ${id} (actual: "${transformedItems[id]['WA_Gallery_01']}")`);
+        }
+      }
+      
+      // Procesar WA_VIS_Rest -> WA_Rest_Image_01, WA_Rest_Image_02, etc.
+      if (attribute === 'WA_VIS_Rest' && value.trim()) {
+        const restImages = value.split(',').map(img => img.trim()).filter(img => img);
+        console.log(`     🖼️ Dividiendo WA_VIS_Rest para ID ${id} (${objectType}): ${restImages.length} imágenes`);
+        
+        // SOLO actualizar rest si es Item Group O si no hay rest existente
+        const shouldUpdateRest = objectType === 'Item Group' || !transformedItems[id]['WA_Rest_Image_01'] || !transformedItems[id]['WA_Rest_Image_01'].trim();
+        
+        if (shouldUpdateRest) {
+          console.log(`     ✅ Actualizando rest para ${objectType} ID ${id}`);
+          restImages.forEach((image, index) => {
+            if (index < 25) { // Máximo 25 imágenes rest
+              const fieldName = `WA_Rest_Image_${String(index + 1).padStart(2, '0')}`;
+              transformedItems[id][fieldName] = image;
+              console.log(`     ✅ ${fieldName}: "${image}"`);
+            }
+          });
+        } else {
+          console.log(`     🔄 Preservando rest existente del Item Group para ID ${id}`);
         }
       }
     }
