@@ -1665,6 +1665,12 @@ function transformKeyValueData(keyValueData) {
       for (let i = 1; i <= 25; i++) {
         transformedItems[id][`WA_Rest_${String(i).padStart(2, '0')}`] = '';
       }
+    } else {
+      // Si ya existe, preservar el Object Type de Item Group si este es Item Group
+      if (objectType === 'Item Group') {
+        console.log(`     🔄 Actualizando item existente ID ${id} - preservando Object Type: Item Group`);
+        transformedItems[id]['Object Type'] = 'Item Group';
+      }
     }
     
     // PARSEAR LOS DATOS CONCATENADOS usando parseUniversalConcatenatedData
@@ -1675,15 +1681,25 @@ function transformKeyValueData(keyValueData) {
       // Mapear los campos parseados al item transformado
       Object.keys(parsedData).forEach(key => {
         if (key !== 'Item Groups' && key !== 'ID' && key !== 'Object Type') {
-          transformedItems[id][key] = parsedData[key];
-          
-          // Logs específicos para campos importantes
-          if (key === 'CMS') {
-            console.log(`     ✅ Mapeando CMS para ID ${id}: "${parsedData[key]}"`);
-          } else if (key === 'Marca') {
-            console.log(`     ✅ Mapeando Marca para ID ${id}: "${parsedData[key]}"`);
-          } else if (key === 'Título') {
-            console.log(`     ✅ Mapeando Título para ID ${id}: "${parsedData[key]}"`);
+          // Preservar comentarios de Item Group - no sobrescribir si ya existe y es vacío el nuevo
+          if (key === 'WA_VIS_Comment') {
+            if (objectType === 'Item Group' || !transformedItems[id][key] || !transformedItems[id][key].trim()) {
+              transformedItems[id][key] = parsedData[key];
+              console.log(`     ✅ Mapeando WA_VIS_Comment para ID ${id} (${objectType}): "${parsedData[key]}"`);
+            } else {
+              console.log(`     🔄 Preservando WA_VIS_Comment existente para ID ${id}: "${transformedItems[id][key]}"`);
+            }
+          } else {
+            transformedItems[id][key] = parsedData[key];
+            
+            // Logs específicos para campos importantes
+            if (key === 'CMS') {
+              console.log(`     ✅ Mapeando CMS para ID ${id}: "${parsedData[key]}"`);
+            } else if (key === 'Marca') {
+              console.log(`     ✅ Mapeando Marca para ID ${id}: "${parsedData[key]}"`);
+            } else if (key === 'Título') {
+              console.log(`     ✅ Mapeando Título para ID ${id}: "${parsedData[key]}"`);
+            }
           }
         }
       });
@@ -1705,18 +1721,27 @@ function transformKeyValueData(keyValueData) {
       // Procesar WA_VIS_Gallery -> WA_Gallery_01, WA_Gallery_02, etc.
       if (parsedData['WA_VIS_Gallery'] && parsedData['WA_VIS_Gallery'].trim()) {
         const galleryImages = parsedData['WA_VIS_Gallery'].split(',').map(img => img.trim()).filter(img => img);
-        console.log(`     🖼️ Dividiendo WA_VIS_Gallery para ID ${id}: ${galleryImages.length} imágenes`);
-        galleryImages.forEach((image, index) => {
-          if (index < 25) { // Máximo 25 imágenes gallery
-            const fieldName = `WA_Gallery_${String(index + 1).padStart(2, '0')}`;
-            transformedItems[id][fieldName] = image;
-            if (index < 4) { // Solo mostrar las primeras 4 en logs
-              console.log(`     ✅ ${fieldName}: "${image}"`);
-            } else if (index === 4) {
-              console.log(`     ✅ ... y ${galleryImages.length - 4} imágenes más`);
+        console.log(`     🖼️ Dividiendo WA_VIS_Gallery para ID ${id} (${objectType}): ${galleryImages.length} imágenes`);
+        
+        // SOLO actualizar galería si es Item Group O si no hay galería existente
+        const shouldUpdateGallery = objectType === 'Item Group' || !transformedItems[id]['WA_Gallery_01'] || !transformedItems[id]['WA_Gallery_01'].trim();
+        
+        if (shouldUpdateGallery) {
+          console.log(`     ✅ Actualizando galería para ${objectType} ID ${id}`);
+          galleryImages.forEach((image, index) => {
+            if (index < 25) { // Máximo 25 imágenes gallery
+              const fieldName = `WA_Gallery_${String(index + 1).padStart(2, '0')}`;
+              transformedItems[id][fieldName] = image;
+              if (index < 4) { // Solo mostrar las primeras 4 en logs
+                console.log(`     ✅ ${fieldName}: "${image}"`);
+              } else if (index === 4) {
+                console.log(`     ✅ ... y ${galleryImages.length - 4} imágenes más`);
+              }
             }
-          }
-        });
+          });
+        } else {
+          console.log(`     🔄 Preservando galería existente del Item Group para ID ${id} (actual: "${transformedItems[id]['WA_Gallery_01']}")`);
+        }
       }
 
       // Procesar WA_VIS_Rest -> WA_Rest_01, WA_Rest_02, etc.
@@ -3555,6 +3580,40 @@ function findImageAssetById(imageId) {
   );
 }
 
+// Función para verificar si una imagen tiene comentarios de Item Group (SOLO para grid del Item Group)
+function hasItemGroupImageComments(imageName) {
+  if (!imageName || !currentItemGroup) return false;
+  
+  console.log(`🔍 DEBUG hasItemGroupImageComments - Buscando comentario de Item Group para imagen: "${imageName}"`);
+  
+  // SOLO buscar comentario del Item Group actual
+  if (currentItemGroup['WA_VIS_Comment'] && currentItemGroup['WA_VIS_Comment'].trim()) {
+    console.log(`🎯 Item Group tiene comentario: "${currentItemGroup['WA_VIS_Comment']}"`);
+    console.log(`✅ Resultado hasItemGroupImageComments("${imageName}"): true`);
+    return true;
+  }
+  
+  console.log(`❌ Item Group no tiene comentario`);
+  console.log(`✅ Resultado hasItemGroupImageComments("${imageName}"): false`);
+  return false;
+}
+
+// Función para obtener los comentarios de Item Group para una imagen (SOLO para grid del Item Group)
+function getItemGroupImageComments(imageName) {
+  if (!imageName || !currentItemGroup) return '';
+  
+  console.log(`🔍 DEBUG getItemGroupImageComments - Obteniendo comentario de Item Group para imagen: "${imageName}"`);
+  
+  // SOLO retornar comentario del Item Group actual
+  if (currentItemGroup['WA_VIS_Comment'] && currentItemGroup['WA_VIS_Comment'].trim()) {
+    console.log(`🎯 Comentario de Item Group encontrado: "${currentItemGroup['WA_VIS_Comment']}"`);
+    return currentItemGroup['WA_VIS_Comment'];
+  }
+  
+  console.log(`❌ Item Group no tiene comentario`);
+  return '';
+}
+
 // Función para verificar si una imagen tiene comentarios (VERSIÓN CORREGIDA - solo busca objetos tipo "Image" por nombre exacto)
 function hasImageComments(imageName) {
   if (!imageName) return false;
@@ -5150,11 +5209,23 @@ function handleItemGroupImageAssignment(event, imageCell, imageThumbnail) {
     return;
   }
   
-  // Actualizar la imagen en los datos del Item Group
+  // PRESERVAR campos importantes antes de actualizar
+  const originalComment = currentItemGroup['WA_VIS_Comment'];
+  const originalObjectType = currentItemGroup['Object Type'];
+  
+  // Actualizar la imagen en los datos del Item Group PRESERVANDO campos
   const previousImage = currentItemGroup['WA_Gallery_01'] || '';
   currentItemGroup['WA_Gallery_01'] = imageName;
   
-  // Actualizar también en currentWorkingData
+  // Restaurar campos preservados
+  if (originalComment) {
+    currentItemGroup['WA_VIS_Comment'] = originalComment;
+  }
+  if (originalObjectType) {
+    currentItemGroup['Object Type'] = originalObjectType;
+  }
+  
+  // Actualizar también en currentWorkingData PRESERVANDO campos
   const itemGroupIndex = currentWorkingData.findIndex(item => 
     item['Object Type'] === 'Item Group' && 
     item.NamePath === currentItemGroup.NamePath
@@ -5162,12 +5233,19 @@ function handleItemGroupImageAssignment(event, imageCell, imageThumbnail) {
   
   if (itemGroupIndex !== -1) {
     currentWorkingData[itemGroupIndex]['WA_Gallery_01'] = imageName;
+    // Preservar comentario también en currentWorkingData
+    if (originalComment) {
+      currentWorkingData[itemGroupIndex]['WA_VIS_Comment'] = originalComment;
+    }
+    if (originalObjectType) {
+      currentWorkingData[itemGroupIndex]['Object Type'] = originalObjectType;
+    }
   }
   
   // Actualizar la imagen en el header del grid
   updateItemGroupHeaderImage(imageName);
   
-  console.log(`Imagen principal actualizada: "${previousImage}" → "${imageName}"`);
+  console.log(`Imagen principal actualizada: "${previousImage}" → "${imageName}", preservando comentario:`, originalComment);
 }
 
 // Función para actualizar la imagen en el header del Item Group
@@ -5178,6 +5256,14 @@ function updateItemGroupHeaderImage(imageName) {
     return;
   }
   
+  // Detectar si el Item Group tiene comentario
+  const hasComment = currentItemGroup && currentItemGroup['WA_VIS_Comment'] && 
+                     currentItemGroup['WA_VIS_Comment'].trim() !== '';
+  
+  // Obtener status del comentario para el bubble
+  const commentStatus = hasComment ? getCurrentStatus(currentItemGroup['WA_VIS_Comment']) : '';
+  const statusAttribute = commentStatus ? ` data-status="${commentStatus}"` : '';
+  
   // Crear nueva imagen o actualizar existente
   if (imageName) {
     groupImageContainer.innerHTML = `
@@ -5185,6 +5271,7 @@ function updateItemGroupHeaderImage(imageName) {
            alt="Gallery 1" class="group-thumbnail"
            onerror="this.style.display='none';">
       <div class="item-group-delete-btn" title="Quitar imagen del Item Group">🗑️</div>
+      ${hasComment ? `<div class="comment-indicator group-comment" data-comment="${(currentItemGroup['WA_VIS_Comment'] || '').replace(/"/g, '&quot;')}"${statusAttribute}>💬</div>` : ''}
     `;
     
     // Configurar event listener para el botón de basura
@@ -5194,7 +5281,7 @@ function updateItemGroupHeaderImage(imageName) {
     groupImageContainer.innerHTML = '<div class="no-image">📷</div>';
   }
   
-  console.log('Header del Item Group actualizado con nueva imagen');
+  console.log('Header del Item Group actualizado con nueva imagen. Comentario presente:', hasComment, 'Status:', commentStatus);
 }
 
 // Función para mostrar imagen en modal de vista previa
