@@ -1451,6 +1451,17 @@ async function loadItemGroupFromDatabase(itemGroupId) {
       console.log(`🔍 DEBUG: ¿Tiene 'Marca'?`, firstItem.hasOwnProperty('Marca'));
       console.log(`🔍 DEBUG: ¿Tiene 'data_concatenated'?`, firstItem.hasOwnProperty('data_concatenated'));
       
+      // DEBUG: Mostrar algunos ejemplos de Item Groups disponibles
+      const availableItemGroups = new Set();
+      window.allItemGroupsData.forEach(item => {
+        const itemGroups = String(item['Item Groups'] || '');
+        const itemGroupIds = itemGroups.split(',').map(id => id.trim()).filter(id => id);
+        itemGroupIds.forEach(id => availableItemGroups.add(id));
+      });
+      console.log(`🔍 DEBUG: Item Groups disponibles en datos (primeros 10):`, Array.from(availableItemGroups).slice(0, 10));
+      console.log(`🔍 DEBUG: Buscando Item Group ID: "${itemGroupId}"`);
+      console.log(`🔍 DEBUG: ¿Item Group está en datos?`, availableItemGroups.has(itemGroupId));
+      
       const itemGroupData = window.allItemGroupsData.filter(item => {
         const itemGroups = String(item['Item Groups'] || '');
         const itemGroupIds = itemGroups.split(',').map(id => id.trim()).filter(id => id);
@@ -1463,6 +1474,8 @@ async function loadItemGroupFromDatabase(itemGroupId) {
         console.log(`📊 Filas obtenidas: ${itemGroupData.length}`);
         console.log(`🔍 DEBUG: Primer item obtenido:`, itemGroupData[0]);
         return itemGroupData;
+      } else {
+        console.warn(`⚠️ No se encontraron datos para Item Group ID "${itemGroupId}" en window.allItemGroupsData`);
       }
     }
     
@@ -2644,21 +2657,93 @@ function selectItemGroupInTree(itemGroupPath) {
 
 // Función para cargar la retícula de imágenes en box4 (NUEVA ARQUITECTURA - Carga bajo demanda)
 async function loadImageGridInBox4(itemGroupPath) {
-  // Buscar el Item Group actual en los datos básicos del árbol
-  const itemGroup = currentWorkingData.find(item => {
+  console.log(`🔍 BUSCANDO ITEM GROUP POR PATH: "${itemGroupPath}"`);
+  
+  // ESTRATEGIA MÚLTIPLE PARA ENCONTRAR EL ITEM GROUP
+  let itemGroup = null;
+  let itemGroupId = null;
+  
+  // 1. Buscar en currentWorkingData (datos del árbol) por NamePath exacto
+  itemGroup = currentWorkingData.find(item => {
     return item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath;
   });
+  
+  if (itemGroup) {
+    console.log(`✅ Item Group encontrado en currentWorkingData por NamePath: ID ${itemGroup.Id}`);
+    itemGroupId = itemGroup.Id;
+  } else {
+    console.log(`⚠️ No encontrado por NamePath exacto, intentando buscar por nombre...`);
+    
+    // 2. Extraer el nombre del Item Group del path (última parte)
+    const itemGroupName = itemGroupPath.split('/').pop();
+    console.log(`🔍 Nombre extraído del path: "${itemGroupName}"`);
+    
+    // Buscar por Name en currentWorkingData
+    itemGroup = currentWorkingData.find(item => {
+      return item['Object Type'] === 'Item Group' && item.Name === itemGroupName;
+    });
+    
+    if (itemGroup) {
+      console.log(`✅ Item Group encontrado en currentWorkingData por Name: ID ${itemGroup.Id}`);
+      itemGroupId = itemGroup.Id;
+    } else {
+      console.log(`⚠️ No encontrado por Name, buscando en caché de Item Groups...`);
+      
+      // 3. Buscar en el caché de Item Groups por nombre
+      if (itemGroupDataCache && itemGroupDataCache.size > 0) {
+        for (let [cachedId, cachedData] of itemGroupDataCache.entries()) {
+          if (cachedData && cachedData.length > 0) {
+            const groupInfo = cachedData.find(item => 
+              item['Object Type'] === 'Item Group' && 
+              (item.Name === itemGroupName || item.NamePath === itemGroupPath)
+            );
+            if (groupInfo) {
+              console.log(`✅ Item Group encontrado en caché: ID ${cachedId}`);
+              itemGroupId = cachedId;
+              itemGroup = groupInfo;
+              break;
+            }
+          }
+        }
+      }
+      
+      // 4. Si aún no se encuentra, crear un objeto básico con los datos disponibles
+      if (!itemGroup && !itemGroupId) {
+        console.log(`⚠️ Item Group no encontrado en ninguna fuente, intentando extraer ID del path...`);
+        
+        // Intentar extraer ID si está en el formato "Name (ID: 12345)" o similar
+        const idMatch = itemGroupName.match(/\(ID:\s*(\d+)\)/);
+        if (idMatch) {
+          itemGroupId = idMatch[1];
+          console.log(`🔍 ID extraído del nombre: ${itemGroupId}`);
+          itemGroup = {
+            Id: itemGroupId,
+            Name: itemGroupName.replace(/\s*\(ID:\s*\d+\)/, '').trim(),
+            NamePath: itemGroupPath,
+            'Object Type': 'Item Group'
+          };
+        }
+      }
+    }
+  }
 
-  if (!itemGroup) {
-    console.error('Item Group no encontrado en los datos básicos:', itemGroupPath);
-    addContentToBox4('<div class="p-3"><p>Item Group no encontrado.</p></div>');
+  if (!itemGroup || !itemGroupId) {
+    console.error('❌ Item Group no encontrado en ninguna fuente:', itemGroupPath);
+    addContentToBox4(`
+      <div class="p-3">
+        <p>Item Group no encontrado: "${itemGroupPath}"</p>
+        <p>Por favor, asegúrate de que el Item Group existe y está cargado en el sistema.</p>
+        <button class="btn btn-primary" onclick="location.reload()">Recargar página</button>
+      </div>
+    `);
     return;
   }
+  
+  console.log(`✅ Item Group final seleccionado: ID ${itemGroupId}, Name: "${itemGroup.Name}"`);
 
   // IMPORTANTE: Guardar el Item Group actual globalmente para otras funciones
   currentItemGroup = itemGroup;
   
-  const itemGroupId = itemGroup.Id;
   console.log(`🎯 ITEM GROUP SELECCIONADO: ${itemGroup.Name} (ID: ${itemGroupId})`);
   
   // Mostrar estado de carga
