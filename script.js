@@ -965,11 +965,8 @@ function transformDataIfConcatenated(data) {
   const hasConcatenatedColumn = firstRow.hasOwnProperty('data_concatenated');
   
   if (!hasConcatenatedColumn) {
-    console.log('📋 Datos en formato original (no concatenados)');
     return data;
   }
-  
-  console.log('🔄 Detectados datos concatenados, transformando...');
   
   try {
     // Usar el adaptador que creamos
@@ -978,43 +975,16 @@ function transformDataIfConcatenated(data) {
     
     // Guardar todos los datos expandidos globalmente para búsqueda de comentarios
     window.allItemGroupsData = expandedData;
-    console.log(`🌐 Datos globales guardados: ${expandedData.length} elementos para búsqueda de comentarios`);
     
     // DEBUG: Buscar objetos con comentarios para verificar
     const itemsWithComments = expandedData.filter(item => 
       item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim()
     );
-    console.log(`💬 Total objetos con comentarios encontrados: ${itemsWithComments.length}`);
-    
-    if (itemsWithComments.length > 0) {
-      console.log('📋 Muestra de objetos con comentarios:', itemsWithComments.slice(0, 5).map(item => ({
-        ID: item.ID,
-        ObjectType: item['Object Type'],
-        Name: item.Name,
-        Comment: item['WA_VIS_Comment'].substring(0, 50) + '...'
-      })));
-      
-      // Buscar específicamente el objeto que mencionaste
-      const specificItem = itemsWithComments.find(item => 
-        item.Name === '99-000-373_ill1.jpg' || 
-        item['WA_VIS_Comment'].includes('Editar color a que corresponda')
-      );
-      
-      if (specificItem) {
-        console.log('🎯 Objeto específico encontrado:', {
-          ID: specificItem.ID,
-          ObjectType: specificItem['Object Type'],
-          Name: specificItem.Name,
-          Comment: specificItem['WA_VIS_Comment']
-        });
-      }
-    }
     
     return expandedData;
     
   } catch (error) {
     console.error('❌ Error transformando datos concatenados:', error);
-    console.log('📋 Usando datos originales como fallback');
     return data;
   }
 }
@@ -1029,11 +999,6 @@ function transformConcatenatedDataToExpanded(concatenatedData) {
       const expandedRows = expandSingleConcatenatedRow(row);
       expandedData.push(...expandedRows);
       processedCount++;
-      
-      // Mostrar progreso cada 1000 filas para evitar spam en la consola
-      if (processedCount % 1000 === 0) {
-        console.log(`🔄 Procesadas ${processedCount}/${concatenatedData.length} filas...`);
-      }
     } catch (error) {
       // Solo mostrar errores reales, no warnings de imagen
       if (!error.message.includes('imagen') && !error.message.includes('.jpg')) {
@@ -1430,38 +1395,9 @@ function processCategoryData(categoryData) {
 
 // Función para cargar datos de un Item Group específico (MÉTODO OPTIMIZADO + FALLBACK)
 async function loadItemGroupFromDatabase(itemGroupId) {
-  const totalStartTime = performance.now();
-  
   try {
-    console.log(`🚀 Obteniendo Item Group ${itemGroupId}...`);
-    
-    // 🔍 DEBUG: Verificar estado del caché
-    console.log(`🔍 DEBUG: allItemGroupsLoaded = ${allItemGroupsLoaded}`);
-    console.log(`🔍 DEBUG: itemGroupDataCache.has(${itemGroupId}) = ${itemGroupDataCache.has(itemGroupId)}`);
-    console.log(`🔍 DEBUG: Tamaño del caché = ${itemGroupDataCache.size}`);
-    console.log(`🔍 DEBUG: window.allItemGroupsData disponible = ${window.allItemGroupsData ? window.allItemGroupsData.length : 'No'}`);
-    
     // PRIORIDAD 1: Buscar en window.allItemGroupsData (datos del botón Optimizar)
     if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
-      console.log(`🎯 Buscando en window.allItemGroupsData (${window.allItemGroupsData.length} items)...`);
-      
-      // DEBUG: Verificar estructura de los datos
-      const firstItem = window.allItemGroupsData[0];
-      console.log(`🔍 DEBUG: Estructura de primer item en window.allItemGroupsData:`, Object.keys(firstItem));
-      console.log(`🔍 DEBUG: ¿Tiene 'Marca'?`, firstItem.hasOwnProperty('Marca'));
-      console.log(`🔍 DEBUG: ¿Tiene 'data_concatenated'?`, firstItem.hasOwnProperty('data_concatenated'));
-      
-      // DEBUG: Mostrar algunos ejemplos de Item Groups disponibles
-      const availableItemGroups = new Set();
-      window.allItemGroupsData.forEach(item => {
-        const itemGroups = String(item['Item Groups'] || '');
-        const itemGroupIds = itemGroups.split(',').map(id => id.trim()).filter(id => id);
-        itemGroupIds.forEach(id => availableItemGroups.add(id));
-      });
-      console.log(`🔍 DEBUG: Item Groups disponibles en datos (primeros 10):`, Array.from(availableItemGroups).slice(0, 10));
-      console.log(`🔍 DEBUG: Buscando Item Group ID: "${itemGroupId}"`);
-      console.log(`🔍 DEBUG: ¿Item Group está en datos?`, availableItemGroups.has(itemGroupId));
-      
       const itemGroupData = window.allItemGroupsData.filter(item => {
         const itemGroups = String(item['Item Groups'] || '');
         const itemGroupIds = itemGroups.split(',').map(id => id.trim()).filter(id => id);
@@ -1469,37 +1405,22 @@ async function loadItemGroupFromDatabase(itemGroupId) {
       });
       
       if (itemGroupData && itemGroupData.length > 0) {
-        const totalTime = performance.now() - totalStartTime;
-        console.log(`✅ Datos obtenidos de window.allItemGroupsData en ${totalTime.toFixed(2)}ms`);
-        console.log(`📊 Filas obtenidas: ${itemGroupData.length}`);
-        console.log(`🔍 DEBUG: Primer item obtenido:`, itemGroupData[0]);
         return itemGroupData;
-      } else {
-        console.warn(`⚠️ No se encontraron datos para Item Group ID "${itemGroupId}" en window.allItemGroupsData`);
       }
     }
     
     // PRIORIDAD 2: Buscar en caché local (itemGroupDataCache)
     if (allItemGroupsLoaded && itemGroupDataCache.has(itemGroupId)) {
       const cachedData = itemGroupDataCache.get(itemGroupId);
-      const totalTime = performance.now() - totalStartTime;
-      console.log(`✅ Datos obtenidos del caché local en ${totalTime.toFixed(2)}ms`);
-      console.log(`📊 Filas obtenidas del caché: ${cachedData.length}`);
       return cachedData;
     }
     
     // PRIORIDAD 3: Solo si no hay datos en caché, hacer fetch a Google
-    console.log(`⚠️ No hay datos en caché, haciendo fetch a Google...`);
     
     // MÉTODO DIRECTO: Intentar primero el filtrado en Apps Script (más rápido)
-    console.log(`� Intentando método directo para Item Group ${itemGroupId}...`);
-    
     const directUrl = `${GOOGLE_SHEETS_CONFIG.DATA_PROXY_URL}?action=getItemGroupData&itemGroupId=${itemGroupId}&timestamp=${Date.now()}`;
     
     try {
-      console.log(`🔗 Llamando a Apps Script (método directo): ${directUrl}`);
-      
-      const fetchStartTime = performance.now();
       const directResponse = await fetch(directUrl, {
         method: 'GET',
         cache: 'no-cache',
@@ -1508,20 +1429,10 @@ async function loadItemGroupFromDatabase(itemGroupId) {
         },
         timeout: 10000  // Timeout más corto para método directo
       });
-      const fetchEndTime = performance.now();
-      console.log(`⏱️ Tiempo de FETCH (directo): ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
       
       if (directResponse.ok) {
-        const parseStartTime = performance.now();
         const directData = await directResponse.text();
-        console.log(`✅ Método directo exitoso, parseando datos...`);
-        console.log(`📏 Tamaño de datos (directo): ${directData.length} caracteres`);
-        
         const parsedDirectData = parseCSVToObjects(directData, 'data');
-        const parseEndTime = performance.now();
-        console.log(`📊 Filas cargadas (método directo): ${parsedDirectData.length}`);
-        console.log(`⏱️ Tiempo de PARSING CSV: ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
-        
         return parsedDirectData;
       }
     } catch (directError) {
@@ -1529,11 +1440,7 @@ async function loadItemGroupFromDatabase(itemGroupId) {
     }
     
     // FALLBACK: Si el método directo falla, usar el método completo
-    console.log(`🔄 Usando método fallback - cargando TODA la pestaña data y filtrando por Item Group ${itemGroupId}...`);
-    
     const dataSheetUrl = `${GOOGLE_SHEETS_CONFIG.DATA_PROXY_URL}?sheet=data&format=csv&timestamp=${Date.now()}`;
-    
-    console.log(`🔗 Llamando a Apps Script (método fallback): ${dataSheetUrl}`);
     
     const response = await fetch(dataSheetUrl, {
       method: 'GET',
@@ -1553,9 +1460,6 @@ async function loadItemGroupFromDatabase(itemGroupId) {
       throw new Error(`Respuesta vacía del Apps Script`);
     }
     
-    console.log(`✅ Datos completos cargados, parseando...`);
-    console.log(`📏 Tamaño de datos: ${responseText.length} caracteres`);
-    
     // Convertir CSV a array de objetos
     const allData = parseCSVToObjects(responseText, 'data');
     
@@ -1565,8 +1469,6 @@ async function loadItemGroupFromDatabase(itemGroupId) {
     if (!processedData || processedData.length === 0) {
       throw new Error('No se pudieron cargar datos de la pestaña data');
     }
-    
-    console.log(`📊 Total de filas cargadas: ${allData.length} → procesadas: ${processedData.length}`);
     
     // Filtrar solo los datos de este Item Group en el frontend
     const itemGroupData = processedData.filter(row => {
@@ -1580,8 +1482,6 @@ async function loadItemGroupFromDatabase(itemGroupId) {
         return rowItemGroupId === String(itemGroupId);
       }
     });
-    
-    console.log(`🎯 Filas filtradas para Item Group ${itemGroupId}: ${itemGroupData.length}`);
     
     if (itemGroupData.length === 0) {
       console.warn(`⚠️ No se encontraron datos para Item Group: ${itemGroupId}`);
@@ -1598,47 +1498,22 @@ async function loadItemGroupFromDatabase(itemGroupId) {
 
 // Función para cargar detalles de un Item Group específico (FASE 2: Carga bajo demanda)
 async function loadItemGroupDetails(itemGroupId) {
-  const processStartTime = performance.now();
-  
   if (!itemGroupId) {
     throw new Error('ID de Item Group requerido');
   }
   
   try {
-    console.log(`🔄 Cargando datos para Item Group ID: ${itemGroupId} desde nuevo Apps Script...`);
-    
     // Llamar al NUEVO Apps Script que filtra por Item Group ID
-    const loadStartTime = performance.now();
     const itemGroupData = await loadItemGroupFromDatabase(itemGroupId);
-    const loadEndTime = performance.now();
-    console.log(`⏱️ TIEMPO TOTAL de loadItemGroupFromDatabase: ${(loadEndTime - loadStartTime).toFixed(2)}ms`);
     
     if (!itemGroupData || itemGroupData.length === 0) {
       console.warn(`⚠️ No se encontraron datos para Item Group: ${itemGroupId}`);
       return null;
     }
     
-    console.log(`✅ Datos recibidos: ${itemGroupData.length} filas para Item Group ${itemGroupId}`);
-    
-    // 🔍 LOG COMPLETO DE DATOS RAW RECIBIDOS
-    console.log(`🔍 ═══════ DATOS RAW COMPLETOS DESDE BD ═══════`);
-    console.log(`📊 Total de filas: ${itemGroupData.length}`);
-    itemGroupData.forEach((row, index) => {
-      console.log(`   [${index + 1}] ID: ${row.ID}, Object Type: "${row['Object Type']}", Attribute: "${row.Attribute}", Value: "${row.value}"`);
-    });
-    console.log(`═══════════════════════════════════════════════════════`);
-    
     // Los datos vienen en formato Attribute-Value, necesitan transformación específica
-    console.log(`🔄 Aplicando transformación de Attribute-Value a formato expandido...`);
-    
     // Transformar los datos de formato Attribute-Value al formato esperado por el grid
-    const transformStartTime = performance.now();
     const transformedData = transformAttributeValueData(itemGroupData);
-    const transformEndTime = performance.now();
-    console.log(`⏱️ TIEMPO de transformAttributeValueData: ${(transformEndTime - transformStartTime).toFixed(2)}ms`);
-    
-    const processEndTime = performance.now();
-    console.log(`🎯 TIEMPO TOTAL DE TODO EL PROCESO: ${(processEndTime - processStartTime).toFixed(2)}ms`);
     
     return transformedData;
     
@@ -1810,29 +1685,11 @@ function transformKeyValueData(keyValueData) {
     }
   });
   
-  console.log(`🔍 ═══════ RESULTADO DE LA TRANSFORMACIÓN ═══════`);
-  console.log(`✅ Transformación completada: ${Object.keys(transformedItems).length} items transformados`);
-  
-  // Mostrar cada item transformado con detalles
-  Object.values(transformedItems).forEach((item, index) => {
-    console.log(`   [${index + 1}] ID: ${item.Id}, ObjectType: "${item['Object Type']}", CMS: "${item.CMS}", Marca: "${item.Marca}", Título: "${item.Título}"`);
-  });
-  
-  console.log(`🔍 ═══════ VARIABLE DE ALMACENAMIENTO ═══════`);
-  console.log(`📁 Los datos transformados se almacenan en la variable: transformedItems`);
-  console.log(`📁 Esta variable se retorna y se usa como: detailedData`);
-  console.log(`📁 Luego se almacena globalmente en: currentWorkingData (array de items)`);
-  console.log(`📁 Y el Item Group específico se guarda en: currentItemGroup`);
-  console.log(`═══════════════════════════════════════════════════════`);
-  
   return transformedItems;
 }
 
 // Función para transformar datos de formato Attribute-Value al formato esperado por el grid
 function transformAttributeValueData(attributeValueData) {
-  console.log(`🔍 ═══════ INICIANDO TRANSFORMACIÓN DE DATOS ATTRIBUTE-VALUE ═══════`);
-  console.log(`📊 Datos de entrada: ${attributeValueData.length} filas`);
-  
   const transformedItems = {};
   
   // Procesar cada fila que viene con Attribute y value
@@ -1842,10 +1699,7 @@ function transformAttributeValueData(attributeValueData) {
     const attribute = row['Attribute'];
     const value = row['value'];
     
-    console.log(`   [${index + 1}] Procesando: ID=${id}, ObjectType="${objectType}", Attribute="${attribute}", Value="${value}"`);
-    
     if (!transformedItems[id]) {
-      console.log(`     🆕 Creando nuevo item para ID: ${id}`);
       transformedItems[id] = {
         'Item Groups': row['Item Groups'],
         'ID': id,
@@ -1882,7 +1736,7 @@ function transformAttributeValueData(attributeValueData) {
     } else {
       // Preservar Object Type del Item Group sobre Item Code cuando comparten ID
       if (transformedItems[id]['Object Type'] === 'Item Group' && objectType === 'Item Code') {
-        console.log(`     🔄 Actualizando item existente ID ${id} - preservando Object Type: Item Group`);
+        // Preservar Item Group Object Type
       } else {
         transformedItems[id]['Object Type'] = objectType;
       }
@@ -1891,71 +1745,55 @@ function transformAttributeValueData(attributeValueData) {
     // Asignar el valor al atributo correspondiente
     if (attribute && value) {
       transformedItems[id][attribute] = value;
-      console.log(`     ✅ Asignado: ${attribute} = "${value}"`);
       
       // Procesar WA_VIS_Cover -> WA_Cover_Image_01, WA_Cover_Image_02, etc.
       if (attribute === 'WA_VIS_Cover' && value.trim()) {
         const coverImages = value.split(',').map(img => img.trim()).filter(img => img);
-        console.log(`     🖼️ Dividiendo WA_VIS_Cover para ID ${id} (${objectType}): ${coverImages.length} imágenes`);
         
         // SOLO actualizar cover si es Item Group O si no hay cover existente
         const shouldUpdateCover = objectType === 'Item Group' || !transformedItems[id]['WA_Cover_Image_01'] || !transformedItems[id]['WA_Cover_Image_01'].trim();
         
         if (shouldUpdateCover) {
-          console.log(`     ✅ Actualizando cover para ${objectType} ID ${id}`);
           coverImages.forEach((image, index) => {
             if (index < 5) { // Máximo 5 imágenes cover
               const fieldName = `WA_Cover_Image_${String(index + 1).padStart(2, '0')}`;
               transformedItems[id][fieldName] = image;
-              console.log(`     ✅ ${fieldName}: "${image}"`);
             }
           });
-        } else {
-          console.log(`     🔄 Preservando cover existente del Item Group para ID ${id}`);
         }
       }
       
       // Procesar WA_VIS_Gallery -> WA_Gallery_01, WA_Gallery_02, etc.
       if (attribute === 'WA_VIS_Gallery' && value.trim()) {
         const galleryImages = value.split(',').map(img => img.trim()).filter(img => img);
-        console.log(`     🖼️ Dividiendo WA_VIS_Gallery para ID ${id} (${objectType}): ${galleryImages.length} imágenes`);
         
         // SOLO actualizar galería si es Item Group O si no hay galería existente
         const shouldUpdateGallery = objectType === 'Item Group' || !transformedItems[id]['WA_Gallery_01'] || !transformedItems[id]['WA_Gallery_01'].trim();
         
         if (shouldUpdateGallery) {
-          console.log(`     ✅ Actualizando galería para ${objectType} ID ${id}`);
           galleryImages.forEach((image, index) => {
             if (index < 25) { // Máximo 25 imágenes gallery
               const fieldName = `WA_Gallery_${String(index + 1).padStart(2, '0')}`;
               transformedItems[id][fieldName] = image;
-              console.log(`     ✅ ${fieldName}: "${image}"`);
             }
           });
-        } else {
-          console.log(`     🔄 Preservando galería existente del Item Group para ID ${id} (actual: "${transformedItems[id]['WA_Gallery_01']}")`);
         }
       }
       
       // Procesar WA_VIS_Rest -> WA_Rest_Image_01, WA_Rest_Image_02, etc.
       if (attribute === 'WA_VIS_Rest' && value.trim()) {
         const restImages = value.split(',').map(img => img.trim()).filter(img => img);
-        console.log(`     🖼️ Dividiendo WA_VIS_Rest para ID ${id} (${objectType}): ${restImages.length} imágenes`);
         
         // SOLO actualizar rest si es Item Group O si no hay rest existente
         const shouldUpdateRest = objectType === 'Item Group' || !transformedItems[id]['WA_Rest_Image_01'] || !transformedItems[id]['WA_Rest_Image_01'].trim();
         
         if (shouldUpdateRest) {
-          console.log(`     ✅ Actualizando rest para ${objectType} ID ${id}`);
           restImages.forEach((image, index) => {
             if (index < 25) { // Máximo 25 imágenes rest
               const fieldName = `WA_Rest_Image_${String(index + 1).padStart(2, '0')}`;
               transformedItems[id][fieldName] = image;
-              console.log(`     ✅ ${fieldName}: "${image}"`);
             }
           });
-        } else {
-          console.log(`     🔄 Preservando rest existente del Item Group para ID ${id}`);
         }
       }
     }
@@ -1963,20 +1801,6 @@ function transformAttributeValueData(attributeValueData) {
   
   // Convertir objeto a array
   const resultArray = Object.values(transformedItems);
-  
-  console.log(`🔍 ═══════ RESULTADO DE LA TRANSFORMACIÓN ═══════`);
-  console.log(`✅ Transformación completada: ${resultArray.length} items transformados`);
-  
-  resultArray.forEach((item, index) => {
-    console.log(`   [${index + 1}] ID: ${item.ID}, ObjectType: "${item['Object Type']}", CMS: "${item.CMS}", Marca: "${item.Marca}", Título: "${item.Título}"`);
-  });
-  
-  console.log(`🔍 ═══════ VARIABLE DE ALMACENAMIENTO ═══════`);
-  console.log(`📁 Los datos transformados se almacenan en la variable: transformedItems`);
-  console.log(`📁 Esta variable se retorna y se usa como: detailedData`);
-  console.log(`📁 Luego se almacena globalmente en: currentWorkingData (array de items)`);
-  console.log(`📁 Y el Item Group específico se guarda en: currentItemGroup`);
-  console.log(`═══════════════════════════════════════════════════════`);
   
   return resultArray;
 }
@@ -2657,8 +2481,6 @@ function selectItemGroupInTree(itemGroupPath) {
 
 // Función para cargar la retícula de imágenes en box4 (NUEVA ARQUITECTURA - Carga bajo demanda)
 async function loadImageGridInBox4(itemGroupPath) {
-  console.log(`🔍 BUSCANDO ITEM GROUP POR PATH: "${itemGroupPath}"`);
-  
   // ESTRATEGIA MÚLTIPLE PARA ENCONTRAR EL ITEM GROUP
   let itemGroup = null;
   let itemGroupId = null;
@@ -2669,14 +2491,10 @@ async function loadImageGridInBox4(itemGroupPath) {
   });
   
   if (itemGroup) {
-    console.log(`✅ Item Group encontrado en currentWorkingData por NamePath: ID ${itemGroup.Id}`);
     itemGroupId = itemGroup.Id;
   } else {
-    console.log(`⚠️ No encontrado por NamePath exacto, intentando buscar por nombre...`);
-    
     // 2. Extraer el nombre del Item Group del path (última parte)
     const itemGroupName = itemGroupPath.split('/').pop();
-    console.log(`🔍 Nombre extraído del path: "${itemGroupName}"`);
     
     // Buscar por Name en currentWorkingData
     itemGroup = currentWorkingData.find(item => {
@@ -2684,11 +2502,8 @@ async function loadImageGridInBox4(itemGroupPath) {
     });
     
     if (itemGroup) {
-      console.log(`✅ Item Group encontrado en currentWorkingData por Name: ID ${itemGroup.Id}`);
       itemGroupId = itemGroup.Id;
     } else {
-      console.log(`⚠️ No encontrado por Name, buscando en caché de Item Groups...`);
-      
       // 3. Buscar en el caché de Item Groups por nombre
       if (itemGroupDataCache && itemGroupDataCache.size > 0) {
         for (let [cachedId, cachedData] of itemGroupDataCache.entries()) {
@@ -2698,7 +2513,6 @@ async function loadImageGridInBox4(itemGroupPath) {
               (item.Name === itemGroupName || item.NamePath === itemGroupPath)
             );
             if (groupInfo) {
-              console.log(`✅ Item Group encontrado en caché: ID ${cachedId}`);
               itemGroupId = cachedId;
               itemGroup = groupInfo;
               break;
@@ -2709,13 +2523,10 @@ async function loadImageGridInBox4(itemGroupPath) {
       
       // 4. Si aún no se encuentra, crear un objeto básico con los datos disponibles
       if (!itemGroup && !itemGroupId) {
-        console.log(`⚠️ Item Group no encontrado en ninguna fuente, intentando extraer ID del path...`);
-        
         // Intentar extraer ID si está en el formato "Name (ID: 12345)" o similar
         const idMatch = itemGroupName.match(/\(ID:\s*(\d+)\)/);
         if (idMatch) {
           itemGroupId = idMatch[1];
-          console.log(`🔍 ID extraído del nombre: ${itemGroupId}`);
           itemGroup = {
             Id: itemGroupId,
             Name: itemGroupName.replace(/\s*\(ID:\s*\d+\)/, '').trim(),
@@ -2738,13 +2549,9 @@ async function loadImageGridInBox4(itemGroupPath) {
     `);
     return;
   }
-  
-  console.log(`✅ Item Group final seleccionado: ID ${itemGroupId}, Name: "${itemGroup.Name}"`);
 
   // IMPORTANTE: Guardar el Item Group actual globalmente para otras funciones
   currentItemGroup = itemGroup;
-  
-  console.log(`🎯 ITEM GROUP SELECCIONADO: ${itemGroup.Name} (ID: ${itemGroupId})`);
   
   // Mostrar estado de carga
   addContentToBox4(`
@@ -2758,42 +2565,6 @@ async function loadImageGridInBox4(itemGroupPath) {
     // FASE 2: Cargar datos detallados bajo demanda
     const detailedData = await loadItemGroupDetails(itemGroupId);
     
-    // 📋 LOG DETALLADO SOLO PARA ESTE ITEM GROUP ESPECÍFICO SELECCIONADO
-    if (detailedData && Object.keys(detailedData).length > 0) {
-      console.log(`📋 ═════ ANÁLISIS DETALLADO ITEM GROUP ${itemGroupId} ═════`);
-      
-      Object.values(detailedData).forEach(item => {
-        const objectType = item['Object Type'];
-        const itemId = item['ID'];
-        
-        if (objectType === 'Item Group' || objectType === 'Item Code') {
-          console.log(`📝 ═══ ${objectType.toUpperCase()} (ID: ${itemId}) ═══`);
-          const itemCodeAttributes = ['Name', 'Marca', 'Título', 'CMS', 'Página de Catálogo', 'WA Importancia', 'WA_VIS_Comment', 'WA_VIS_Cover', 'WA_VIS_Gallery', 'WA_VIS_Rest'];
-          itemCodeAttributes.forEach((attr, index) => {
-            const value = item[attr] || '';
-            const hasValue = value && value.trim() !== '';
-            const status = hasValue ? '✅' : '❌';
-            console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
-          });
-          const filledCount = itemCodeAttributes.filter(attr => item[attr] && item[attr].trim() !== '').length;
-          console.log(`📊 Completitud: ${filledCount}/${itemCodeAttributes.length} atributos con valor`);
-          
-        } else if (objectType === 'Image') {
-          console.log(`📸 ═══ IMAGE (ID: ${itemId}) ═══`);
-          const imageAttributes = ['Name', 'WA_VIS_Comment'];
-          imageAttributes.forEach((attr, index) => {
-            const value = item[attr] || '';
-            const hasValue = value && value.trim() !== '';
-            const status = hasValue ? '✅' : '❌';
-            console.log(`   ${status} [${index + 1}] ${attr}: "${value}" ${hasValue ? `(${value.length} chars)` : '(vacío)'}`);
-          });
-          const filledCount = imageAttributes.filter(attr => item[attr] && item[attr].trim() !== '').length;
-          console.log(`📊 Completitud: ${filledCount}/${imageAttributes.length} atributos con valor`);
-        }
-      });
-      console.log(`═══════════════════════════════════════════════════════`);
-    }
-    
     if (!detailedData || Object.keys(detailedData).length === 0) {
       addContentToBox4('<div class="p-3"><p>No se encontraron datos detallados para este Item Group.</p></div>');
       return;
@@ -2805,15 +2576,6 @@ async function loadImageGridInBox4(itemGroupPath) {
     
     // Asignar a variable global para que las funciones de comentarios puedan acceder
     currentWorkingData = allItems;
-    
-    console.log(`� ═══════ ALMACENAMIENTO EN VARIABLES GLOBALES ═══════`);
-    console.log(`�📦 ITEM CODES ENCONTRADOS: ${itemCodes.length} items`);
-    console.log(`📁 detailedData (objeto transformado):`, detailedData);
-    console.log(`📁 allItems (array de todos los objetos):`, allItems);
-    console.log(`📁 itemCodes (array solo Item Codes):`, itemCodes);
-    itemCodes.forEach(code => {
-      console.log(`   - ${code.Id} (${code.Name})`);
-    });
 
     if (itemCodes.length === 0) {
       addContentToBox4('<div class="p-3"><p>No se encontraron Item Codes para este grupo.</p></div>');
@@ -2823,8 +2585,6 @@ async function loadImageGridInBox4(itemGroupPath) {
     // Buscar si hay datos del Item Group en los detalles
     const itemGroupDetails = allItems.find(item => item['Object Type'] === 'Item Group');
     if (itemGroupDetails) {
-      console.log(`🔍 itemGroupDetails encontrado:`, itemGroupDetails);
-      
       // Mezclar datos detallados con datos básicos, pero mantener datos básicos cuando los detallados estén vacíos
       currentItemGroup = { ...itemGroupDetails, ...itemGroup };
       
@@ -2838,13 +2598,6 @@ async function loadImageGridInBox4(itemGroupPath) {
       if (!currentItemGroup['Página de Catálogo'] && itemGroup['Página de Catálogo']) {
         currentItemGroup['Página de Catálogo'] = itemGroup['Página de Catálogo'];
       }
-      
-      console.log(`🔍 ═══════ VARIABLE GLOBAL FINAL ═══════`);
-      console.log(`📁 currentItemGroup (variable global que usa el HTML):`, currentItemGroup);
-      console.log(`📁 CMS final en currentItemGroup:`, currentItemGroup.CMS);
-      console.log(`📁 Marca final en currentItemGroup:`, currentItemGroup.Marca);
-      console.log(`📁 Título final en currentItemGroup:`, currentItemGroup.Título);
-      console.log(`═══════════════════════════════════════════════════════`);
     }
 
     // Definir las columnas de imágenes en el orden correcto
@@ -2857,9 +2610,6 @@ async function loadImageGridInBox4(itemGroupPath) {
     // Guardar datos actuales para regeneración
     currentItemCodes = [...itemCodes];
     currentImageColumns = [...imageColumns];
-    
-    console.log(`🔧 CONFIGURANDO GRID CON ${itemCodes.length} ITEM CODES`);
-    console.log(`📊 Columnas de imagen disponibles: ${imageColumns.length}`);
 
     // Crear la retícula
     const gridHtml = createImageGrid(itemCodes, imageColumns, currentItemGroup);
@@ -3873,12 +3623,8 @@ function getItemGroupImageComments(imageName) {
 function hasImageComments(imageName) {
   if (!imageName) return false;
   
-  console.log(`🔍 DEBUG hasImageComments - Buscando imagen: "${imageName}"`);
-  
   // Buscar SOLO objetos tipo "Image" con nombre exacto en TODOS los datos
   if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
-    console.log(`📊 Total items en datos globales: ${window.allItemGroupsData.length}`);
-    
     const imageObject = window.allItemGroupsData.find(item => {
       // SOLO buscar objetos tipo "Image" con nombre exacto
       return item['Object Type'] === 'Image' && 
@@ -3888,21 +3634,12 @@ function hasImageComments(imageName) {
     });
     
     if (imageObject) {
-      console.log(`� Objetos con imagen "${imageName}" y comentario en currentWorkingData: ${localResults.length}`);
-      console.log(`🎯 Objeto tipo "Image" encontrado con comentario en datos globales:`, {
-        ID: imageObject.ID,
-        Name: imageObject.Name,
-        Comment: imageObject['WA_VIS_Comment']
-      });
-      console.log(`✅ Resultado hasImageComments("${imageName}"): true`);
       return true;
     }
   }
   
   // PASO 2: Buscar en currentWorkingData como respaldo (datos locales más completos)
   if (currentWorkingData && currentWorkingData.length > 0) {
-    console.log(`🔍 No encontrado en datos globales, buscando en currentWorkingData...`);
-    
     const localImageObject = currentWorkingData.find(item => {
       return item['Object Type'] === 'Image' && 
              item.Name === imageName &&
@@ -3911,17 +3648,10 @@ function hasImageComments(imageName) {
     });
     
     if (localImageObject) {
-      console.log(`🎯 Objeto tipo "Image" encontrado con comentario en datos locales:`, {
-        ID: localImageObject.ID,
-        Name: localImageObject.Name,
-        Comment: localImageObject['WA_VIS_Comment']
-      });
-      console.log(`✅ Resultado hasImageComments("${imageName}"): true`);
       return true;
     }
   }
   
-  console.log(`✅ Resultado hasImageComments("${imageName}"): false`);
   return false;
 }
 
@@ -8134,19 +7864,10 @@ function populateGalleryDropdown(data) {
     return;
   }
   
-  console.log('🔄 Poblando dropdown de galerías...');
-  console.log('📊 Datos recibidos:', data ? data.length : 0, 'elementos');
-  
   if (!data || data.length === 0) {
     console.warn('⚠️ No hay datos para poblar el dropdown de galerías');
     gallerySelect.innerHTML = '<option value="">Sin galerías disponibles</option>';
     return;
-  }
-  
-  // Mostrar estructura de un elemento de ejemplo para debug
-  if (data.length > 0) {
-    console.log('📋 Estructura de elemento ejemplo:', data[0]);
-    console.log('🔑 Claves disponibles:', Object.keys(data[0]));
   }
   
   // Obtener galerías únicas - probando diferentes variaciones de nombre de columna
@@ -8162,8 +7883,6 @@ function populateGalleryDropdown(data) {
       galleries.push(galleryName.trim());
     }
   });
-  
-  console.log('🎯 Galerías únicas encontradas:', galleries);
   
   // Limpiar opciones existentes (excepto la primera)
   gallerySelect.innerHTML = '<option value="">Galerías...</option>';
@@ -8181,14 +7900,10 @@ function populateGalleryDropdown(data) {
     option.textContent = gallery;
     gallerySelect.appendChild(option);
   });
-  
-  console.log('✅ Dropdown poblado con', galleries.length, 'galerías');
 }
 
 // Función para cargar las imágenes de una galería específica
 function loadGalleryImages(galleryName) {
-  console.log('🔄 Cargando imágenes para la galería:', galleryName);
-  
   // Filtrar las imágenes que pertenecen a esta galería
   const galleryImages = currentAssetGroups.filter(item => {
     const itemGallery = item.Galeria || item.galeria || item.GALERIA || item['Galeria'] || '';
@@ -8196,9 +7911,6 @@ function loadGalleryImages(galleryName) {
     
     return itemGallery === galleryName && itemImage && itemImage.trim();
   });
-  
-  console.log(`📸 Encontradas ${galleryImages.length} imágenes para la galería: ${galleryName}`);
-  console.log('🔍 Imágenes encontradas:', galleryImages.map(img => img.Imagen || img.imagen || img.IMAGEN || img['Imagen']));
   
   // Renderizar el grid de imágenes
   renderGalleryGrid(galleryImages);
@@ -8216,8 +7928,6 @@ function renderGalleryGrid(images) {
     galleryGrid.innerHTML = '<div class="gallery-placeholder">No hay imágenes en esta galería</div>';
     return;
   }
-  
-  console.log('🎨 Renderizando grid con', images.length, 'imágenes');
   
   // Crear el HTML del grid
   const gridHTML = images.map(item => {
