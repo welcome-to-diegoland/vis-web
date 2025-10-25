@@ -14,6 +14,7 @@ let allLibraryData = []; // Para guardar TODOS los datos de la library (no se so
 let currentColumnsOrder = []; // Para mantener el orden original de las columnas
 // Los comentarios de imágenes ahora se obtienen directamente desde objetos tipo 'Image' en currentWorkingData
 let currentAssetGroups = []; // Para guardar los datos de galerías
+let currentAssetComments = []; // Para guardar comentarios de assets específicos
 
 // Variable global para mantener el zoom persistente
 let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
@@ -8076,22 +8077,22 @@ function clearAllBoxes() {
     console.log('🔍 DEBUG toggleCleanView - allLibraryData length:', allLibraryData ? allLibraryData.length : 'null/undefined');
     console.log('🔍 DEBUG toggleCleanView - fullItemGroupCache size:', itemGroupDataCache ? itemGroupDataCache.size : 'null/undefined');
     
-    // PRIMERA OPCIÓN: Usar currentWorkingData si está cargado desde Excel
-    if (currentWorkingData && currentWorkingData.length > 0) {
-      console.log('🔄 Generando tabla de inventario desde currentWorkingData...');
-      const inventoryHTML = generateImageInventoryTable();
-      console.log('📊 Tabla de inventario generada, longitud HTML:', inventoryHTML.length);
+    // PRIMERA OPCIÓN: Usar datos del caché si está disponible (datos transformados con comentarios)
+    if (itemGroupDataCache && itemGroupDataCache.size > 0) {
+      console.log('🔄 Generando tabla de inventario desde caché de Item Groups (datos transformados)...');
+      const inventoryHTML = generateImageInventoryTableFromCache();
+      console.log('📊 Tabla de inventario generada desde caché, longitud HTML:', inventoryHTML.length);
       box4Content.innerHTML = inventoryHTML;
       // Restaurar estado después de generar la tabla
       setTimeout(() => {
         restoreInventoryViewState();
       }, 200);
     } 
-    // SEGUNDA OPCIÓN: Usar datos del caché si está disponible (carga desde Google Sheets)
-    else if (itemGroupDataCache && itemGroupDataCache.size > 0) {
-      console.log('🔄 Generando tabla de inventario desde caché de Item Groups...');
-      const inventoryHTML = generateImageInventoryTableFromCache();
-      console.log('📊 Tabla de inventario generada desde caché, longitud HTML:', inventoryHTML.length);
+    // SEGUNDA OPCIÓN: Usar currentWorkingData solo como fallback (datos del árbol, sin comentarios)
+    else if (currentWorkingData && currentWorkingData.length > 0) {
+      console.log('🔄 Generando tabla de inventario desde currentWorkingData (fallback - datos del árbol)...');
+      const inventoryHTML = generateImageInventoryTable();
+      console.log('📊 Tabla de inventario generada, longitud HTML:', inventoryHTML.length);
       box4Content.innerHTML = inventoryHTML;
       // Restaurar estado después de generar la tabla
       setTimeout(() => {
@@ -8180,6 +8181,27 @@ function generateImageInventoryTable() {
       'hasWA_VIS_Comment': !!item['WA_VIS_Comment']
     });
   });
+  
+  // 🔍 DEBUG ADICIONAL: Mostrar todos los campos disponibles en el primer item
+  if (currentWorkingData.length > 0) {
+    const firstItem = currentWorkingData[0];
+    const allKeys = Object.keys(firstItem);
+    console.log('🔍 CAMPOS DISPONIBLES en el primer item:', allKeys);
+    
+    // Buscar campos que contengan "comment" en el nombre (case insensitive)
+    const commentFields = allKeys.filter(key => key.toLowerCase().includes('comment'));
+    console.log('🔍 CAMPOS CON "COMMENT":', commentFields);
+    
+    // Buscar campos que contengan "vis" en el nombre (case insensitive)
+    const visFields = allKeys.filter(key => key.toLowerCase().includes('vis'));
+    console.log('🔍 CAMPOS CON "VIS":', visFields);
+    
+    // Mostrar valores de campos de comentarios si existen
+    commentFields.forEach(field => {
+      const value = firstItem[field];
+      console.log(`🔍 VALOR DE ${field}:`, value ? `"${value.substring(0, 100)}..."` : 'VACÍO');
+    });
+  }
   
   // Contar cuántos tienen comentarios
   const withComments = currentWorkingData.filter(item => item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim() !== '');
@@ -8896,11 +8918,30 @@ function generateImageInventoryTableFromCache() {
     return '<div class="empty-box-message">No hay datos válidos en el caché para mostrar</div>';
   }
 
-  // Usar la lógica existente pero con los datos del caché
+  // 🚀 NUEVA LÓGICA: Transformar los datos de Attribute-Value al formato expandido
+  console.log('🔄 Transformando datos de formato Attribute-Value...');
+  const transformedData = transformAttributeValueData(allCachedData);
+  
+  // Convertir el objeto transformado a array
+  const transformedArray = Object.values(transformedData);
+  console.log(`📊 Datos transformados: ${transformedArray.length} elementos`);
+  
+  // Verificar si hay comentarios después de la transformación
+  const withComments = transformedArray.filter(item => item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim() !== '');
+  console.log(`📊 Elementos CON comentarios después de transformación: ${withComments.length}/${transformedArray.length}`);
+  
+  if (withComments.length > 0) {
+    console.log('✅ ¡Comentarios encontrados! Primeros 3 ejemplos:');
+    withComments.slice(0, 3).forEach((item, index) => {
+      console.log(`📋 Comentario ${index + 1}: ${item.Name} (${item['Object Type']}) - "${item['WA_VIS_Comment'].substring(0, 50)}..."`);
+    });
+  }
+
+  // Usar la lógica existente pero con los datos transformados
   const originalCurrentWorkingData = currentWorkingData;
   
-  // Temporalmente asignar los datos del caché a currentWorkingData
-  currentWorkingData = allCachedData;
+  // Temporalmente asignar los datos transformados a currentWorkingData
+  currentWorkingData = transformedArray;
   
   try {
     // Generar la tabla usando la función existente
@@ -8909,7 +8950,7 @@ function generateImageInventoryTableFromCache() {
     // Restaurar currentWorkingData original
     currentWorkingData = originalCurrentWorkingData;
     
-    console.log('✅ Tabla de inventario generada exitosamente desde caché');
+    console.log('✅ Tabla de inventario generada exitosamente desde caché transformado');
     return inventoryHTML;
     
   } catch (error) {
