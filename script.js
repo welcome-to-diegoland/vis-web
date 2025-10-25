@@ -1076,7 +1076,14 @@ function expandSingleConcatenatedRow(concatenatedRow) {
     'Id': id,
     'IdPath': id,
     'NamePath': '', // Se calculará después si es necesario
-    'Name': parsedData.Name || parsedData.Título || id
+    'Name': parsedData.Name || parsedData.Título || id,
+    // Agregar campos parseados directamente
+    'CMS': parsedData.CMS || '',
+    'Marca': parsedData.Marca || '',
+    'Título': parsedData.Título || '',
+    'Página de Catálogo': parsedData['Página de Catálogo'] || '',
+    'WA Importancia': parsedData['WA Importancia'] || '',
+    'WA_VIS_Comment': parsedData['WA_VIS_Comment'] || ''
   };
   
   if (objectType === 'Item Group' || objectType === 'Item Code') {
@@ -1118,6 +1125,14 @@ function expandSingleConcatenatedRow(concatenatedRow) {
         ...baseRow,
         'Attribute': 'WA_VIS_Comment',
         'value': parsedData['WA_VIS_Comment']
+      });
+    }
+    
+    if (parsedData['CMS']) {
+      expandedRows.push({
+        ...baseRow,
+        'Attribute': 'CMS',
+        'value': parsedData['CMS']
       });
     }
     
@@ -1706,6 +1721,17 @@ function transformAttributeValueData(attributeValueData) {
     const value = row['value'];
     
     if (!transformedItems[id]) {
+      // Buscar el CMS en los datos del caché original (antes de transformAttributeValueData)
+      let cmsFromCache = '';
+      if (window.itemGroupDataCache) {
+        window.itemGroupDataCache.forEach((itemGroupData) => {
+          const foundItem = itemGroupData.find(item => item.Id === id || item.ID === id);
+          if (foundItem && foundItem.CMS) {
+            cmsFromCache = foundItem.CMS;
+          }
+        });
+      }
+      
       transformedItems[id] = {
         'Item Groups': row['Item Groups'],
         'ID': id,
@@ -1715,12 +1741,12 @@ function transformAttributeValueData(attributeValueData) {
         Name: row['Name'] || '',
         NamePath: row['NamePath'] || '',
         IdPath: row['IdPath'] || '',
-        CMS: '',
-        Marca: '',
-        'Página de Catálogo': '',
-        Título: '',
-        'WA Importancia': '',
-        'WA_VIS_Comment': '',
+        CMS: cmsFromCache || row['CMS'] || '',
+        Marca: row['Marca'] || '',
+        'Página de Catálogo': row['Página de Catálogo'] || '',
+        Título: row['Título'] || '',
+        'WA Importancia': row['WA Importancia'] || '',
+        'WA_VIS_Comment': row['WA_VIS_Comment'] || '',
         Vis_color: '',
         filtro_color: '',
         // Campos de galería
@@ -4592,7 +4618,7 @@ function parseCommentForDebugging(commentText) {
     // Lista de analistas conocidos (puedes expandir esta lista)
     const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Angel'];
     // Lista de diseñadores conocidos (puedes expandir esta lista)  
-    const diseñadoresConocidos = ['Veronica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
+    const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
     
     let analistas = [];
     let diseñadores = [];
@@ -8372,6 +8398,7 @@ function generateImageInventoryTable() {
         if (section.trim()) {
           // Dividir por ¦ para obtener los campos
           const fields = section.split('¦');
+          
           if (fields.length >= 5) {
             const entry = {
               usuario: fields[0].trim(),
@@ -8394,7 +8421,7 @@ function generateImageInventoryTable() {
       // Lista de analistas conocidos (puedes expandir esta lista)
       const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Angel'];
       // Lista de diseñadores conocidos (puedes expandir esta lista)  
-      const diseñadoresConocidos = ['Veronica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
+      const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
       
       let analistas = [];
       let diseñadores = [];
@@ -8466,7 +8493,7 @@ function generateImageInventoryTable() {
       itemGroup: row['NamePath'] || '', // El NamePath contiene la ruta del Item Group
       itemGroupId: getItemGroupId(row), // NUEVO: ID específico del Item Group
       objectType: row['Object Type'] || '',
-      cms: row['CMS'] || '',
+      cms: row['CMS'] || row.CMS || '',
       marca: row['Marca'] || '',
       titulo: row['Título'] || '',
       importancia: row['WA Importancia'] || ''
@@ -8474,26 +8501,27 @@ function generateImageInventoryTable() {
 
     // Debug: log algunos items para verificar datos (solo los primeros 3)
     if (originalIndex < 3) {
-      // console.log para debug deshabilitado - demasiado verbose
+      console.log(`🔍 DEBUG CMS - ID ${metadata.id}: CMS="${metadata.cms}" | ObjectType="${metadata.objectType}"`);
     }
 
-    // 1. PRIMERO: Verificar si la fila tiene comentario directo en WA_VIS_Comment
-    const directComment = row['WA_VIS_Comment'];
-    if (directComment && directComment.trim() !== '') {
-      const parsedComment = parseComment(directComment.trim());
-      rowIndex++;
-      totalImagesWithComments++;
-      
-      // DEBUG: Detectar IDs problemáticos al agregarlos
-      const problematicIds = ['42990', '23591'];
-      if (problematicIds.includes(metadata.id)) {
-        console.log(`🚨 DETECTADO ID PROBLEMÁTICO ${metadata.id} siendo agregado a tableRowsData:`);
-        console.log(`   - Diseñador del comentario: "${parsedComment.diseñador}"`);
-        console.log(`   - Status: "${parsedComment.ultimoStatus}"`);
-        console.log(`   - Comentario original: "${directComment}"`);
-      }
-
-      tableRowsData.push({
+  // 1. PRIMERO: Verificar si la fila tiene comentario directo en WA_VIS_Comment
+  const directComment = row['WA_VIS_Comment'];
+  if (directComment && directComment.trim() !== '') {
+    const parsedComment = parseComment(directComment.trim());
+    rowIndex++;
+    totalImagesWithComments++;
+    
+    // DEBUG: Detectar IDs problemáticos al agregarlos
+    const problematicIds = ['42990', '23591', '6260']; // Agregado 6260 para debug
+    if (problematicIds.includes(metadata.id)) {
+      console.log(`🚨 DETECTADO ID PROBLEMÁTICO ${metadata.id} siendo agregado a tableRowsData:`);
+      console.log(`   - Diseñador del comentario: "${parsedComment.diseñador}"`);
+      console.log(`   - Status: "${parsedComment.ultimoStatus}"`);
+      console.log(`   - Comentario original: "${directComment}"`);
+      console.log(`   - Comentario parseado:`, parsedComment);
+    }
+    
+    tableRowsData.push({
         rowNumber: rowIndex,
         name: metadata.name,
         id: metadata.id,
@@ -8504,7 +8532,7 @@ function generateImageInventoryTable() {
         titulo: metadata.titulo,
         importancia: metadata.importancia,
         campo: 'WA_VIS_Comment',
-        imagen: '-',
+        imagen: metadata.objectType === 'Image' ? metadata.name : '-',
         analista: parsedComment.analista,
         primeraFechaAnalista: parsedComment.primeraFechaAnalista,
         ultimaFechaAnalista: parsedComment.ultimaFechaAnalista,
@@ -8923,6 +8951,38 @@ function generateImageInventoryTableFromCache() {
     return '<div class="empty-box-message">No hay datos válidos en el caché para mostrar</div>';
   }
 
+  // � CONVERTIR datos concatenados a formato Attribute-Value
+  console.log('🔄 Convirtiendo datos concatenados a formato Attribute-Value...');
+  let attributeValueData = [];
+  
+  allCachedData.forEach(item => {
+    const dataConcatenated = item['data_concatenated'];
+    const itemGroups = item['Item Groups'];
+    const id = item['ID'];
+    const objectType = item['Object Type'];
+    
+    if (dataConcatenated && dataConcatenated.trim() !== '') {
+      // Parsear los datos concatenados para extraer atributos individuales
+      const parsedData = parseUniversalConcatenatedData(item);
+      
+      // Convertir cada campo parseado a una fila Attribute-Value
+      Object.keys(parsedData).forEach(attribute => {
+        if (attribute !== 'Item Groups' && attribute !== 'ID' && attribute !== 'Object Type') {
+          attributeValueData.push({
+            'Item Groups': itemGroups,
+            'ID': id,
+            'Object Type': objectType,
+            'Attribute': attribute,
+            'value': parsedData[attribute] || ''
+          });
+        }
+      });
+    }
+  });
+  
+  console.log(`📊 Datos convertidos a Attribute-Value: ${attributeValueData.length} registros`);
+
+  // �🚀 NUEVA LÓGICA: Transformar los datos de Attribute-Value al formato expandido
   // 🚀 NUEVA LÓGICA: Transformar los datos de Attribute-Value al formato expandido
   console.log('🔄 Transformando datos de formato Attribute-Value...');
   const transformedData = transformAttributeValueData(allCachedData);
@@ -8941,7 +9001,7 @@ function generateImageInventoryTableFromCache() {
       console.log(`📋 Comentario ${index + 1}: ${item.Name} (${item['Object Type']}) - "${item['WA_VIS_Comment'].substring(0, 50)}..."`);
     });
   }
-
+  
   // Usar la lógica existente pero con los datos transformados
   const originalCurrentWorkingData = currentWorkingData;
   
@@ -10198,6 +10258,19 @@ function generateDesignerStatsTable() {
   const uniqueStatuses = [...new Set(originalInventoryData.map(row => row.ultimoStatus).filter(status => status))];
   console.log('Status únicos encontrados:', uniqueStatuses);
   
+  // Función para normalizar nombres de diseñadores (manejar acentos)
+  function normalizeDesignerName(name) {
+    if (!name) return '';
+    // Crear mapeo de nombres con acentos a sin acentos
+    const nameMapping = {
+      'Verónica': 'Veronica',
+      'Veronica': 'Veronica'
+    };
+    const normalized = nameMapping[name] || name;
+    
+    return normalized;
+  }
+  
   let tableHTML = `
     <div class="stats-table-container">
       <h4>Resumen Diseño</h4>
@@ -10225,7 +10298,11 @@ function generateDesignerStatsTable() {
   let totalCompletado = 0;
   
   designers.forEach(designer => {
-    const assignedItems = originalInventoryData.filter(row => row.diseñador === designer);
+    // Filtrar por diseñador usando normalización para manejar acentos
+    const assignedItems = originalInventoryData.filter(row => 
+      normalizeDesignerName(row.diseñador) === normalizeDesignerName(designer) ||
+      normalizeDesignerName(row.diseñador) === normalizeDesignerName(USERS[designer]?.name)
+    );
     const total = assignedItems.length;
     
     // Revisar los status con múltiples variaciones posibles (basado en: Revision, Cancelado, Diseño, Completado)
@@ -10360,6 +10437,16 @@ function generateDesignerStatsTable() {
 function generateAnalystStatsTable() {
   const analysts = Object.keys(USERS).filter(user => USERS[user].group === 'Analistas').sort();
   
+  // Función para normalizar nombres de analistas (manejar acentos)
+  function normalizeAnalystName(name) {
+    if (!name) return '';
+    // Crear mapeo de nombres con acentos a sin acentos si es necesario
+    const nameMapping = {
+      // Agregar mapeos si hay analistas con acentos
+    };
+    return nameMapping[name] || name;
+  }
+  
   let tableHTML = `
     <div class="stats-table-container">
       <h4>Resumen Analistas</h4>
@@ -10387,7 +10474,11 @@ function generateAnalystStatsTable() {
   let totalCompletado = 0;
   
   analysts.forEach(analyst => {
-    const assignedItems = originalInventoryData.filter(row => row.analista === analyst);
+    // Filtrar por analista usando normalización para manejar acentos
+    const assignedItems = originalInventoryData.filter(row => 
+      normalizeAnalystName(row.analista) === normalizeAnalystName(analyst) ||
+      normalizeAnalystName(row.analista) === normalizeAnalystName(USERS[analyst]?.name)
+    );
     const total = assignedItems.length;
     
     // Revisar los status con múltiples variaciones posibles (basado en: Revision, Cancelado, Diseño, Completado)
