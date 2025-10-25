@@ -240,6 +240,11 @@ const USERS = {
     group: 'Analistas',
     displayName: 'Kalem (Analistas)'
   },
+  Angel: {
+    name: 'Angel',
+    group: 'Analistas',
+    displayName: 'Angel (Analistas)'
+  },
   Veronica: {
     name: 'Verónica',
     group: 'Diseño',
@@ -4585,7 +4590,7 @@ function parseCommentForDebugging(commentText) {
 
     // Separar analistas y diseñadores basado en los usuarios conocidos
     // Lista de analistas conocidos (puedes expandir esta lista)
-    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego'];
+    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Angel'];
     // Lista de diseñadores conocidos (puedes expandir esta lista)  
     const diseñadoresConocidos = ['Veronica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
     
@@ -8387,7 +8392,7 @@ function generateImageInventoryTable() {
 
       // Separar analistas y diseñadores basado en los usuarios conocidos
       // Lista de analistas conocidos (puedes expandir esta lista)
-      const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego'];
+      const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Angel'];
       // Lista de diseñadores conocidos (puedes expandir esta lista)  
       const diseñadoresConocidos = ['Veronica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
       
