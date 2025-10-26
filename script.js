@@ -94,6 +94,31 @@ document.addEventListener('keydown', function(event) {
   }
 });
 
+// Función para truncar texto a aproximadamente 4 líneas (para celdas de tabla)
+function truncateTextForTable(text, maxChars = 100) {
+  if (!text) return '';
+  if (text.length <= maxChars) return text;
+  
+  // Truncar en la palabra más cercana al límite
+  const truncated = text.substring(0, maxChars);
+  const lastSpaceIndex = truncated.lastIndexOf(' ');
+  const finalText = lastSpaceIndex > maxChars * 0.8 ? truncated.substring(0, lastSpaceIndex) : truncated;
+  
+  return finalText + '...';
+}
+
+// Función para procesar HTML y truncar comentarios largos
+function truncateCommentsInHTML(html) {
+  // Usar regex para encontrar y reemplazar comentarios largos
+  return html.replace(
+    /data-comment-type="(analista-comment-clean|diseñador-comment-clean)"[^>]*>([^<]+)</g,
+    function(match, commentType, content) {
+      const truncatedContent = truncateTextForTable(content);
+      return match.replace(content, truncatedContent);
+    }
+  );
+}
+
 // Sistema de cola para auto-guardado (evitar rate limiting)
 async function processAutoSaveQueue() {
   if (isProcessingAutoSave || autoSaveQueue.length === 0) {
@@ -8536,10 +8561,10 @@ function generateImageInventoryTable() {
         analista: parsedComment.analista,
         primeraFechaAnalista: parsedComment.primeraFechaAnalista,
         ultimaFechaAnalista: parsedComment.ultimaFechaAnalista,
-        ultimoComentarioAnalista: parsedComment.ultimoComentarioAnalista,
+        ultimoComentarioAnalista: truncateTextForTable(parsedComment.ultimoComentarioAnalista),
         diseñador: parsedComment.diseñador,
         ultimaFechaDisenador: parsedComment.ultimaFechaDisenador,
-        ultimoComentarioDisenador: parsedComment.ultimoComentarioDisenador,
+        ultimoComentarioDisenador: truncateTextForTable(parsedComment.ultimoComentarioDisenador),
         ultimoTipo: parsedComment.ultimoTipo,
         ultimoStatus: parsedComment.ultimoStatus,
         originalRowIndex: originalIndex,
@@ -8601,10 +8626,10 @@ function generateImageInventoryTable() {
               analista: parsedComment.analista,
               primeraFechaAnalista: parsedComment.primeraFechaAnalista,
               ultimaFechaAnalista: parsedComment.ultimaFechaAnalista,
-              ultimoComentarioAnalista: parsedComment.ultimoComentarioAnalista,
+              ultimoComentarioAnalista: truncateTextForTable(parsedComment.ultimoComentarioAnalista),
               diseñador: parsedComment.diseñador,
               ultimaFechaDisenador: parsedComment.ultimaFechaDisenador,
-              ultimoComentarioDisenador: parsedComment.ultimoComentarioDisenador,
+              ultimoComentarioDisenador: truncateTextForTable(parsedComment.ultimoComentarioDisenador),
               ultimoTipo: parsedComment.ultimoTipo,
               ultimoStatus: parsedComment.ultimoStatus,
               originalRowIndex: originalIndex,

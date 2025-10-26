@@ -443,8 +443,13 @@ input[type="file"] {
   vertical-align: top;
   word-break: break-word;
   font-size: 13px;
-  line-height: normal; 
+  line-height: 1.2; 
   min-width: 90px;
+}
+
+.attribute-table td {
+  max-height: 62px; /* Aproximadamente 4 líneas con line-height 1.2 y font-size 13px */
+  overflow: hidden;
 }
 
 .attribute-table th {
@@ -1233,6 +1238,12 @@ input[type="file"] {
   background-color: #f5f5f5;
   position: sticky;
   top: 0;
+}
+
+.filtered-items-table td {
+  max-height: 62px; /* Aproximadamente 4 líneas */
+  overflow: hidden;
+  line-height: 1.2;
 }
 
 .highlight-cell {
@@ -6804,3 +6815,37 @@ table.image-inventory-table td:nth-child(17) { width: 120px !important; min-widt
 .image-inventory-table .inventory-cell-clean:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+
+/* Regla específica SOLO para la tabla de comentarios en box4 */
+#box4-content .image-inventory-table td.inventory-cell-clean {
+  max-height: 65px !important;
+  overflow: hidden !important;
+  line-height: 1.2 !important;
+  vertical-align: top !important;
+}
+
+#box4-content .image-inventory-table td.inventory-cell {
+  max-height: 65px !important;
+  overflow: hidden !important;
+  line-height: 1.2 !important;
+  vertical-align: top !important;
+}
+
+/* Sobrescribir reglas específicas de nth-child en box4 */
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(9),
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(10),
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(11),
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(12),
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(13),
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(14),
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(15),
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(16),
+#box4-content .image-inventory-table .inventory-cell-clean:nth-child(17) {
+  height: 65px !important;
+  max-height: 65px !important;
+  overflow: hidden !important;
+  line-height: 1.2 !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+}
+
