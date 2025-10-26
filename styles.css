@@ -4446,15 +4446,15 @@ html, body {
 
 /* Colores basados en status - Más profesionales */
 .comment-indicator[data-status="Diseño"] {
-  background: #6c5ce7; /* Púrpura profesional */
+  background: #8e44ad; /* Morado - igual que tabla y modal */
 }
 
 .comment-indicator[data-status="Revision"] {
-  background: #fd79a8; /* Rosa profesional */
+  background: #ff6b35; /* Naranja - igual que tabla y modal */
 }
 
 .comment-indicator[data-status="Completado"] {
-  background: #00b894; /* Verde profesional */
+  background: #28a745; /* Verde - igual que tabla y modal */
 }
 
 .comment-indicator[data-status="Cancelado"] {
@@ -4493,15 +4493,15 @@ html, body {
 
 /* Colores basados en status para group comments */
 .comment-indicator.group-comment[data-status="Diseño"] {
-  background: #9b59b6; /* Morado */
+  background: #8e44ad; /* Morado - igual que tabla y modal */
 }
 
 .comment-indicator.group-comment[data-status="Revision"] {
-  background: #e67e22; /* Naranja */
+  background: #ff6b35; /* Naranja - igual que tabla y modal */
 }
 
 .comment-indicator.group-comment[data-status="Completado"] {
-  background: #2ecc71; /* Verde */
+  background: #28a745; /* Verde - igual que tabla y modal */
 }
 
 .comment-indicator.group-comment[data-status="Cancelado"] {
