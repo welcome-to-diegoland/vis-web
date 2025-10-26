@@ -443,13 +443,8 @@ input[type="file"] {
   vertical-align: top;
   word-break: break-word;
   font-size: 13px;
-  line-height: 1.2; 
+  line-height: normal; 
   min-width: 90px;
-}
-
-.attribute-table td {
-  max-height: 62px; /* Aproximadamente 4 líneas con line-height 1.2 y font-size 13px */
-  overflow: hidden;
 }
 
 .attribute-table th {
@@ -1238,12 +1233,6 @@ input[type="file"] {
   background-color: #f5f5f5;
   position: sticky;
   top: 0;
-}
-
-.filtered-items-table td {
-  max-height: 62px; /* Aproximadamente 4 líneas */
-  overflow: hidden;
-  line-height: 1.2;
 }
 
 .highlight-cell {
@@ -4446,16 +4435,15 @@ html, body {
 
 /* Colores basados en status - Más profesionales */
 .comment-indicator[data-status="Diseño"] {
-  background: #8e44ad; /* Morado - igual que tabla y modal */
+  background: #6c5ce7; /* Púrpura profesional */
 }
 
-.comment-indicator[data-status="Revision"],
-.comment-indicator[data-status="Revisión"] {
-  background: #ff6b35; /* Naranja - igual que tabla y modal */
+.comment-indicator[data-status="Revision"] {
+  background: #fd79a8; /* Rosa profesional */
 }
 
 .comment-indicator[data-status="Completado"] {
-  background: #28a745; /* Verde - igual que tabla y modal */
+  background: #00b894; /* Verde profesional */
 }
 
 .comment-indicator[data-status="Cancelado"] {
@@ -4494,16 +4482,15 @@ html, body {
 
 /* Colores basados en status para group comments */
 .comment-indicator.group-comment[data-status="Diseño"] {
-  background: #8e44ad; /* Morado - igual que tabla y modal */
+  background: #9b59b6; /* Morado */
 }
 
-.comment-indicator.group-comment[data-status="Revision"],
-.comment-indicator.group-comment[data-status="Revisión"] {
-  background: #ff6b35; /* Naranja - igual que tabla y modal */
+.comment-indicator.group-comment[data-status="Revision"] {
+  background: #e67e22; /* Naranja */
 }
 
 .comment-indicator.group-comment[data-status="Completado"] {
-  background: #28a745; /* Verde - igual que tabla y modal */
+  background: #2ecc71; /* Verde */
 }
 
 .comment-indicator.group-comment[data-status="Cancelado"] {
@@ -4550,8 +4537,7 @@ html, body {
   background: #8e44ad; /* Morado - igual que status-badge */
 }
 
-.comment-bubble.image-comment[data-status="Revision"],
-.comment-bubble.image-comment[data-status="Revisión"] {
+.comment-bubble.image-comment[data-status="Revision"] {
   background: #ff6b35; /* Naranja - igual que status-badge */
 }
 
@@ -4663,8 +4649,7 @@ html, body {
   background-color: #8e44ad;
 }
 
-.status-badge[data-status="Revision"],
-.status-badge[data-status="Revisión"] {
+.status-badge[data-status="Revision"] {
   background-color: #ff6b35;
 }
 
@@ -5940,38 +5925,6 @@ html, body {
   cursor: pointer !important;
 }
 
-/* Estilos para comentarios clickeables LIMPIOS en la tabla de inventario */
-.clickable-comment-clean {
-  cursor: pointer !important;
-  transition: background-color 0.2s ease;
-}
-
-.clickable-comment-clean:hover {
-  background-color: rgba(0, 123, 255, 0.1) !important;
-  outline: 1px solid rgba(0, 123, 255, 0.3);
-}
-
-/* Asegurar cursor pointer en tabla de inventario específicamente */
-.image-inventory-table .clickable-comment-clean {
-  cursor: pointer !important;
-}
-
-.image-inventory-table td.clickable-comment-clean {
-  cursor: pointer !important;
-}
-
-table.image-inventory-table .clickable-comment-clean {
-  cursor: pointer !important;
-}
-
-/* Forzar cursor pointer con máxima prioridad */
-.force-pointer-cursor,
-.force-pointer-cursor:hover,
-.force-pointer-cursor:active,
-.force-pointer-cursor:focus {
-  cursor: pointer !important;
-}
-
 
 
 
@@ -6851,37 +6804,3 @@ table.image-inventory-table td:nth-child(17) { width: 120px !important; min-widt
 .image-inventory-table .inventory-cell-clean:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
-
-/* Regla específica SOLO para la tabla de comentarios en box4 */
-#box4-content .image-inventory-table td.inventory-cell-clean {
-  max-height: 65px !important;
-  overflow: hidden !important;
-  line-height: 1.2 !important;
-  vertical-align: top !important;
-}
-
-#box4-content .image-inventory-table td.inventory-cell {
-  max-height: 65px !important;
-  overflow: hidden !important;
-  line-height: 1.2 !important;
-  vertical-align: top !important;
-}
-
-/* Sobrescribir reglas específicas de nth-child en box4 */
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(9),
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(10),
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(11),
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(12),
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(13),
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(14),
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(15),
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(16),
-#box4-content .image-inventory-table .inventory-cell-clean:nth-child(17) {
-  height: 65px !important;
-  max-height: 65px !important;
-  overflow: hidden !important;
-  line-height: 1.2 !important;
-  white-space: normal !important;
-  word-wrap: break-word !important;
-}
-

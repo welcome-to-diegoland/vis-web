@@ -11,6 +11,7 @@ let startX, startLeftWidth;
 let originalExcelSheets = {}; // Para guardar las hojas del Excel
 let currentWorkingData = []; // Para guardar los datos que se están trabajando
 let allLibraryData = []; // Para guardar TODOS los datos de la library (no se sobrescribe)
+let originalTreeData = []; // Para preservar la estructura original del árbol para navegación
 let currentColumnsOrder = []; // Para mantener el orden original de las columnas
 // Los comentarios de imágenes ahora se obtienen directamente desde objetos tipo 'Image' en currentWorkingData
 let currentAssetGroups = []; // Para guardar los datos de galerías
@@ -401,79 +402,214 @@ function generateImageContext(imageName) {
 
 // Función para navegar a un Item Group específico desde la tabla de inventario
 function navigateToItemGroup(itemGroupId) {
-  console.log('Navegando a Item Group:', itemGroupId);
+  console.log(`🚀 NAVEGACIÓN A ITEM GROUP: ${itemGroupId}`);
   
   if (!itemGroupId || !allLibraryData) {
-    console.error('ID de Item Group no válido o datos no cargados');
+    console.error('❌ ID de Item Group no válido o datos no cargados');
     return;
   }
   
-  // 0. Guardar estado antes de navegar
-  saveInventoryViewState();
+  // PASO 1: Verificar disponibilidad de datasets
+  const datasets = {
+    originalTreeData: originalTreeData?.length || 0,
+    allLibraryData: allLibraryData?.length || 0,
+    currentWorkingData: currentWorkingData?.length || 0
+  };
+  console.log(`📊 DATASETS DISPONIBLES:`, datasets);
   
-  // 1. Desactivar vista limpia si está activa
-  if (isCleanViewActive) {
-    console.log('Desactivando vista limpia...');
-    toggleCleanView();
+  // PASO 2: Buscar Item Group con logging específico
+  console.log(`🔍 BUSCANDO Item Group ID: ${itemGroupId} (tipo: ${typeof itemGroupId})`);
+  
+  // PRIMERO: Buscar en originalTreeData (datos de category con NamePath)
+  let itemGroup = null;
+  let foundIn = null;
+  
+  if (originalTreeData && originalTreeData.length > 0) {
+    itemGroup = originalTreeData.find(item => {
+      return item['Object Type'] === 'Item Group' && (item.Id === itemGroupId || String(item.Id) === String(itemGroupId));
+    });
+    if (itemGroup) {
+      foundIn = 'originalTreeData';
+      console.log(`✅ ENCONTRADO en originalTreeData`);
+    }
+  } else {
+    console.log(`⚠️ originalTreeData está vacío o no disponible`);
   }
   
-  // 2. Buscar el Item Group en TODOS los datos de la library
-  const itemGroup = allLibraryData.find(item => {
-    return item['Object Type'] === 'Item Group' && (item.Id === itemGroupId || String(item.Id) === String(itemGroupId));
-  });
+  // FALLBACK: Buscar en allLibraryData
+  if (!itemGroup && allLibraryData && allLibraryData.length > 0) {
+    itemGroup = allLibraryData.find(item => {
+      return item['Object Type'] === 'Item Group' && (item.Id === itemGroupId || String(item.Id) === String(itemGroupId));
+    });
+    if (itemGroup) {
+      foundIn = 'allLibraryData';
+      console.log(`✅ ENCONTRADO en allLibraryData`);
+    }
+  }
   
+  // FALLBACK FINAL: Buscar en currentWorkingData
+  if (!itemGroup && currentWorkingData && currentWorkingData.length > 0) {
+    itemGroup = currentWorkingData.find(item => {
+      return item['Object Type'] === 'Item Group' && (item.Id === itemGroupId || String(item.Id) === String(itemGroupId));
+    });
+    if (itemGroup) {
+      foundIn = 'currentWorkingData';
+      console.log(`✅ ENCONTRADO en currentWorkingData`);
+    }
+  }
+  
+  // PASO 3: Verificar resultado de búsqueda
   if (!itemGroup) {
-    console.error('Item Group no encontrado:', itemGroupId);
-    console.log('Buscando en allLibraryData con', allLibraryData.length, 'elementos');
+    console.error(`❌ ITEM GROUP NO ENCONTRADO: ID ${itemGroupId}`);
     
-    // Debug: mostrar algunos Item Groups disponibles
-    const availableGroups = allLibraryData.filter(item => item['Object Type'] === 'Item Group').slice(0, 5);
-    console.log('Primeros 5 Item Groups disponibles:', availableGroups.map(g => ({ Id: g.Id, Name: g.Name })));
+    // Mostrar IDs disponibles para diagnóstico
+    const availableIds = (originalTreeData || [])
+      .filter(item => item['Object Type'] === 'Item Group')
+      .map(g => ({ Id: g.Id, Name: g.Name }))
+      .slice(0, 10);
+    console.log(`📋 PRIMEROS 10 IDs DISPONIBLES:`, availableIds);
     
     alert('Item Group no encontrado');
     return;
   }
   
-  console.log('Item Group encontrado:', itemGroup);
+  console.log(`🎯 ITEM GROUP ENCONTRADO en ${foundIn}:`);
+  console.log(`   - ID: ${itemGroup.Id}`);
+  console.log(`   - Name: ${itemGroup.Name}`);
+  console.log(`   - NamePath: ${itemGroup.NamePath || 'MISSING!'}`);
+  console.log(`   - Object Type: ${itemGroup['Object Type']}`);
   
-  // 3. Expandir el árbol hasta el path del Item Group
-  if (itemGroup.NamePath) {
-    expandTreeToPath(itemGroup.NamePath, true);
+  // PASO 4: Verificar NamePath o construirlo
+  console.log(`🎯 ITEM GROUP ENCONTRADO en ${foundIn}:`);
+  console.log(`   - ID: ${itemGroup.Id}`);
+  console.log(`   - Name: ${itemGroup.Name}`);
+  console.log(`   - NamePath: ${itemGroup.NamePath || 'MISSING!'}`);
+  console.log(`   - IdPath: ${itemGroup.IdPath || 'MISSING!'}`);
+  console.log(`   - Object Type: ${itemGroup['Object Type']}`);
+  
+  // Si no tiene NamePath, intentar usar IdPath o construir una ruta básica
+  let navigationPath = itemGroup.NamePath;
+  
+  if (!navigationPath || navigationPath.trim() === '') {
+    // Intentar usar IdPath como alternativa
+    if (itemGroup.IdPath && itemGroup.IdPath.trim() !== '') {
+      navigationPath = itemGroup.IdPath;
+      console.log('🔄 USANDO IdPath como alternativa:', navigationPath);
+    } else {
+      // Como último recurso, usar solo el nombre del Item Group
+      navigationPath = itemGroup.Name;
+      console.log('🔄 USANDO Name como alternativa:', navigationPath);
+    }
+  }
+  if (!navigationPath || navigationPath.trim() === '') {
+    // Intentar usar IdPath como alternativa
+    if (itemGroup.IdPath && itemGroup.IdPath.trim() !== '') {
+      navigationPath = itemGroup.IdPath;
+      console.log(`� USANDO IdPath como alternativa: ${navigationPath}`);
+    } else {
+      // Como último recurso, usar solo el nombre del Item Group
+      navigationPath = itemGroup.Name;
+      console.log(`� USANDO Name como alternativa: ${navigationPath}`);
+    }
+  }
+  
+  if (!navigationPath || navigationPath.trim() === '') {
+    console.error(`❌ NO SE PUEDE CONSTRUIR RUTA DE NAVEGACIÓN`);
+    console.log(`🔍 PROPIEDADES DISPONIBLES:`, Object.keys(itemGroup));
+    alert('Error: No se puede determinar la ruta de navegación para este Item Group');
+    return;
+  }
+  
+  // PASO 5: Preparar navegación
+  console.log(`🚀 INICIANDO NAVEGACIÓN A: ${navigationPath}`);
+  
+  // Guardar estado antes de navegar
+  saveInventoryViewState();
+  
+  // Desactivar vista limpia si está activa
+  if (isCleanViewActive) {
+    console.log('🔄 Desactivando vista limpia...');
+    toggleCleanView();
+  }
+  
+  // PASO 6: Expandir árbol y seleccionar
+  console.log(`🌳 EXPANDIENDO ÁRBOL hasta: ${navigationPath}`);
+  expandTreeToPath(navigationPath, true);
     
     // 4. Seleccionar el Item Group en el árbol después de expandir
     setTimeout(() => {
+      console.log('🎯 Iniciando selección en el árbol...');
       const treeContainer = document.getElementById('tree');
       if (treeContainer) {
+        console.log('✅ TreeContainer encontrado');
+        
         // Quitar selección previa
-        treeContainer.querySelectorAll('.category-tree-label.selected').forEach(el => {
+        const previousSelected = treeContainer.querySelectorAll('.category-tree-label.selected');
+        console.log(`🔄 Removiendo ${previousSelected.length} selecciones previas`);
+        previousSelected.forEach(el => {
           el.classList.remove('selected');
         });
         
         // Seleccionar el nuevo Item Group - usar un método más robusto para evitar problemas con comillas
         let targetElement = null;
         const allLabels = treeContainer.querySelectorAll('.category-tree-label[data-path]');
+        console.log(`🔍 BUSCANDO entre ${allLabels.length} labels en el árbol`);
+        
+        // Debug: mostrar algunos paths disponibles para diagnóstico
+        if (allLabels.length > 0) {
+          const samplePaths = Array.from(allLabels).slice(0, 5).map(l => l.getAttribute('data-path'));
+          console.log(`📋 PRIMEROS 5 PATHS disponibles:`, samplePaths);
+        } else {
+          console.error(`❌ NO HAY LABELS EN EL ÁRBOL - verificar renderizado del árbol`);
+        }
         for (const label of allLabels) {
-          if (label.getAttribute('data-path') === itemGroup.NamePath) {
+          if (label.getAttribute('data-path') === navigationPath) {
             targetElement = label;
+            console.log('🎯 ¡Element target encontrado!');
             break;
           }
         }
         if (targetElement) {
           targetElement.classList.add('selected');
-          console.log('Item Group seleccionado en el árbol');
+          console.log(`✅ ITEM GROUP SELECCIONADO EN ÁRBOL`);
           
           // 5. Cargar el Item Group en el Box 4
-          loadImageGridInBox4(itemGroup.NamePath);
-          console.log('Item Group cargado en Box 4');
+          console.log(`� CARGANDO IMÁGENES para: ${itemGroup.NamePath}`);
+          loadImageGridInBox4(navigationPath); // Usar el path original completo
+          console.log(`🎉 NAVEGACIÓN COMPLETADA EXITOSAMENTE`);
           
           // 6. Hacer scroll al Item Group seleccionado
           targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-          console.error('No se pudo encontrar el elemento en el árbol:', itemGroup.NamePath);
+          console.error(`❌ NO SE ENCONTRÓ ELEMENTO EN ÁRBOL para: ${navigationPath}`);
+          console.log(`🔍 INTENTANDO BÚSQUEDA ALTERNATIVA POR NOMBRE: ${itemGroup.Name}`);
+          
+          // Búsqueda alternativa por el text content (Name) del Item Group
+          for (const label of allLabels) {
+            if (label.textContent.trim() === itemGroup.Name) {
+              targetElement = label;
+              console.log(`🎯 ¡Element encontrado por NOMBRE!`);
+              targetElement.classList.add('selected');
+              loadImageGridInBox4(label.getAttribute('data-path')); // Usar el path del elemento encontrado
+              targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              console.log(`🎉 NAVEGACIÓN COMPLETADA POR NOMBRE`);
+              break;
+            }
+          }
+          
+          if (!targetElement) {
+            console.log(`🔍 PRIMEROS 10 PATHS DISPONIBLES en árbol:`);
+            const availablePaths = Array.from(allLabels).map(label => label.getAttribute('data-path')).slice(0, 10);
+            console.log(availablePaths);
+            console.log(`🔍 PRIMEROS 10 NOMBRES DISPONIBLES en árbol:`);
+            const availableNames = Array.from(allLabels).map(label => label.textContent.trim()).slice(0, 10);
+            console.log(availableNames);
+          }
         }
+      } else {
+        console.error('❌ TreeContainer no encontrado');
       }
-    }, 1000); // Dar tiempo para que el árbol se expanda
-  }
+    }, 2000); // Dar más tiempo para que el árbol se restaure y expanda
 }
 
 // Función auxiliar para determinar qué mostrar en la columna imagen
@@ -1406,7 +1542,22 @@ function processCategoryData(categoryData) {
     // Guardar datos globalmente
     currentWorkingData = [...filteredData];
     allLibraryData = [...filteredData];
+    originalTreeData = [...filteredData]; // Preservar datos con NamePath para navegación
     currentColumnsOrder = [...expectedColumns];
+    
+    console.log(`✅ DATOS DE CATEGORY PROCESADOS:`);
+    console.log(`   - currentWorkingData: ${currentWorkingData.length}`);
+    console.log(`   - allLibraryData: ${allLibraryData.length}`);
+    console.log(`   - originalTreeData: ${originalTreeData.length}`);
+    
+    // Debug: verificar Item Groups con NamePath
+    const itemGroupsWithNamePath = originalTreeData.filter(item => 
+      item['Object Type'] === 'Item Group' && item.NamePath && item.NamePath.trim() !== ''
+    ).length;
+    const itemGroupsTotal = originalTreeData.filter(item => 
+      item['Object Type'] === 'Item Group'
+    ).length;
+    console.log(`📊 Item Groups en originalTreeData: ${itemGroupsTotal} total, ${itemGroupsWithNamePath} con NamePath válido`);
     
     // Limpiar arrays de comentarios ya que no los tenemos en esta fase
     // Los comentarios de imágenes se cargan automáticamente desde objetos tipo 'Image'
@@ -1889,17 +2040,6 @@ function processWorkbook(workbook) {
       ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
     ];
     
-    // Procesar hoja VIS_AG_Library_Structure (igual que en handleCombinedExcel)
-    if (originalExcelSheets['VIS_AG_Library_Structure']) {
-      // Usar XLSX.utils.sheet_to_json para convertir directamente 
-      const assetSheet = workbook.Sheets["VIS_AG_Library_Structure"];
-      if (assetSheet) {
-        allLibraryData = XLSX.utils.sheet_to_json(assetSheet, { defval: "" });
-        console.log(`✅ VIS_AG_Library_Structure cargado: ${allLibraryData.length} registros`);
-        console.log('📊 Muestra de datos:', allLibraryData.slice(0, 2));
-      }
-    }
-    
     // Los comentarios de imágenes ahora se obtienen directamente desde los datos procesados
     // (objetos con Object Type = 'Image' que vienen desde Google Sheets pestaña 'data')
     
@@ -2030,8 +2170,23 @@ function handleCombinedExcel(event) {
 
       // Guarda los datos para trabajar, el orden de las columnas
       currentWorkingData = [...assetRows];
-      allLibraryData = [...assetRows]; // Guardar todos los datos globalmente (no se sobrescribe)
+      allLibraryData = [...allRows]; // Guardar TODOS los datos sin filtrar para navegación
+      originalTreeData = [...allRows]; // Preservar estructura completa con NamePath
       currentColumnsOrder = [...columnsToRead];
+      
+      console.log(`🔧 DATOS GUARDADOS en handleCombinedExcel:`);
+      console.log(`   - currentWorkingData: ${currentWorkingData.length} (filtrados)`);
+      console.log(`   - allLibraryData: ${allLibraryData.length} (completos)`);
+      console.log(`   - originalTreeData: ${originalTreeData.length} (completos)`);
+      
+      // Debug específico: verificar Item Groups con NamePath
+      const itemGroupsWithNamePath = originalTreeData.filter(item => 
+        item['Object Type'] === 'Item Group' && item.NamePath
+      ).length;
+      const itemGroupsTotal = originalTreeData.filter(item => 
+        item['Object Type'] === 'Item Group'
+      ).length;
+      console.log(`📊 Item Groups en originalTreeData: ${itemGroupsTotal} total, ${itemGroupsWithNamePath} con NamePath`);
       
       // Extraer comentarios de imágenes desde los datos procesados (ya no desde VIS_AG_Asset_Structure)
       console.log('🖼️ Extrayendo comentarios de imágenes desde datos procesados...');
@@ -2538,6 +2693,31 @@ function selectItemGroupInTree(itemGroupPath) {
 
 // Función para cargar la retícula de imágenes en box4 (NUEVA ARQUITECTURA - Carga bajo demanda)
 async function loadImageGridInBox4(itemGroupPath) {
+  // INMEDIATAMENTE: Limpiar Box 4 para mostrar estado de carga
+  const box4Content = document.getElementById('box4-content');
+  if (box4Content) {
+    box4Content.innerHTML = '<div class="loading-state">Cargando Item Group...</div>';
+    console.log('🧹 Box 4 limpiado INMEDIATAMENTE en loadImageGridInBox4');
+  }
+  
+  console.log('🔍 DEBUG loadImageGridInBox4 - Path recibido:', itemGroupPath);
+  
+  // NO limpiar el path - usar exactamente como viene de Google con @fs:
+  const originalPath = itemGroupPath;
+  
+  // DEBUG: Buscar paths similares en currentWorkingData
+  console.log('🔍 DEBUGGING - Buscando en currentWorkingData con path original...');
+  const itemGroupName = itemGroupPath.split('/').pop();
+  console.log('🔍 Nombre del Item Group extraído:', itemGroupName);
+  
+  const similarPaths = currentWorkingData
+    .filter(item => item['Object Type'] === 'Item Group')
+    .filter(item => item.NamePath && item.NamePath.includes(itemGroupName))
+    .map(item => ({ id: item.Id, name: item.Name, path: item.NamePath }))
+    .slice(0, 5);
+  
+  console.log('🔍 PATHS SIMILARES encontrados:', similarPaths);
+  
   // ESTRATEGIA MÚLTIPLE PARA ENCONTRAR EL ITEM GROUP
   let itemGroup = null;
   let itemGroupId = null;
@@ -2561,24 +2741,35 @@ async function loadImageGridInBox4(itemGroupPath) {
     if (itemGroup) {
       itemGroupId = itemGroup.Id;
     } else {
-      // 3. Buscar en el caché de Item Groups por nombre
-      if (itemGroupDataCache && itemGroupDataCache.size > 0) {
-        for (let [cachedId, cachedData] of itemGroupDataCache.entries()) {
-          if (cachedData && cachedData.length > 0) {
-            const groupInfo = cachedData.find(item => 
-              item['Object Type'] === 'Item Group' && 
-              (item.Name === itemGroupName || item.NamePath === itemGroupPath)
-            );
-            if (groupInfo) {
-              itemGroupId = cachedId;
-              itemGroup = groupInfo;
-              break;
+      // 3. Buscar en originalTreeData (datos completos del árbol)
+      itemGroup = originalTreeData.find(item => {
+        return item['Object Type'] === 'Item Group' && 
+               (item.NamePath === itemGroupPath || item.Name === itemGroupName);
+      });
+      
+      if (itemGroup) {
+        itemGroupId = itemGroup.Id;
+        console.log('🔍 Item Group encontrado en originalTreeData');
+      } else {
+        // 4. Buscar en el caché de Item Groups por nombre
+        if (itemGroupDataCache && itemGroupDataCache.size > 0) {
+          for (let [cachedId, cachedData] of itemGroupDataCache.entries()) {
+            if (cachedData && cachedData.length > 0) {
+              const groupInfo = cachedData.find(item => 
+                item['Object Type'] === 'Item Group' && 
+                (item.Name === itemGroupName || item.NamePath === itemGroupPath)
+              );
+              if (groupInfo) {
+                itemGroupId = cachedId;
+                itemGroup = groupInfo;
+                break;
+              }
             }
           }
         }
       }
       
-      // 4. Si aún no se encuentra, crear un objeto básico con los datos disponibles
+      // 5. Si aún no se encuentra, crear un objeto básico con los datos disponibles
       if (!itemGroup && !itemGroupId) {
         // Intentar extraer ID si está en el formato "Name (ID: 12345)" o similar
         const idMatch = itemGroupName.match(/\(ID:\s*(\d+)\)/);
@@ -8182,14 +8373,32 @@ function clearAllBoxes() {
 
 // Función para restaurar la vista normal
 function restoreNormalView() {
+  // INMEDIATAMENTE: Limpiar Box 4 para mostrar estado de carga mientras se restaura
+  const box4Content = document.getElementById('box4-content');
+  if (box4Content) {
+    box4Content.innerHTML = '<div class="loading-state">Cargando visualizador...</div>';
+    console.log('🧹 Box 4 limpiado INMEDIATAMENTE en restoreNormalView');
+  }
+  
   // Restaurar el contenido de los boxes según el estado actual
-  if (currentWorkingData && currentWorkingData.length > 0) {
+  if (originalTreeData && originalTreeData.length > 0) {
     // Si hay datos cargados, regenerar el contenido
     
-    // Restaurar Box 1 (Árbol)
+    // Restaurar Box 1 (Árbol) - USAR originalTreeData para árbol completo
     const treeContainer = document.getElementById('tree');
     if (treeContainer) {
-      renderAssetLibraryTree(currentWorkingData, treeContainer);
+      console.log(`🌳 RESTAURANDO ÁRBOL con ${originalTreeData.length} elementos`);
+      renderAssetLibraryTree(originalTreeData, treeContainer);
+      
+      // Verificar que el árbol se renderizó correctamente
+      setTimeout(() => {
+        const renderedLabels = treeContainer.querySelectorAll('.category-tree-label[data-path]');
+        console.log(`✅ ÁRBOL RENDERIZADO: ${renderedLabels.length} labels creados`);
+        if (renderedLabels.length > 0) {
+          const samplePaths = Array.from(renderedLabels).slice(0, 3).map(l => l.getAttribute('data-path'));
+          console.log(`📋 MUESTRA DE PATHS en árbol:`, samplePaths);
+        }
+      }, 100);
     }
     
     // Restaurar Box 3 (Galerías)
@@ -8232,22 +8441,40 @@ function restoreNormalView() {
 }
 
 // Función para generar tabla de inventario de imágenes
-function generateImageInventoryTable() {
-  console.log('🚀 generateImageInventoryTable iniciada');
-  console.log('📊 currentWorkingData disponible:', !!currentWorkingData);
-  console.log('📊 currentWorkingData.length:', currentWorkingData ? currentWorkingData.length : 'N/A');
+function generateImageInventoryTable(dataOverride = null) {
+  const workingData = dataOverride || currentWorkingData;
   
-  if (!currentWorkingData || currentWorkingData.length === 0) {
+  console.log('🚀 generateImageInventoryTable iniciada');
+  console.log('📊 Datos disponibles:', !!workingData);
+  console.log('📊 Longitud de datos:', workingData ? workingData.length : 'N/A');
+  console.log('📊 Usando datos:', dataOverride ? 'parámetro (transformados)' : 'currentWorkingData global');
+  
+  // DEBUGGING: Verificar los primeros 3 elementos DENTRO de la función
+  if (workingData && workingData.length > 0) {
+    console.log('🔍 DEBUGGING - DENTRO de generateImageInventoryTable:');
+    const firstThreeInside = workingData.slice(0, 3);
+    firstThreeInside.forEach((item, index) => {
+      console.log(`🔍 Dentro-Item ${index}:`, {
+        objectType: item['Object Type'],
+        itemGroups: item['Item Groups'],
+        itemGroupsType: typeof item['Item Groups'],
+        name: item.Name,
+        id: item.Id || item.ID
+      });
+    });
+  }
+  
+  if (!workingData || workingData.length === 0) {
     console.log('❌ No hay datos para generar tabla de inventario');
     return '<div class="empty-box-message">No hay datos para mostrar</div>';
   }
 
   // DEBUG: Verificar qué tipo de datos tenemos
   console.log('🔍 Analizando estructura de datos...');
-  console.log('📊 Total de elementos en currentWorkingData:', currentWorkingData.length);
+  console.log('📊 Total de elementos en workingData:', workingData.length);
   
   // Mostrar algunos ejemplos de datos
-  const firstFew = currentWorkingData.slice(0, 3);
+  const firstFew = workingData.slice(0, 3);
   firstFew.forEach((item, index) => {
     console.log(`📋 Ejemplo ${index + 1}:`, {
       'Object Type': item['Object Type'],
@@ -8259,8 +8486,8 @@ function generateImageInventoryTable() {
   });
   
   // 🔍 DEBUG ADICIONAL: Mostrar todos los campos disponibles en el primer item
-  if (currentWorkingData.length > 0) {
-    const firstItem = currentWorkingData[0];
+  if (workingData.length > 0) {
+    const firstItem = workingData[0];
     const allKeys = Object.keys(firstItem);
     console.log('🔍 CAMPOS DISPONIBLES en el primer item:', allKeys);
     
@@ -8280,28 +8507,47 @@ function generateImageInventoryTable() {
   }
   
   // Contar cuántos tienen comentarios
-  const withComments = currentWorkingData.filter(item => item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim() !== '');
-  console.log(`📊 Elementos CON comentarios: ${withComments.length}/${currentWorkingData.length}`);
+  const withComments = workingData.filter(item => item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim() !== '');
+  console.log(`📊 Elementos CON comentarios: ${withComments.length}/${workingData.length}`);
   
   // Si no hay comentarios, mostrar mensaje específico
   if (withComments.length === 0) {
     console.log('⚠️ NO SE ENCONTRARON ELEMENTOS CON COMENTARIOS');
     return `<div class="empty-box-message">
       <h3>No hay elementos con comentarios</h3>
-      <p>Se encontraron ${currentWorkingData.length} elementos en total, pero ninguno tiene comentarios en WA_VIS_Comment.</p>
+      <p>Se encontraron ${workingData.length} elementos en total, pero ninguno tiene comentarios en WA_VIS_Comment.</p>
       <p>Los datos parecen estar cargados correctamente desde Google Sheets.</p>
     </div>`;
   }
 
   // Función para obtener el Item Group ID de una fila
-  function getItemGroupId(row) {
+  function getItemGroupId(row, dataSource = null) {
+    // Usar dataSource si está disponible (datos transformados), sino usar allLibraryData
+    const searchData = dataSource || allLibraryData;
+    
+    // CASO ESPECIAL: Para Images, usar directamente la columna Item Groups
+    if (row['Object Type'] === 'Image') {
+      const itemGroupId = row['Item Groups'] || '';
+      return itemGroupId.toString();
+    }
+    
+    // CASO ESPECIAL: Para Item Codes, usar getItemGroupIdFromData si no hay itemGroupId
+    if (row['Object Type'] === 'Item Code') {
+      const itemGroupFromData = getItemGroupIdFromData(row);
+      if (itemGroupFromData) {
+        return itemGroupFromData;
+      }
+    }
+    
     // CASO 1: Si la fila ES un Item Group, usar su propio ID
     if (row['Object Type'] === 'Item Group') {
       return row['Id'] || '';
     }
     
     // CASO 2: Si es un Item Code, buscar el ID del Item Group padre
-    if (!row.NamePath) return '';
+    if (!row.NamePath) {
+      return '';
+    }
     
     // Obtener el path del Item Group padre (remover último nivel que es el Item Code)
     const pathParts = row.NamePath.split('/');
@@ -8309,9 +8555,9 @@ function generateImageInventoryTable() {
     
     const itemGroupPath = pathParts.slice(0, -1).join('/');
     
-    // BUSCAR PRIMERO en allLibraryData (datos completos, no filtrados)
-    if (allLibraryData && allLibraryData.length > 0) {
-      const itemGroup = allLibraryData.find(item => 
+    // BUSCAR PRIMERO en searchData (datos transformados si están disponibles)
+    if (searchData && searchData.length > 0) {
+      const itemGroup = searchData.find(item => 
         item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath
       );
       
@@ -8336,10 +8582,7 @@ function generateImageInventoryTable() {
       return currentItemGroup.Id || '';
     }
     
-    // Último fallback: extraer el ID del último componente del itemGroupPath
-    // Si el path es algo como "Brand/Product/123-ItemGroup", el ID sería "123-ItemGroup"
-    const lastPathComponent = pathParts[pathParts.length - 1];
-    return lastPathComponent || '';
+    return '';
   }
 
   // Columnas de imágenes a procesar
@@ -8530,13 +8773,14 @@ function generateImageInventoryTable() {
   // Set para trackear combinaciones únicas de Item Group ID + Nombre de Imagen
   const uniqueItemGroupImageCombos = new Set();
 
-  currentWorkingData.forEach((row, originalIndex) => {
+  workingData.forEach((row, originalIndex) => {
     // Extraer metadatos fijos
+    const itemGroupId = getItemGroupId(row, workingData); // Pasar workingData como parámetro
     const metadata = {
       name: row['Name'] || '',
       id: row['Id'] || '',
       itemGroup: row['NamePath'] || '', // El NamePath contiene la ruta del Item Group
-      itemGroupId: getItemGroupId(row), // NUEVO: ID específico del Item Group
+      itemGroupId: itemGroupId, // NUEVO: ID específico del Item Group
       objectType: row['Object Type'] || '',
       cms: row['CMS'] || row.CMS || '',
       marca: row['Marca'] || '',
@@ -8544,9 +8788,9 @@ function generateImageInventoryTable() {
       importancia: row['WA Importancia'] || ''
     };
 
-    // Debug: log algunos items para verificar datos (solo los primeros 3)
-    if (originalIndex < 3) {
-      console.log(`🔍 DEBUG CMS - ID ${metadata.id}: CMS="${metadata.cms}" | ObjectType="${metadata.objectType}"`);
+    // Debug: solo mostrar si no hay itemGroupId para investigar problemas
+    if (!itemGroupId && originalIndex < 3) {
+      console.log(`⚠️ Sin ItemGroupId - Row ${originalIndex}: ObjectType="${metadata.objectType}", NamePath="${metadata.itemGroup}"`);
     }
 
   // 1. PRIMERO: Verificar si la fila tiene comentario directo en WA_VIS_Comment
@@ -8694,7 +8938,19 @@ function generateImageInventoryTable() {
   });
 
   // Convertir datos ordenados a HTML
-  const tableRows = tableRowsData.map(rowData => {
+  const tableRows = tableRowsData.map((rowData, index) => {
+    
+    // DEBUG: Solo para las primeras 5 filas, mostrar información detallada
+    if (index < 5) {
+      console.log(`🔍 DEBUG generateImageInventoryTable fila ${index}:`, {
+        objectType: getObjectTypeValue(rowData),
+        itemGroupId: `"${rowData.itemGroupId}"`,
+        'Item Groups': `"${rowData['Item Groups']}"`,
+        itemGroupIdVacio: !rowData.itemGroupId,
+        name: rowData.Name || rowData.name
+      });
+    }
+    
     if (rowData.rowType === 'direct-comment') {
       return `
         <tr class="inventory-row inventory-direct-comment" data-original-row="${rowData.originalRowIndex}">
@@ -8714,7 +8970,7 @@ function generateImageInventoryTable() {
           <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
-          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
         </tr>
       `;
     } else {
@@ -8736,7 +8992,7 @@ function generateImageInventoryTable() {
           <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
-          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
         </tr>
       `;
     }
@@ -9054,15 +9310,31 @@ function generateImageInventoryTableFromCache() {
   currentWorkingData = transformedArray;
   allLibraryData = transformedArray; // ¡IMPORTANTE! Para que funcionen los clicks en comentarios
   
+  // DEBUGGING: Verificar datos antes de generar tabla
+  console.log('🔍 DEBUGGING - Antes de generateImageInventoryTable:');
+  console.log('📊 currentWorkingData.length:', currentWorkingData.length);
+  
+  const firstThreeItems = currentWorkingData.slice(0, 3);
+  firstThreeItems.forEach((item, index) => {
+    console.log(`🔍 Antes-Item ${index}:`, {
+      objectType: item['Object Type'],
+      itemGroups: item['Item Groups'],
+      itemGroupsType: typeof item['Item Groups'],
+      name: item.Name,
+      id: item.Id || item.ID
+    });
+  });
+  
   try {
-    // Generar la tabla usando la función existente
-    const inventoryHTML = generateImageInventoryTable();
-    
-    // Restaurar currentWorkingData original (pero mantener allLibraryData)
-    currentWorkingData = originalCurrentWorkingData;
+    // Generar la tabla usando la función existente, pasando los datos transformados directamente
+    const inventoryHTML = generateImageInventoryTable(transformedArray);
     
     console.log('✅ Tabla de inventario generada exitosamente desde caché transformado');
     console.log('📊 allLibraryData configurado con', allLibraryData.length, 'elementos para clicks');
+    
+    // Restaurar currentWorkingData original DESPUÉS de generar la tabla (pero mantener allLibraryData)
+    currentWorkingData = originalCurrentWorkingData;
+    
     return inventoryHTML;
     
   } catch (error) {
@@ -9395,11 +9667,11 @@ function setupInventoryClickListeners() {
       const itemGroupId = this.getAttribute('data-item-group-id');
       
       if (!itemGroupId || itemGroupId.trim() === '') {
-        console.warn('❌ No se encontró Item Group ID en status LIMPIO');
+        console.warn('❌ Click en status: No se encontró Item Group ID');
         return;
       }
       
-      console.log(`🧹 Click en status LIMPIO, navegando a Item Group:`, itemGroupId);
+      console.log(`✅ Click en status: Navegando a Item Group "${itemGroupId}"`);
       navigateToItemGroup(itemGroupId);
     });
     cell.style.cursor = 'pointer';
@@ -9581,7 +9853,7 @@ function regenerateInventoryTable(filteredData) {
           <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
-          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
         </tr>
       `;
     } else {
@@ -9603,7 +9875,7 @@ function regenerateInventoryTable(filteredData) {
           <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
-          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
         </tr>
       `;
     }
@@ -10941,6 +11213,37 @@ function updateInventoryDisplay(filteredData) {
   }, 100);
 }
 
+// Función para obtener Item Group ID desde la columna "Item Groups" para item codes
+function getItemGroupIdFromData(rowData) {
+  // Buscar Item Groups en diferentes formatos posibles
+  const possibleKeys = ['Item Groups', 'itemGroups', 'Item_Groups', 'ItemGroups'];
+  let itemGroupsValue = null;
+  
+  for (const key of possibleKeys) {
+    if (rowData[key] && rowData[key] !== 'undefined' && rowData[key] !== '"undefined"') {
+      itemGroupsValue = rowData[key];
+      break;
+    }
+  }
+  
+  // Si no tiene itemGroupId pero sí tiene Item Groups
+  if (!rowData.itemGroupId && itemGroupsValue) {
+    const itemGroups = String(itemGroupsValue).trim();
+    
+    // Si hay múltiples valores separados por comas, tomar el primero
+    if (itemGroups.includes(',')) {
+      const firstItemGroup = itemGroups.split(',')[0].trim();
+      console.log(`✅ Item code: Usando primer Item Group "${firstItemGroup}" de "${itemGroups}"`);
+      return firstItemGroup;
+    } else if (itemGroups !== '') {
+      console.log(`✅ Item code: Usando Item Group "${itemGroups}"`);
+      return itemGroups;
+    }
+  }
+  
+  return '';
+}
+
 function updateInventoryTableDirectly(filteredData) {
   console.log('🔄 === INICIO updateInventoryTableDirectly ===');
   console.log('📊 Datos recibidos:', filteredData.length, 'elementos');
@@ -11038,6 +11341,20 @@ function updateInventoryTableDirectly(filteredData) {
       ? (getAssetId(rowData.imageName) || rowData.id || rowData.itemGroupId || '')
       : (rowData.id || rowData.itemGroupId || '');
 
+    // DEBUG: calcular el Item Group ID que se usará
+    const itemGroupIdForClick = rowData.itemGroupId || getItemGroupIdFromData(rowData) || '';
+    
+    // DEBUG: Solo para las primeras 3 filas, mostrar información detallada
+    if (index < 3) {
+      console.log(`🔍 DEBUG fila ${index}:`, {
+        objectType: getObjectTypeValue(rowData),
+        itemGroupId: `"${rowData.itemGroupId}"`,
+        'Item Groups': `"${rowData['Item Groups']}"`,
+        itemGroupIdCalculado: `"${itemGroupIdForClick}"`,
+        itemGroupIdVacio: !rowData.itemGroupId
+      });
+    }
+
     row.innerHTML = `
       <td class="inventory-cell">${index + 1}</td>
       <td class="inventory-cell inventory-item-group">${escapeHtml(displayId)}</td>
@@ -11055,7 +11372,7 @@ function updateInventoryTableDirectly(filteredData) {
       <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
-      <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || '')}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+      <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(itemGroupIdForClick)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
     `;
     
     inventoryTable.appendChild(row);
