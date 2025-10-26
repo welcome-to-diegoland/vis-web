@@ -3552,7 +3552,15 @@ function handleImageCommentClick(event, imageName) {
 
 // Función para parsear comentarios del formato Excel
 function parseCommentsFromExcel(commentString) {
+  console.log('🔍 parseCommentsFromExcel recibió:', {
+    commentString,
+    type: typeof commentString,
+    length: commentString ? commentString.length : 0,
+    preview: commentString ? commentString.substring(0, 200) : 'VACÍO'
+  });
+  
   if (!commentString || !commentString.trim()) {
+    console.log('❌ parseCommentsFromExcel: comentario vacío o nulo');
     return [];
   }
   
@@ -3843,6 +3851,18 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
   // IMPORTANTE: Guardar estado actual antes de abrir modal
   console.log('💾 Guardando estado antes de abrir modal de comentarios...');
   saveInventoryViewState();
+  
+  // LOG DETALLADO de lo que llega al modal
+  console.log('🔍 openCommentModal recibió:', {
+    title,
+    context,
+    commentText,
+    commentTextLength: commentText ? commentText.length : 0,
+    commentTextType: typeof commentText,
+    commentTextPreview: commentText ? commentText.substring(0, 200) : 'VACÍO',
+    type,
+    imageName
+  });
   
   // Verificar si ya existe una modal y cerrarla
   const existingModal = document.getElementById('commentModal');
@@ -9030,23 +9050,25 @@ function generateImageInventoryTableFromCache() {
   // Usar la lógica existente pero con los datos transformados
   const originalCurrentWorkingData = currentWorkingData;
   
-  // Temporalmente asignar los datos transformados a currentWorkingData
+  // Temporalmente asignar los datos transformados a currentWorkingData Y allLibraryData
   currentWorkingData = transformedArray;
+  allLibraryData = transformedArray; // ¡IMPORTANTE! Para que funcionen los clicks en comentarios
   
   try {
     // Generar la tabla usando la función existente
     const inventoryHTML = generateImageInventoryTable();
     
-    // Restaurar currentWorkingData original
+    // Restaurar currentWorkingData original (pero mantener allLibraryData)
     currentWorkingData = originalCurrentWorkingData;
     
     console.log('✅ Tabla de inventario generada exitosamente desde caché transformado');
+    console.log('📊 allLibraryData configurado con', allLibraryData.length, 'elementos para clicks');
     return inventoryHTML;
     
   } catch (error) {
     console.error('❌ Error generando tabla desde caché:', error);
     
-    // Restaurar currentWorkingData original en caso de error
+    // Restaurar currentWorkingData original en caso de error (mantener allLibraryData)
     currentWorkingData = originalCurrentWorkingData;
     
     return '<div class="empty-box-message">Error generando tabla de inventario desde caché</div>';
@@ -9276,6 +9298,18 @@ function setupInventoryClickListeners() {
   
   // Event listeners para comentarios clickeables LIMPIOS
   clickableCommentsClean.forEach((cell, index) => {
+    // Verificar si ya tiene event listener configurado
+    if (cell.dataset.listenerAdded === 'true') {
+      return;
+    }
+    
+    // Marcar como procesado
+    cell.dataset.listenerAdded = 'true';
+    
+    // Asegurar cursor pointer con múltiples métodos
+    cell.style.cursor = 'pointer';
+    cell.style.setProperty('cursor', 'pointer', 'important');
+    cell.classList.add('force-pointer-cursor');
     cell.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -9319,8 +9353,11 @@ function setupInventoryClickListeners() {
               originalComment: originalComment ? originalComment.substring(0, 100) + '...' : 'VACÍO', 
               objectType: itemData['Object Type'],
               hasComment: !!originalComment,
-              commentLength: originalComment.length
+              commentLength: originalComment.length,
+              fullOriginalComment: originalComment // Log completo del comentario
             });
+            
+            console.log('🔍 TEXTO COMPLETO del comentario antes de openCommentModal:', originalComment);
             
             openCommentModal(modalTitle, contextInfo, originalComment, 'item', null);
           } else {
@@ -9346,6 +9383,7 @@ function setupInventoryClickListeners() {
       }
     });
     cell.style.cursor = 'pointer';
+    cell.style.setProperty('cursor', 'pointer', 'important');
   });
   
   // Event listeners para status clickeables LIMPIOS
@@ -10157,12 +10195,46 @@ function addAssignmentComment(row) {
     console.log('📜 Usando comentarios de fila como fallback:', existingComments);
   }
   
+  // Función para obtener el último tipo de comentario de los comentarios existentes
+  function getLastCommentType(commentsString) {
+    if (!commentsString || !commentsString.trim()) {
+      return 'General'; // Default si no hay comentarios
+    }
+    
+    // Separar comentarios individuales por ¶
+    const individualComments = commentsString.split('¶');
+    if (individualComments.length === 0) {
+      return 'General';
+    }
+    
+    // Obtener el último comentario
+    const lastComment = individualComments[individualComments.length - 1];
+    if (!lastComment) {
+      return 'General';
+    }
+    
+    // Separar campos por ¦ (usuario¦fecha¦tipo¦texto¦status)
+    const fields = lastComment.split('¦');
+    if (fields.length >= 3) {
+      const tipoComentario = fields[2]?.trim();
+      if (tipoComentario && tipoComentario !== '') {
+        return tipoComentario;
+      }
+    }
+    
+    return 'General'; // Default si no se puede extraer
+  }
+  
+  // Obtener el último tipo de comentario usado
+  const lastCommentType = getLastCommentType(existingComments);
+  console.log('📝 Último tipo de comentario encontrado:', lastCommentType);
+  
   // Crear el nuevo comentario de asignación
   const assignmentComment = {
     usuario: row.diseñador,
     fechaHora: getLocalDateTime(),
-    tipoComentario: 'General',
-    textoComentario: `Se asignó diseñador a "${row.diseñador}"`,
+    tipoComentario: lastCommentType, // Usar el último tipo en lugar de 'General'
+    textoComentario: `Se asignó comentario a ${row.diseñador}`, // Cambiar texto y quitar comillas
     status: 'Diseño'
   };
   
@@ -11879,7 +11951,7 @@ function createStatusTag(status) {
   else if (s.includes("cancelado")) c = "cancelado";
   else if (s.includes("completado")) c = "completado";
   
-  console.log(`🏷️ createStatusTag: "${status}" → clase "${c}"`);
+  // console.log(`🏷️ createStatusTag: "${status}" → clase "${c}"`); // Comentado para reducir log
   return `<span class="status-tag ${c}">${status}</span>`;
 }
 

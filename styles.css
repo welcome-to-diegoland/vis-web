@@ -4449,7 +4449,8 @@ html, body {
   background: #8e44ad; /* Morado - igual que tabla y modal */
 }
 
-.comment-indicator[data-status="Revision"] {
+.comment-indicator[data-status="Revision"],
+.comment-indicator[data-status="Revisión"] {
   background: #ff6b35; /* Naranja - igual que tabla y modal */
 }
 
@@ -4496,7 +4497,8 @@ html, body {
   background: #8e44ad; /* Morado - igual que tabla y modal */
 }
 
-.comment-indicator.group-comment[data-status="Revision"] {
+.comment-indicator.group-comment[data-status="Revision"],
+.comment-indicator.group-comment[data-status="Revisión"] {
   background: #ff6b35; /* Naranja - igual que tabla y modal */
 }
 
@@ -4548,7 +4550,8 @@ html, body {
   background: #8e44ad; /* Morado - igual que status-badge */
 }
 
-.comment-bubble.image-comment[data-status="Revision"] {
+.comment-bubble.image-comment[data-status="Revision"],
+.comment-bubble.image-comment[data-status="Revisión"] {
   background: #ff6b35; /* Naranja - igual que status-badge */
 }
 
@@ -4660,7 +4663,8 @@ html, body {
   background-color: #8e44ad;
 }
 
-.status-badge[data-status="Revision"] {
+.status-badge[data-status="Revision"],
+.status-badge[data-status="Revisión"] {
   background-color: #ff6b35;
 }
 
@@ -5933,6 +5937,38 @@ html, body {
 
 /* Estilos para comentarios clickeables en la tabla de inventario */
 .clickable-comment {
+  cursor: pointer !important;
+}
+
+/* Estilos para comentarios clickeables LIMPIOS en la tabla de inventario */
+.clickable-comment-clean {
+  cursor: pointer !important;
+  transition: background-color 0.2s ease;
+}
+
+.clickable-comment-clean:hover {
+  background-color: rgba(0, 123, 255, 0.1) !important;
+  outline: 1px solid rgba(0, 123, 255, 0.3);
+}
+
+/* Asegurar cursor pointer en tabla de inventario específicamente */
+.image-inventory-table .clickable-comment-clean {
+  cursor: pointer !important;
+}
+
+.image-inventory-table td.clickable-comment-clean {
+  cursor: pointer !important;
+}
+
+table.image-inventory-table .clickable-comment-clean {
+  cursor: pointer !important;
+}
+
+/* Forzar cursor pointer con máxima prioridad */
+.force-pointer-cursor,
+.force-pointer-cursor:hover,
+.force-pointer-cursor:active,
+.force-pointer-cursor:focus {
   cursor: pointer !important;
 }
 
