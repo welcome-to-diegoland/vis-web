@@ -2925,7 +2925,6 @@ async function loadImageGridInBox4(itemGroupPath) {
       // ✨ APLICAR COLORES DE APROBACIÓN AL GRID SI ESTÁN ACTIVOS
       const treeDiv = document.getElementById('tree');
       if (treeDiv && treeDiv.classList.contains('approval-view-active')) {
-        console.log('🎨 Aplicando colores de aprobación al grid después de cargar');
         applyApprovalColorsToGrid();
       }
     }, 500);
@@ -2980,15 +2979,6 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
     gallery: imageColumns.filter(col => col.includes('Gallery')),
     rest: imageColumns.filter(col => col.includes('Rst') || col.includes('Rest'))
   };
-
-  // DEBUG: Verificar qué datos llegan
-  console.log(`🔍 createImageGrid recibió ${itemCodes.length} Item Codes`);
-  if (itemCodes.length > 0) {
-    console.log(`🔍 Primer Item Code:`, itemCodes[0]);
-    console.log(`🔍 Keys disponibles:`, Object.keys(itemCodes[0]));
-    console.log(`🔍 NamePath del primero: "${itemCodes[0].NamePath}"`);
-    console.log(`🔍 Name del primero: "${itemCodes[0].Name}"`);
-  }
 
   // Crear una estructura de datos unificada donde cada fila tiene TODOS sus datos
   const unifiedRows = itemCodes.map(itemCode => ({
@@ -3395,7 +3385,6 @@ function regenerateImageGrid() {
     // ✨ APLICAR COLORES DE APROBACIÓN AL GRID SI ESTÁN ACTIVOS
     const treeDiv = document.getElementById('tree');
     if (treeDiv && treeDiv.classList.contains('approval-view-active')) {
-      console.log('🎨 Aplicando colores de aprobación al grid después de regenerar');
       applyApprovalColorsToGrid();
     }
   }, 100);
@@ -7512,19 +7501,8 @@ function showAllElements(treeContainer) {
 
 // Función para aplicar colores de aprobación al grid (Item Codes)
 function applyApprovalColorsToGrid() {
-  console.log('Aplicando colores de aprobación al grid...');
-  
   if (!currentWorkingData || currentWorkingData.length === 0) {
-    console.log('No hay datos disponibles para aplicar colores al grid');
     return;
-  }
-
-  // DEBUG: Verificar si Box 4 tiene las clases correctas
-  const box4 = document.getElementById('box4');
-  if (box4) {
-    console.log(`🎨 Box 4 clases: ${box4.className}`);
-  } else {
-    console.log('❌ Box 4 no encontrado');
   }
 
   // Crear mapa de datos para acceso rápido por NamePath
@@ -7543,33 +7521,19 @@ function applyApprovalColorsToGrid() {
 
   // Buscar todos los Item Code cells en el grid
   const itemCodeCells = document.querySelectorAll('.item-code-cell[data-name-path]');
-  console.log(`Aplicando colores a ${itemCodeCells.length} Item Codes en el grid`);
-  
-  // DEBUG: Verificar si existen elementos con diferentes selectores
-  console.log(`🔍 .item-code-cell (sin filtro): ${document.querySelectorAll('.item-code-cell').length}`);
-  console.log(`🔍 [data-name-path] (sin filtro): ${document.querySelectorAll('[data-name-path]').length}`);
-  console.log(`🔍 .item-code-cell[data-name-path]: ${itemCodeCells.length}`);
-
-  console.log(`🔍 Iniciando forEach con ${itemCodeCells.length} elementos...`);
   
   itemCodeCells.forEach((cell, index) => {
-    console.log(`🔍 Procesando elemento ${index}:`, cell);
-    
     const itemCodeName = cell.getAttribute('data-item-code');
-    console.log(`🔍 Item Code Name: "${itemCodeName}"`);
     
     // Buscar por Name en lugar de NamePath (ya que NamePath está vacío)
     const dataItem = Array.from(dataMap.values()).find(item => item.Name === itemCodeName);
-    console.log(`🔍 DataItem encontrado por Name:`, dataItem ? 'SÍ' : 'NO');
     
     if (!dataItem) {
-      console.log(`❌ Sin dataItem para "${itemCodeName}", saltando elemento ${index}`);
       return;
     }
 
     // Evaluar el status de aprobación igual que en el árbol
     const approvalStatus = evaluateApprovalStatus(dataItem);
-    console.log(`🎨 Status de aprobación: ${approvalStatus}`);
     
     // Aplicar las clases CSS
     cell.classList.add('approval-mode');
@@ -7577,24 +7541,14 @@ function applyApprovalColorsToGrid() {
     
     if (approvalStatus === 'green') {
       cell.classList.add('approval-green');
-      console.log(`✅ Aplicado color VERDE a ${itemCodeName}`);
     } else {
       cell.classList.add('approval-orange');
-      console.log(`🟠 Aplicado color NARANJA a ${itemCodeName}`);
     }
-
-    console.log(`🎨 Clases finales: ${cell.className}`);
   });
-  
-  console.log(`🔍 forEach completado`);
-  
-  console.log('Colores de aprobación aplicados al grid');
 }
 
 // Función para remover colores de aprobación del grid
 function removeApprovalColorsFromGrid() {
-  console.log('Removiendo colores de aprobación del grid...');
-  
   // Remover clase del contenedor del grid
   const gridContainer = document.querySelector('.image-grid-container');
   if (gridContainer) {
@@ -7606,8 +7560,6 @@ function removeApprovalColorsFromGrid() {
   itemCodeCells.forEach(cell => {
     cell.classList.remove('approval-mode', 'approval-green', 'approval-orange');
   });
-  
-  console.log(`Colores removidos de ${itemCodeCells.length} Item Codes en el grid`);
 }
 
 // Función para aplicar filtro + colores basado en filtro_color
