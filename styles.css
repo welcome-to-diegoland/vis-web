@@ -2241,6 +2241,17 @@ html, body {
   background: linear-gradient(90deg, rgba(255, 143, 0, 0.2) 0%, #ffe0b2 50%);
 }
 
+/* Estilos de aprobación para el grid (Item Codes) - Solo raya izquierda */
+.approval-view-active .item-code-cell.approval-green,
+.image-grid-container.approval-view-active .item-code-cell.approval-green {
+  border-left: 4px solid #28a745 !important;
+}
+
+.approval-view-active .item-code-cell.approval-orange,
+.image-grid-container.approval-view-active .item-code-cell.approval-orange {
+  border-left: 4px solid #ff8f00 !important;
+}
+
 /* Estilo para el botón de cargar categoría */
 
 
