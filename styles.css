@@ -2603,6 +2603,12 @@ html, body {
   font-size: 14px;
 }
 
+.controls-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .controls-right {
   display: flex;
   align-items: center;
@@ -2971,6 +2977,32 @@ html, body {
   gap: 10px;
 }
 
+.undo-button {
+  background: white;
+  color: #007bff;
+  border: 1px solid #007bff;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.undo-button:hover {
+  background: #007bff;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.25);
+}
+
+.undo-button:active {
+  transform: translateY(0);
+}
+
 .cleanup-button {
   background: white;
   color: #dc3545;
@@ -2981,7 +3013,6 @@ html, body {
   transition: all 0.2s ease;
   font-size: 14px;
   font-weight: 500;
-  margin-left: 15px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2996,11 +3027,6 @@ html, body {
 
 .cleanup-button:active {
   transform: translateY(0);
-}
-
-.cleanup-button::before {
-  content: "🧹";
-  font-size: 16px;
 }
 
 .zoom-info {

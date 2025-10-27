@@ -25,6 +25,9 @@ let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 let savedItemGroups = new Set(); // Set para trackear Item Groups guardados
 let isCleanViewActive = false; // Estado del toggle de vista limpia
 
+// Variable para guardar el estado original del Item Group para poder deshacerlo
+let originalItemGroupState = null; // Estado original para función de deshacer
+
 // Sistema de gestión de estado para scroll y filtros
 let inventoryViewState = {
   scrollPosition: 0,
@@ -2984,6 +2987,19 @@ async function loadImageGridInBox4(itemGroupPath) {
     currentItemCodes = [...itemCodes];
     currentImageColumns = [...imageColumns];
 
+    // 🔄 GUARDAR ESTADO ORIGINAL para función de deshacer
+    if (!originalItemGroupState || originalItemGroupState.itemGroupPath !== itemGroupPath) {
+      originalItemGroupState = {
+        itemGroupPath: itemGroupPath,
+        currentItemCodes: JSON.parse(JSON.stringify(itemCodes)), // Deep copy
+        currentImageColumns: JSON.parse(JSON.stringify(imageColumns)), // Deep copy
+        currentItemGroup: JSON.parse(JSON.stringify(currentItemGroup)), // Deep copy
+        currentWorkingData: JSON.parse(JSON.stringify(currentWorkingData)), // Deep copy
+        timestamp: new Date().toISOString()
+      };
+      console.log('💾 Estado original guardado para:', itemGroupPath);
+    }
+
     // Crear la retícula
     const gridHtml = createImageGrid(itemCodes, imageColumns, currentItemGroup);
     
@@ -2992,7 +3008,12 @@ async function loadImageGridInBox4(itemGroupPath) {
       <div class="image-management-container">
         <div class="controls-bar">
           <div class="controls-left">
-            <span class="controls-title">Controles de Imágenes</span>
+            <button class="undo-button" id="undoChangesButton" title="Deshacer todos los cambios y volver al estado original">
+              Deshacer
+            </button>
+            <button class="cleanup-button" id="cleanupGalButton" title="Limpiar GAL: Elimina imágenes que no pertenecen a su Item Code">
+              Limpiar GAL
+            </button>
           </div>
           <div class="controls-right">
             <div class="zoom-controls">
@@ -3000,9 +3021,6 @@ async function loadImageGridInBox4(itemGroupPath) {
               <span class="zoom-info" id="zoomInfo">100%</span>
               <button class="zoom-button" id="zoomIn" title="Aumentar tamaño">🔍+</button>
             </div>
-            <button class="cleanup-button" id="cleanupGalButton" title="Limpiar GAL: Elimina imágenes que no pertenecen a su Item Code">
-              Limpiar GAL
-            </button>
           </div>
         </div>
         ${gridHtml}
@@ -3494,8 +3512,33 @@ function regenerateImageGrid() {
   }
   
   // Regenerar la grilla con los datos actuales
-  const newGridHtml = createImageGrid(currentItemCodes, currentImageColumns, currentItemGroup);
-  box4Content.innerHTML = newGridHtml;
+  const gridHtml = createImageGrid(currentItemCodes, currentImageColumns, currentItemGroup);
+  
+  // Crear la estructura completa con barra de controles
+  const fullHtml = `
+    <div class="image-management-container">
+      <div class="controls-bar">
+        <div class="controls-left">
+          <button class="undo-button" id="undoChangesButton" title="Deshacer todos los cambios y volver al estado original">
+            Deshacer
+          </button>
+          <button class="cleanup-button" id="cleanupGalButton" title="Limpiar GAL: Elimina imágenes que no pertenecen a su Item Code">
+            Limpiar GAL
+          </button>
+        </div>
+        <div class="controls-right">
+          <div class="zoom-controls">
+            <button class="zoom-button" id="zoomOut" title="Reducir tamaño">🔍−</button>
+            <span class="zoom-info" id="zoomInfo">100%</span>
+            <button class="zoom-button" id="zoomIn" title="Aumentar tamaño">🔍+</button>
+          </div>
+        </div>
+      </div>
+      ${gridHtml}
+    </div>
+  `;
+  
+  box4Content.innerHTML = fullHtml;
   
   // Configurar event listener para el botón de basura del Item Group
   setupItemGroupDeleteButton();
@@ -3509,6 +3552,11 @@ function regenerateImageGrid() {
   setTimeout(() => {
     setupZoomControls();
     setupScrollSynchronization();
+    setupImageSystemEventListeners();
+    setupBrandFilter();
+    
+    // Actualizar indicadores de múltiples imágenes después de regenerar
+    updateMultipleImagesIndicators();
     
     // ✨ APLICAR COLORES DE APROBACIÓN AL GRID SI ESTÁN ACTIVOS
     const treeDiv = document.getElementById('tree');
@@ -3517,6 +3565,11 @@ function regenerateImageGrid() {
     }
   }, 100);
   
+  // Intentar de nuevo la sincronización después de un delay más largo
+  setTimeout(() => {
+    setupScrollSynchronization();
+  }, 1500);
+
   // Grid regenerated
 }
 
@@ -3627,6 +3680,14 @@ function setupZoomControls() {
   if (cleanupBtn) {
     cleanupBtn.addEventListener('click', () => {
       handleGalCleanup();
+    });
+  }
+
+  // Event listener para el botón de deshacer cambios
+  const undoBtn = document.getElementById('undoChangesButton');
+  if (undoBtn) {
+    undoBtn.addEventListener('click', () => {
+      undoAllChanges();
     });
   }
 }
@@ -7505,11 +7566,6 @@ function handleGalCleanup() {
   
   if (imagesToRemove.length === 0) {
     alert('¡Perfecto! GAL está limpio, no hay imágenes fuera de lugar.');
-    return;
-  }
-  
-  // Confirmación única
-  if (!confirm(`Se encontraron ${imagesToRemove.length} imágenes fuera de lugar en GAL. ¿Limpiar ahora?`)) {
     return;
   }
   
@@ -12364,5 +12420,31 @@ function restoreInventoryViewState() {
     }
   } catch (error) {
     console.error('Error restaurando estado:', error);
+  }
+}
+
+// Función para deshacer todos los cambios en el Item Group actual
+function undoAllChanges() {
+  try {
+    if (!originalItemGroupState) {
+      console.log('❌ No hay estado original guardado para deshacer');
+      return;
+    }
+    
+    console.log('🔄 Deshaciendo todos los cambios del Item Group...');
+    
+    // Restaurar las variables globales con el estado original
+    currentItemCodes = JSON.parse(JSON.stringify(originalItemGroupState.currentItemCodes));
+    currentImageColumns = JSON.parse(JSON.stringify(originalItemGroupState.currentImageColumns));
+    currentItemGroup = JSON.parse(JSON.stringify(originalItemGroupState.currentItemGroup));
+    currentWorkingData = JSON.parse(JSON.stringify(originalItemGroupState.currentWorkingData));
+    
+    // Regenerar la grilla con el estado original
+    regenerateImageGrid();
+    
+    console.log('✅ Item Group restaurado al estado original');
+    
+  } catch (error) {
+    console.error('❌ Error deshaciendo cambios:', error);
   }
 }
