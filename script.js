@@ -663,7 +663,45 @@ function getCurrentStatus(commentText) {
   
   // Obtener el último status (del último comentario)
   const lastComment = parsedComments[parsedComments.length - 1];
-  return lastComment.status || '';
+  const rawStatus = lastComment.status || '';
+  
+  // Normalizar el status para asegurar consistencia
+  return normalizeStatus(rawStatus);
+}
+
+// Función para normalizar status y asegurar que coincidan con los CSS
+function normalizeStatus(status) {
+  if (!status || typeof status !== 'string') return '';
+  
+  const cleaned = status.trim();
+  const lower = cleaned.toLowerCase();
+  
+  // Mapear variaciones comunes a los valores correctos
+  const statusMap = {
+    'diseño': 'Diseño',
+    'diseno': 'Diseño',
+    'design': 'Diseño',
+    'revision': 'Revision',
+    'revisión': 'Revision',
+    'review': 'Revision',
+    'completado': 'Completado',
+    'completo': 'Completado',
+    'finished': 'Completado',
+    'done': 'Completado',
+    'cancelado': 'Cancelado',
+    'cancelled': 'Cancelado',
+    'canceled': 'Cancelado',
+    'analista': 'Analista',
+    'analyst': 'Analista'
+  };
+  
+  // Si existe en el mapeo, usar el valor normalizado
+  if (statusMap[lower]) {
+    return statusMap[lower];
+  }
+  
+  // Si no está en el mapeo, capitalizar la primera letra
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 // Función para inicializar el selector de usuario
@@ -3984,10 +4022,11 @@ function getCommentTypeColor(tipo) {
 // Función para obtener el color del status
 function getStatusColor(status) {
   const colors = {
-    'Completado': '#27ae60',
-    'Pendiente': '#f39c12',
-    'En proceso': '#3498db',
-    'Cancelado': '#e74c3c',
+    'Diseño': '#8e44ad',    // Morado - igual que status-badge
+    'Revision': '#ff6b35',   // Naranja - igual que status-badge
+    'Completado': '#28a745', // Verde - igual que status-badge
+    'Cancelado': '#6c757d',  // Gris - igual que status-badge
+    'Analista': '#ff6b35',   // Naranja - igual que Revision
     'Sin status': '#95a5a6'
   };
   return colors[status] || '#95a5a6';

@@ -4433,25 +4433,25 @@ html, body {
   box-shadow: 0 6px 16px rgba(0,0,0,0.5);
 }
 
-/* Colores basados en status - Más profesionales */
+/* Colores basados en status - Usar los mismos colores que status-badge */
 .comment-indicator[data-status="Diseño"] {
-  background: #6c5ce7; /* Púrpura profesional */
+  background: #8e44ad; /* Morado - igual que status-badge */
 }
 
 .comment-indicator[data-status="Revision"] {
-  background: #fd79a8; /* Rosa profesional */
+  background: #ff6b35; /* Naranja - igual que status-badge */
 }
 
 .comment-indicator[data-status="Completado"] {
-  background: #00b894; /* Verde profesional */
+  background: #28a745; /* Verde - igual que status-badge */
 }
 
 .comment-indicator[data-status="Cancelado"] {
-  background: #e17055; /* Naranja profesional */
+  background: #6c757d; /* Gris - igual que status-badge */
 }
 
 .comment-indicator[data-status="Analista"] {
-  background: #0984e3; /* Azul profesional */
+  background: #ff6b35; /* Naranja - igual que Revision */
 }
 
 /* Burbuja de comentario para Item Group - en la imagen */
@@ -4461,7 +4461,7 @@ html, body {
   right: 4px;
   width: 26px; /* Aumentado de 22px a 26px */
   height: 26px; /* Aumentado de 22px a 26px */
-  background: #3498db; /* Azul por defecto */
+  background: #95a5a6; /* Gris neutral por defecto cuando no hay status */
   border: 2px solid white; /* Borde blanco para destacar */
   border-radius: 50%;
   display: flex;
@@ -4480,25 +4480,25 @@ html, body {
   box-shadow: 0 6px 16px rgba(0,0,0,0.5);
 }
 
-/* Colores basados en status para group comments */
+/* Colores basados en status para group comments - Usar los mismos colores que status-badge */
 .comment-indicator.group-comment[data-status="Diseño"] {
-  background: #9b59b6; /* Morado */
+  background: #8e44ad; /* Morado - igual que status-badge */
 }
 
 .comment-indicator.group-comment[data-status="Revision"] {
-  background: #e67e22; /* Naranja */
+  background: #ff6b35; /* Naranja - igual que status-badge */
 }
 
 .comment-indicator.group-comment[data-status="Completado"] {
-  background: #2ecc71; /* Verde */
+  background: #28a745; /* Verde - igual que status-badge */
 }
 
 .comment-indicator.group-comment[data-status="Cancelado"] {
-  background: #95a5a6; /* Gris */
+  background: #6c757d; /* Gris - igual que status-badge */
 }
 
 .comment-indicator.group-comment[data-status="Analista"] {
-  background: #3498db; /* Azul */
+  background: #ff6b35; /* Naranja - igual que Revision */
 }
 
 /* Asegurar que el contenedor de imagen del item group tenga posición relativa */
@@ -4513,7 +4513,7 @@ html, body {
   right: 2px; /* Igual que item-code: 2px */
   width: 24px; /* Igual que item-code: 24px */
   height: 24px; /* Igual que item-code: 24px */
-  background: #3498db; /* Azul por defecto */
+  background: #95a5a6; /* Gris neutral por defecto cuando no hay status */
   border: 2px solid white; /* Igual que item-code */
   border-radius: 50%;
   display: flex;
