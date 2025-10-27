@@ -3,7 +3,6 @@ const verticalDivider = document.getElementById('verticalDivider');
 const leftSection = document.getElementById('leftSection');
 const rightSection = document.getElementById('rightSection');
 const container = document.querySelector('.main-container');
-const combinedFileInput = document.getElementById("combinedFile");
 
 // Variables de estado básicas
 let isVerticalDragging = false;
@@ -869,12 +868,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTreeControls(treeDiv);
   }
   
-  // Event listener para cargar archivo Excel
-  combinedFileInput.addEventListener('change', handleCombinedExcel);
-  
   // Event listeners para los botones del header
   const saveChangesBtn = document.getElementById('saveChangesBtn');
-  const exportBtn = document.getElementById('exportBtn');
   
   if (saveChangesBtn) {
     saveChangesBtn.addEventListener('click', saveToGoogleSheets);
@@ -884,10 +879,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const clearSavedBtn = document.getElementById('clearSavedBtn');
   if (clearSavedBtn) {
     clearSavedBtn.addEventListener('click', clearSavedItemGroups);
-  }
-  
-  if (exportBtn) {
-    exportBtn.addEventListener('click', exportToExcel);
   }
 });
 
@@ -907,8 +898,7 @@ function runInitialDiagnostics() {
   const criticalElements = [
     'box3-content',
     'tree',
-    'loadExcelBtn',
-    'combinedFile'
+    'loadExcelBtn'
   ];
   
   console.log('🎯 Verificación de elementos DOM críticos:');
@@ -1085,33 +1075,6 @@ async function loadFromGoogleSheets() {
     
   } catch (error) {
     console.error('❌ Error cargando desde Google Sheets:', error);
-    
-    const helpMessage = `❌ Error cargando desde Google Sheets
-
-🔧 POSIBLES SOLUCIONES:
-
-1️⃣ VERIFICAR APPS SCRIPT:
-   • Asegúrate de que el Apps Script esté implementado como "Aplicación web"
-   • Acceso debe estar configurado como "Cualquier persona"
-   • URL del proxy: ${GOOGLE_SHEETS_CONFIG.PROXY_URL}
-
-2️⃣ VERIFICAR GOOGLE SHEETS:
-   • Archivo debe tener permisos "Cualquiera con el enlace puede ver"
-   • Debe existir la pestaña 'category'
-   • Debe existir la pestaña 'asset_groups'
-
-3️⃣ ALTERNATIVA - ARCHIVO LOCAL:
-   • Puedes cargar un archivo Excel/CSV local como respaldo
-
-Error técnico: ${error.message}
-
-¿Quieres cargar un archivo local como alternativa?`;
-    
-    const useLocalFile = confirm(helpMessage);
-    
-    if (useLocalFile) {
-      document.getElementById('combinedFile')?.click();
-    }
     
   } finally {
     loadButton.innerHTML = originalText;
@@ -2113,7 +2076,7 @@ function transformAttributeValueData(attributeValueData) {
   return resultArray;
 }
 
-// Función auxiliar para procesar workbook (extraída de handleCombinedExcel)
+// Función auxiliar para procesar workbook desde Google Sheets
 function processWorkbook(workbook) {
   try {
     // Guarda todas las hojas originales
@@ -2126,7 +2089,7 @@ function processWorkbook(workbook) {
     console.log('📊 Hojas encontradas:', Object.keys(originalExcelSheets));
     console.log('🗂️ originalExcelSheets guardado:', originalExcelSheets);
     
-    // Columnas esperadas (igual que en handleCombinedExcel)
+    // Columnas esperadas para procesamiento
     const expectedColumns = [
       'ID_Imagen', 'ID_Asset', 'Asset_Num', 'Asset_Name_ES', 'Asset_Name_EN', 'Description_ES', 'Description_EN',
       'Asset_Group', 'Supplier', 'Manufacturer', 'Model', 'Serial_Number', 'Location', 'Responsible',
@@ -2143,7 +2106,7 @@ function processWorkbook(workbook) {
     // Los comentarios de imágenes ahora se obtienen directamente desde los datos procesados
     // (objetos con Object Type = 'Image' que vienen desde Google Sheets pestaña 'data')
     
-    // Procesar hoja asset_groups para galerías (igual que en handleCombinedExcel)
+    // Procesar hoja asset_groups para galerías
     if (originalExcelSheets['asset_groups']) {
       const assetGroupsSheet = workbook.Sheets["asset_groups"];
       if (assetGroupsSheet) {
@@ -2152,7 +2115,7 @@ function processWorkbook(workbook) {
       }
     }
     
-    // Filtrar SOLO los campos necesarios para el trabajo (igual que en handleCombinedExcel)
+    // Filtrar SOLO los campos necesarios para el trabajo
     const columnsToRead = [
       "NamePath", "Name", "IdPath", "Id", "Object Type", "CMS", "Marca", "Página de Catálogo", "Título", "WA Importancia", "WA_VIS_Comment", "WA_VIS_Approved", "Vis_color", "filtro_color",
       "WA_Cover_Image_01", "WA_Cover_Image_02", "WA_Cover_Image_03", "WA_Cover_Image_04", "WA_Cover_Image_05",
@@ -2201,108 +2164,6 @@ function processWorkbook(workbook) {
     console.error("❌ Error procesando workbook:", error);
     throw new Error(`Error procesando archivo: ${error.message}`);
   }
-}
-
-// Función para manejar archivos Excel y construir el árbol
-function handleCombinedExcel(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-
-      // Guarda todas las hojas originales
-      originalExcelSheets = {};
-      workbook.SheetNames.forEach(sheetName => {
-        const sheet = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-        if (rows.length) {
-          originalExcelSheets[sheetName] = {
-            header: rows[0],
-            data: XLSX.utils.sheet_to_json(sheet, { defval: "" })
-          };
-        }
-      });
-
-      // SOLO columnas que quieres leer
-      const columnsToRead = [
-        "NamePath", "Name", "IdPath", "Id", "Object Type", "CMS", "Marca", "Página de Catálogo", "Título", "WA Importancia", "WA_VIS_Comment", "WA_VIS_Approved", "Vis_color", "filtro_color",
-        "WA_Cover_Image_01", "WA_Cover_Image_02", "WA_Cover_Image_03", "WA_Cover_Image_04", "WA_Cover_Image_05",
-        ...Array.from({length: 22}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
-        ...Array.from({length: 25}, (_, i) => `WA_Rest_${String(i+1).padStart(2,'0')}`)
-      ];
-
-      // Lee la hoja principal
-      const assetSheet = workbook.Sheets["VIS_AG_Library_Structure"];
-      if (!assetSheet) {
-        console.error("No se encontró la hoja VIS_AG_Library_Structure.");
-        return;
-      }
-      const allRows = XLSX.utils.sheet_to_json(assetSheet, { defval: "" });
-
-      // Los comentarios de imágenes ahora se obtienen desde los datos procesados (Object Type = 'Image')
-      // No necesitamos cargar VIS_AG_Asset_Structure ya que toda la información está en Google Sheets pestaña 'data'
-      let assetCommentsData = [];
-
-      // Leer la hoja asset_groups del mismo archivo
-      const assetGroupsSheet = workbook.Sheets["asset_groups"];
-      let assetGroupsData = [];
-      if (assetGroupsSheet) {
-        assetGroupsData = XLSX.utils.sheet_to_json(assetGroupsSheet, { defval: "" });
-        
-        // Guardar los datos globalmente
-        currentAssetGroups = assetGroupsData;
-      } else {
-        console.warn("No se encontró la hoja asset_groups para las galerías.");
-      }
-
-      // Filtra SOLO los campos necesarios
-      const assetRows = allRows.map(row => {
-        const filtered = {};
-        columnsToRead.forEach(col => {
-          filtered[col] = row[col] ?? "";
-        });
-        return filtered;
-      });
-
-      // Guarda los datos para trabajar, el orden de las columnas
-      currentWorkingData = [...assetRows];
-      allLibraryData = [...allRows]; // Guardar TODOS los datos sin filtrar para navegación
-      originalTreeData = [...allRows]; // Preservar estructura completa con NamePath
-      currentColumnsOrder = [...columnsToRead];
-      
-      console.log(`🔧 DATOS GUARDADOS en handleCombinedExcel:`);
-      console.log(`   - currentWorkingData: ${currentWorkingData.length} (filtrados)`);
-      console.log(`   - allLibraryData: ${allLibraryData.length} (completos)`);
-      console.log(`   - originalTreeData: ${originalTreeData.length} (completos)`);
-      
-      // Debug específico: verificar Item Groups con NamePath
-      const itemGroupsWithNamePath = originalTreeData.filter(item => 
-        item['Object Type'] === 'Item Group' && item.NamePath
-      ).length;
-      const itemGroupsTotal = originalTreeData.filter(item => 
-        item['Object Type'] === 'Item Group'
-      ).length;
-      console.log(`📊 Item Groups en originalTreeData: ${itemGroupsTotal} total, ${itemGroupsWithNamePath} con NamePath`);
-      
-      // Extraer comentarios de imágenes desde los datos procesados (ya no desde VIS_AG_Asset_Structure)
-      console.log('🖼️ Extrayendo comentarios de imágenes desde datos procesados...');
-      extractImageCommentsFromProcessedData();
-      
-      // Renderiza el árbol usando solo las columnas filtradas
-      renderAssetLibraryTree(assetRows, document.getElementById('tree'));
-      
-      // Reinicializar Box 3 con el sistema de galerías y limpiar Box 4
-      reinitializeBoxContents();
-    } catch (error) {
-      console.error("Error procesando archivo combinado:", error);
-      console.error("Ocurrió un error procesando el archivo combinado:", error.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
 }
 
 // Función para reinicializar el contenido de los boxes después de cargar Excel
@@ -7304,165 +7165,6 @@ function clearSavedItemGroups() {
   
   console.log('✅ Se limpiaron todos los Item Groups guardados anteriormente');
   alert('✅ Item Groups anteriores limpiados. Ahora solo se exportará el Item Group actual cuando lo guardes.');
-}
-
-// Función para exportar a Excel
-function exportToExcel() {
-  try {
-    if (currentWorkingData.length === 0) {
-      alert('No hay datos para exportar. Primero carga un archivo Excel.');
-      return;
-    }
-
-    if (savedItemGroups.size === 0) {
-      alert('No hay Item Groups guardados para exportar. Usa el botón "Guardar Cambios" después de trabajar en un Item Group.');
-      return;
-    }
-    
-    // IMPORTANTE: Sincronizar cambios antes de exportar
-    syncChangesToWorkingData();
-    
-    // Crear un nuevo workbook
-    const wb = XLSX.utils.book_new();
-    
-    // ===== PRIMERA PESTAÑA: VIS_AG_Library_Structure (solo Item Groups guardados) =====
-    
-    console.log(`🔍 Debug VIS_AG_Library_Structure:`);
-    console.log(`- currentWorkingData length: ${currentWorkingData.length}`);
-    console.log(`- savedItemGroups:`, Array.from(savedItemGroups));
-    
-    // Filtrar datos para incluir solo los Item Groups guardados y sus contenidos
-    const dataForExport = currentWorkingData.filter(row => {
-      if (row['Object Type'] === 'Item Group') {
-        return savedItemGroups.has(row.Id);
-      } else if (row['Object Type'] === 'Item Code') {
-        // Buscar el Item Group padre de este Item Code
-        const parentPath = row.NamePath ? row.NamePath.split('/').slice(0, -1).join('/') : '';
-        const parentItemGroup = currentWorkingData.find(item => 
-          item['Object Type'] === 'Item Group' && 
-          item.NamePath === parentPath
-        );
-        return parentItemGroup && savedItemGroups.has(parentItemGroup.Id);
-      }
-      return false;
-    }).map(row => {
-      const orderedRow = {};
-      currentColumnsOrder.forEach(col => {
-        orderedRow[col] = row[col] || "";
-      });
-      return orderedRow;
-    });
-    
-    console.log('🔍 DEBUG dataForExport sample:', dataForExport[0]);
-    
-    // DEBUG: Mostrar TODOS los Item Codes con imágenes de TODOS los Item Groups guardados
-    const allItemCodesWithImages = dataForExport.filter(row => row['Object Type'] === 'Item Code' && 
-      Object.keys(row).some(key => key.includes('WA_Gallery') && row[key])
-    );
-    
-    console.log(`🔍 DEBUG: Total Item Codes con imágenes en export: ${allItemCodesWithImages.length}`);
-    allItemCodesWithImages.forEach(itemCode => {
-      console.log(`🔍 DEBUG: ${itemCode.Name} (${itemCode.NamePath.split('/').slice(-2, -1)[0]})`);
-      const imageColumns = Object.keys(itemCode).filter(key => 
-        (key.includes('WA_Gallery') || key.includes('WA_Cover') || key.includes('WA_Rest')) && 
-        itemCode[key]
-      );
-      console.log(`   - Tiene ${imageColumns.length} imágenes:`, imageColumns.slice(0, 3).map(col => `${col}="${itemCode[col]}"`));
-    });
-    
-    // Crear la hoja principal con los datos guardados
-    const ws = XLSX.utils.json_to_sheet(dataForExport, { 
-      header: currentColumnsOrder 
-    });
-    
-    // Agregar la hoja principal
-    XLSX.utils.book_append_sheet(wb, ws, "VIS_AG_Library_Structure");
-    
-    // ===== SEGUNDA PESTAÑA: VIS_AG_Asset_Structure (solo assets con comentarios de Item Groups guardados) =====
-    
-    console.log(`🔍 Debug VIS_AG_Asset_Structure:`);
-    console.log(`- currentAssetComments length: ${currentAssetComments ? currentAssetComments.length : 0}`);
-    console.log(`- savedItemGroups:`, Array.from(savedItemGroups));
-    
-    const assetStructureData = [];
-    
-    // Solo procesar si hay comentarios de assets
-    if (currentAssetComments && currentAssetComments.length > 0) {
-      console.log(`📋 Revisando ${currentAssetComments.length} assets en currentAssetComments`);
-      
-      // Filtrar solo assets con comentarios
-      const assetsWithComments = currentAssetComments.filter(asset => 
-        asset.WA_VIS_Comment && asset.WA_VIS_Comment.trim()
-      );
-      
-      console.log(`📋 Assets con comentarios reales: ${assetsWithComments.length}`);
-      
-      assetsWithComments.forEach((asset) => {
-        console.log(`✅ Asset con comentario encontrado: ${asset.Name}`);
-        
-        // ENFOQUE SIMPLIFICADO: Si estamos en un Item Group actual y está guardado,
-        // entonces las imágenes con comentarios pertenecen a este Item Group
-        if (currentItemGroup && currentItemGroup.Id && savedItemGroups.has(currentItemGroup.Id)) {
-          const assetRow = {
-            'Name': asset.Name,
-            'Item_Group_Id': currentItemGroup.Id,
-            'WA_VIS_Comment': asset.WA_VIS_Comment
-          };
-          assetStructureData.push(assetRow);
-          console.log(`✅ Asset agregado al export (Item Group actual):`, assetRow);
-        } else {
-          console.log(`❌ No hay Item Group actual guardado para asociar la imagen`);
-        }
-      });
-    } else {
-      console.log(`⚠️ No se encontraron assets con comentarios en currentAssetComments`);
-    }
-    
-    console.log(`📊 Total assets para exportar: ${assetStructureData.length}`);
-    
-    // Si no hay datos de assets con comentarios, crear estructura vacía con headers
-    if (assetStructureData.length === 0) {
-      assetStructureData.push({
-        'Name': '',
-        'Item_Group_Id': '',
-        'WA_VIS_Comment': ''
-      });
-    }
-    
-    // Crear la hoja de estructura de assets
-    const assetWs = XLSX.utils.json_to_sheet(assetStructureData, { 
-      header: ['Name', 'Item_Group_Id', 'WA_VIS_Comment']
-    });
-    
-    // Agregar la hoja de assets
-    XLSX.utils.book_append_sheet(wb, assetWs, "VIS_AG_Asset_Structure");
-    
-    // Generar nombre de archivo con timestamp
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-    const filename = `vis-web-export-${timestamp}.xlsx`;
-    
-    // Descargar el archivo
-    XLSX.writeFile(wb, filename);
-    
-    // Mostrar feedback al usuario
-    const exportBtn = document.getElementById('exportBtn');
-    const originalText = exportBtn.innerHTML;
-    exportBtn.innerHTML = '<i class="bi bi-check-circle"></i> Exportado!';
-    exportBtn.classList.remove('btn-warning');
-    exportBtn.classList.add('btn-outline-warning');
-    
-    setTimeout(() => {
-      exportBtn.innerHTML = originalText;
-      exportBtn.classList.remove('btn-outline-warning');
-      exportBtn.classList.add('btn-warning');
-    }, 2000);
-    
-    console.log(`Se exporta:`, {filename, libraryRecords: dataForExport.length, assetRecords: assetStructureData.length});
-    console.log(`- VIS_AG_Asset_Structure: ${assetStructureData.length > 0 && assetStructureData[0].Name !== '' ? assetStructureData.length : 0} assets con comentarios`);
-  } catch (error) {
-    console.error('Error exportando a Excel:', error);
-    alert('Error al exportar: ' + error.message);
-  }
 }
 
 // Funciones para agregar contenido personalizado
