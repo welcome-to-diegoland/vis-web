@@ -1410,10 +1410,16 @@ function parseImageData(concatenated) {
   const FIELD_SEPARATOR = '§';
   const KEY_VALUE_SEPARATOR = '¬';
   
-  // ATRIBUTOS FIJOS para Image (SIEMPRE en este orden)
+  // ATRIBUTOS FIJOS para Image (AHORA IGUALES A Item Code/Item Group excepto las imágenes)
   const FIXED_ATTRIBUTES = [
     'Name',
+    'Marca', 
+    'Título',
+    'CMS',
+    'Página de Catálogo',
+    'WA Importancia',
     'WA_VIS_Comment'
+    // NOTE: Image NO tiene WA_VIS_Cover, WA_VIS_Gallery, WA_VIS_Rest porque ES la imagen
   ];
   
   const parts = concatenated.split(FIELD_SEPARATOR);
@@ -1425,10 +1431,16 @@ function parseImageData(concatenated) {
     if (part && part.includes(KEY_VALUE_SEPARATOR)) {
       const separatorIndex = part.indexOf(KEY_VALUE_SEPARATOR);
       const key = part.substring(0, separatorIndex).trim();
-      const value = part.substring(separatorIndex + 1).trim();
+      let value = part.substring(separatorIndex + 1).trim();
+      
+      // FIX: Si el valor empieza con el mismo nombre del atributo seguido de ¬, extraer el valor real
+      if (value.startsWith(key + KEY_VALUE_SEPARATOR)) {
+        value = value.substring(key.length + 1).trim();
+      }
       
       if (key) {
-        item[key] = value; // Permitir valores vacíos
+        // Solo asignar si el valor no está vacío o si es un campo importante
+        item[key] = value;
       }
     }
   }
@@ -3818,15 +3830,25 @@ function extractImageCommentsFromProcessedData() {
 
   // Filtrar objetos de tipo Image con comentarios desde currentWorkingData
   const imageComments = currentWorkingData
-    .filter(item => item['Object Type'] === 'Image' && item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim())
+    .filter(item => {
+      // Debe ser tipo Image
+      if (item['Object Type'] !== 'Image') return false;
+      
+      // Debe tener comentario válido
+      const comment = item['WA_VIS_Comment'];
+      if (!comment || typeof comment !== 'string') return false;
+      
+      // El comentario debe tener contenido real (no solo espacios o el nombre del campo)
+      const trimmedComment = comment.trim();
+      if (!trimmedComment || trimmedComment === 'WA_VIS_Comment' || trimmedComment.length < 3) return false;
+      
+      return true;
+    })
     .map(item => ({
       Name: item.Name,
       WA_VIS_Comment: item['WA_VIS_Comment'],
       ID: item.ID || item.Id
     }));
-
-  console.log(`🖼️ Comentarios de imágenes extraídos: ${imageComments.length} imágenes con comentarios`);
-  console.log('📋 Muestra de comentarios:', imageComments.slice(0, 3));
 
   return imageComments;
 }
@@ -3853,17 +3875,11 @@ function findImageAssetById(imageId) {
 function hasItemGroupImageComments(imageName) {
   if (!imageName || !currentItemGroup) return false;
   
-  console.log(`🔍 DEBUG hasItemGroupImageComments - Buscando comentario de Item Group para imagen: "${imageName}"`);
-  
   // SOLO buscar comentario del Item Group actual
   if (currentItemGroup['WA_VIS_Comment'] && currentItemGroup['WA_VIS_Comment'].trim()) {
-    console.log(`🎯 Item Group tiene comentario: "${currentItemGroup['WA_VIS_Comment']}"`);
-    console.log(`✅ Resultado hasItemGroupImageComments("${imageName}"): true`);
     return true;
   }
   
-  console.log(`❌ Item Group no tiene comentario`);
-  console.log(`✅ Resultado hasItemGroupImageComments("${imageName}"): false`);
   return false;
 }
 
@@ -3871,15 +3887,11 @@ function hasItemGroupImageComments(imageName) {
 function getItemGroupImageComments(imageName) {
   if (!imageName || !currentItemGroup) return '';
   
-  console.log(`🔍 DEBUG getItemGroupImageComments - Obteniendo comentario de Item Group para imagen: "${imageName}"`);
-  
   // SOLO retornar comentario del Item Group actual
   if (currentItemGroup['WA_VIS_Comment'] && currentItemGroup['WA_VIS_Comment'].trim()) {
-    console.log(`🎯 Comentario de Item Group encontrado: "${currentItemGroup['WA_VIS_Comment']}"`);
     return currentItemGroup['WA_VIS_Comment'];
   }
   
-  console.log(`❌ Item Group no tiene comentario`);
   return '';
 }
 
@@ -3936,14 +3948,12 @@ function getImageComments(imageName) {
     });
     
     if (imageObject) {
-      console.log(`🎯 Comentario encontrado en datos globales para imagen "${imageName}":`, imageObject['WA_VIS_Comment']);
       return imageObject['WA_VIS_Comment'] || '';
     }
   }
   
   // PASO 2: Buscar en currentWorkingData como respaldo (datos locales más completos)
   if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
-    console.log(`🔍 No encontrado en datos globales, buscando en currentWorkingData...`);
     
     const localImageObject = currentWorkingData.find(item => {
       return item['Object Type'] === 'Image' && 
@@ -3953,7 +3963,6 @@ function getImageComments(imageName) {
     });
     
     if (localImageObject) {
-      console.log(`🎯 Comentario encontrado en datos locales para imagen "${imageName}":`, localImageObject['WA_VIS_Comment']);
       return localImageObject['WA_VIS_Comment'] || '';
     }
   }
