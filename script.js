@@ -197,6 +197,136 @@ async function sendAutoSaveRequest(saveRequest) {
   });
 }
 
+// Función para envío en batch de asignaciones de diseñadores
+async function sendAssignmentsBatch(assignmentRecords, user, date) {
+  if (assignmentRecords.length === 0) return;
+  
+  console.log(`🚀 Enviando ${assignmentRecords.length} asignaciones en batch a Google Sheets...`);
+  
+  const payload = {
+    records: assignmentRecords,
+    user: user,
+    date: date,
+    type: 'comment_autosave_batch'
+  };
+  
+  console.log('📦 Payload batch:', JSON.stringify(payload, null, 2));
+  
+  try {
+    const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log(`✅ Batch de ${assignmentRecords.length} asignaciones enviado exitosamente`);
+    showAutoSaveNotification(`${assignmentRecords.length} comentarios de asignación guardados`);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error en batch de asignaciones:', error);
+    showAutoSaveNotification('Error al guardar comentarios de asignación', 'error');
+    throw error;
+  }
+}
+
+// Función para preparar registro de asignación sin enviar (para batch)
+function prepareAssignmentRecord(row, currentUser, currentDate) {
+  // Buscar el comentario existente COMPLETO según el commentType
+  let existingComments = '';
+  
+  if (row.commentType === 'item') {
+    // Buscar en allLibraryData para Item Codes e Item Groups
+    let libraryItem = allLibraryData.find(item => 
+      (item['Object Type'] === row.objectType) && 
+      (item.ID == row.id || item.Id == row.id || item.id == row.id)
+    );
+    
+    // Si aún no encuentra, buscar por nombre
+    if (!libraryItem && row.name) {
+      libraryItem = allLibraryData.find(item => 
+        (item['Object Type'] === row.objectType) &&
+        ((item.Name === row.name) || 
+        (item.Title === row.name) ||
+        (item.name === row.name))
+      );
+    }
+    
+    if (libraryItem) {
+      existingComments = libraryItem['WA_VIS_Comment'] || '';
+    }
+  } else if (row.commentType === 'image') {
+    // Para imágenes, buscar en currentAssetComments
+    const imageContext = row.imageName || (row.name + '.jpg');
+    const asset = currentAssetComments.find(asset => asset.Name === imageContext);
+    existingComments = asset && asset.WA_VIS_Comment ? asset.WA_VIS_Comment : '';
+  }
+  
+  // Función helper para obtener el último tipo de comentario
+  function getLastCommentType(commentsString) {
+    if (!commentsString || !commentsString.trim()) {
+      return 'General'; // Default si no hay comentarios
+    }
+    
+    // Separar comentarios individuales por ¶
+    const individualComments = commentsString.split('¶');
+    if (individualComments.length === 0) {
+      return 'General';
+    }
+    
+    // Obtener el último comentario
+    const lastComment = individualComments[individualComments.length - 1];
+    if (!lastComment) {
+      return 'General';
+    }
+    
+    // Separar campos por ¦ (usuario¦fecha¦tipo¦texto¦status)
+    const fields = lastComment.split('¦');
+    if (fields.length >= 3) {
+      const tipoComentario = fields[2]?.trim();
+      if (tipoComentario && tipoComentario !== '') {
+        return tipoComentario;
+      }
+    }
+    
+    return 'General'; // Default si no se puede extraer
+  }
+  
+  // Obtener el último tipo de comentario usado
+  const lastCommentType = getLastCommentType(existingComments);
+  
+  // Crear el nuevo comentario de asignación usando el formato original
+  const assignmentComment = {
+    usuario: row.diseñador,
+    fechaHora: getLocalDateTime(),
+    tipoComentario: lastCommentType, // Usar el último tipo en lugar de 'General'
+    textoComentario: `Se asignó comentario a ${row.diseñador}`, // Texto original
+    status: 'Diseño'
+  };
+  
+  const newCommentString = `${assignmentComment.usuario}¦${assignmentComment.fechaHora}¦${assignmentComment.tipoComentario}¦${assignmentComment.textoComentario}¦${assignmentComment.status}`;
+  
+  // Combinar comentarios existentes con el nuevo
+  const updatedComments = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+  
+  if (row.commentType === 'item') {
+    // Para Item Codes e Item Groups, crear registro para batch
+    return {
+      id: parseInt(row.id),
+      objectType: row.objectType,
+      attribute: 'WA_VIS_Comment',
+      value: updatedComments,
+      date: currentDate,
+      user: currentUser
+    };
+  }
+  
+  return null; // Para imágenes u otros tipos que no se manejan en batch
+}
+
 // Función para marcar automáticamente un Item Group como modificado
 function markItemGroupAsModified(itemGroupId = null, itemGroupName = null) {
   const groupId = itemGroupId || (currentItemGroup ? currentItemGroup['Id'] : null);
@@ -8873,11 +9003,11 @@ function generateImageInventoryTable(dataOverride = null) {
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
           <td class="inventory-cell inventory-image-empty">${escapeHtml(getImageColumnValue(rowData))}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-diseñador" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
@@ -8895,11 +9025,11 @@ function generateImageInventoryTable(dataOverride = null) {
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
           <td class="inventory-cell inventory-image">${escapeHtml(getImageColumnValue(rowData))}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="fecha-diseñador" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
@@ -9294,8 +9424,19 @@ function setupInventoryClickListeners() {
         console.log('📸 Abriendo modal de imagen:', { imageName, originalComment });
         openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
         
-      } else if ((commentType === 'item' || commentType === 'diseñador' || commentType === 'analista' || commentType === 'tipo') && itemName && itemId) {
-        // Guardar estado de scroll antes de abrir modal de historial
+      } else if ((commentType === 'fecha-analista' || commentType === 'fecha-diseñador') && imageName && imageName !== '-') {
+        // Fechas de imagen - abrir modal de imagen
+        saveInventoryViewState();
+        
+        const originalComment = getOriginalImageComment(imageName);
+        const modalTitle = `Historial de Comentarios - Imagen: ${imageName}`;
+        
+        console.log('📅📸 Abriendo modal de imagen por fecha:', { imageName, commentType, originalComment });
+        openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
+        
+      } else if ((commentType === 'item' || commentType === 'diseñador' || commentType === 'analista' || commentType === 'tipo' || 
+                 (commentType === 'fecha-analista' || commentType === 'fecha-diseñador')) && itemName && itemId) {
+        // Fechas de item o comentarios directos de Item Code/Item Group - buscar en todos los datos
         saveInventoryViewState();
         
         // Para comentarios directos de Item Code/Item Group - buscar en todos los datos
@@ -9485,21 +9626,16 @@ function setupInventoryClickListeners() {
       const itemName = this.getAttribute('data-item-name');
       const itemId = this.getAttribute('data-item-id');
       
-      console.log(`🧹 Debug click LIMPIO ${index}:`, { commentType, imageName, itemName, itemId });
-      
-      // Lógica específica para comentarios limpios
-      if (commentType && commentType.includes('-clean')) {
+      // Lógica específica para comentarios limpios y fechas
+      if (commentType && (commentType.includes('-clean') || commentType === 'fecha-analista' || commentType === 'fecha-diseñador')) {
         // Para comentarios de imagen
         if (imageName && imageName !== '-') {
           const originalComment = getOriginalImageComment(imageName);
           const modalTitle = `Historial de Comentarios - Imagen: ${imageName}`;
-          console.log('📸 Abriendo modal de imagen LIMPIO:', { imageName, originalComment });
           openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
         }
         // Para comentarios directos (item-based)
         else if (itemName && itemId) {
-          console.log(`🔍 Buscando item LIMPIO en allLibraryData:`, { itemName, itemId });
-          
           const itemData = allLibraryData.find(item => {
             const nameMatch = (item.Name && item.Name.trim()) === (itemName && itemName.trim());
             const idMatch = item.Id === itemId || String(item.Id) === String(itemId) || Number(item.Id) === Number(itemId);
@@ -9513,18 +9649,6 @@ function setupInventoryClickListeners() {
               ? `Historial de Comentarios - Item Group: ${itemData.Name}`
               : `Historial de Comentarios - Item Code: ${itemData.Name}`;
             
-            console.log('📝 Abriendo modal de item LIMPIO:', { 
-              itemName, 
-              itemId, 
-              originalComment: originalComment ? originalComment.substring(0, 100) + '...' : 'VACÍO', 
-              objectType: itemData['Object Type'],
-              hasComment: !!originalComment,
-              commentLength: originalComment.length,
-              fullOriginalComment: originalComment // Log completo del comentario
-            });
-            
-            console.log('🔍 TEXTO COMPLETO del comentario antes de openCommentModal:', originalComment);
-            
             openCommentModal(modalTitle, contextInfo, originalComment, 'item', null);
           } else {
             console.warn('❌ No se encontró item LIMPIO:', { itemName, itemId });
@@ -9535,7 +9659,6 @@ function setupInventoryClickListeners() {
             );
             
             if (itemDataById) {
-              console.log(`✅ Encontrado por ID solamente (LIMPIO):`, { Name: itemDataById.Name, Id: itemDataById.Id });
               const originalComment = itemDataById['WA_VIS_Comment'] || '';
               const contextInfo = `${itemDataById.Name} (${itemDataById.Id})`;
               const modalTitle = itemDataById['Object Type'] === 'Item Group' 
@@ -9740,11 +9863,11 @@ function regenerateInventoryTable(filteredData) {
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
           <td class="inventory-cell inventory-image-empty">${escapeHtml(getImageColumnValue(rowData))}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-diseñador" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
@@ -9762,11 +9885,11 @@ function regenerateInventoryTable(filteredData) {
           <td class="inventory-cell">${escapeHtml(rowData.importancia)}</td>
           <td class="inventory-cell inventory-image">${escapeHtml(getImageColumnValue(rowData))}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
-          <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
+          <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="fecha-diseñador" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
@@ -9967,7 +10090,7 @@ window.distributeEqually = function() {
   updateAssignmentSummary();
 };
 
-window.applyDesignerAssignments = function() {
+window.applyDesignerAssignments = async function() {
   console.log('🔄 === INICIANDO PROCESO DE ASIGNACIONES ===');
   
   const designers = getActiveDesigners();
@@ -10042,6 +10165,18 @@ window.applyDesignerAssignments = function() {
   // Realizar las asignaciones
   console.log('🔄 Aplicando asignaciones...');
   let commentIndex = 0;
+  const batchRecords = []; // Array para recolectar todos los registros
+  const currentUser = document.getElementById('userSelect').value;
+  const currentDate = new Date().toLocaleString('es-ES', { 
+    timeZone: 'America/Costa_Rica',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  
   designers.forEach(designer => {
     const assignmentCount = parseInt(document.getElementById(`assignment-${designer}`).value) || 0;
     console.log(`🔄 Procesando ${assignmentCount} asignaciones para ${designer}`);
@@ -10052,12 +10187,28 @@ window.applyDesignerAssignments = function() {
       row.diseñador = designer;
       console.log(`📝 DESPUÉS Row ${commentIndex}: diseñador="${row.diseñador}"`);
       
-      // Agregar comentario automático de asignación
-      addAssignmentComment(row);
+      // Preparar registro para batch (sin enviar individualmente)
+      const record = prepareAssignmentRecord(row, currentUser, currentDate);
+      if (record) {
+        batchRecords.push(record);
+      }
       
       commentIndex++;
     }
   });
+  
+  // Enviar todas las asignaciones en un solo batch
+  if (batchRecords.length > 0) {
+    console.log(`🚀 Enviando ${batchRecords.length} asignaciones en batch...`);
+    try {
+      await sendAssignmentsBatch(batchRecords, currentUser, currentDate);
+      console.log(`✅ Batch de asignaciones enviado exitosamente`);
+    } catch (error) {
+      console.error('❌ Error enviando batch de asignaciones:', error);
+      alert('Error al guardar las asignaciones. Por favor, inténtalo de nuevo.');
+      return;
+    }
+  }
   
   console.log(`✅ Total asignaciones procesadas: ${commentIndex}`);
   
@@ -10518,25 +10669,21 @@ document.addEventListener('click', function(e) {
 
 // ===== FUNCIONES PARA TABLAS DE ESTADÍSTICAS =====
 
+// Función para normalizar nombres de diseñadores (manejar acentos)
+function normalizeDesignerName(name) {
+  if (!name) return '';
+  // Crear mapeo de nombres con acentos a sin acentos
+  const nameMapping = {
+    'Verónica': 'Veronica',
+    'Veronica': 'Veronica'
+  };
+  const normalized = nameMapping[name] || name;
+  
+  return normalized;
+}
+
 function generateDesignerStatsTable() {
   const designers = Object.keys(USERS).filter(user => USERS[user].group === 'Diseño').sort();
-  
-  // Debug: Ver qué status únicos existen en los datos
-  const uniqueStatuses = [...new Set(originalInventoryData.map(row => row.ultimoStatus).filter(status => status))];
-  console.log('Status únicos encontrados:', uniqueStatuses);
-  
-  // Función para normalizar nombres de diseñadores (manejar acentos)
-  function normalizeDesignerName(name) {
-    if (!name) return '';
-    // Crear mapeo de nombres con acentos a sin acentos
-    const nameMapping = {
-      'Verónica': 'Veronica',
-      'Veronica': 'Veronica'
-    };
-    const normalized = nameMapping[name] || name;
-    
-    return normalized;
-  }
   
   let tableHTML = `
     <div class="stats-table-container">
@@ -10549,8 +10696,8 @@ function generateDesignerStatsTable() {
             <th>Act</th>
             <th>Rev</th>
             <th>Dis</th>
-            <th>Can</th>
             <th>Com</th>
+            <th>Can</th>
           </tr>
         </thead>
         <tbody>
@@ -10621,8 +10768,8 @@ function generateDesignerStatsTable() {
         <td class="clickable-stat" data-user="${designer}" data-status="activos" data-type="designer">${activos}</td>
         <td class="clickable-stat" data-user="${designer}" data-status="revisión" data-type="designer">${revision}</td>
         <td class="clickable-stat" data-user="${designer}" data-status="diseño" data-type="designer">${diseño}</td>
-        <td class="clickable-stat" data-user="${designer}" data-status="cancelado" data-type="designer">${cancelado}</td>
         <td class="clickable-stat" data-user="${designer}" data-status="completado" data-type="designer">${completado}</td>
+        <td class="clickable-stat" data-user="${designer}" data-status="cancelado" data-type="designer">${cancelado}</td>
       </tr>
     `;
   });
@@ -10678,8 +10825,8 @@ function generateDesignerStatsTable() {
       <td class="clickable-stat" data-user="" data-status="activos" data-type="designer">${emptyActivos}</td>
       <td class="clickable-stat" data-user="" data-status="revisión" data-type="designer">${emptyRevision}</td>
       <td class="clickable-stat" data-user="" data-status="diseño" data-type="designer">${emptyDiseño}</td>
-      <td class="clickable-stat" data-user="" data-status="cancelado" data-type="designer">${emptyCancelado}</td>
       <td class="clickable-stat" data-user="" data-status="completado" data-type="designer">${emptyCompletado}</td>
+      <td class="clickable-stat" data-user="" data-status="cancelado" data-type="designer">${emptyCancelado}</td>
     </tr>
     <tr class="total-row">
       <td>Total</td>
@@ -10687,8 +10834,8 @@ function generateDesignerStatsTable() {
       <td class="clickable-stat" data-user="all" data-status="activos" data-type="designer">${totalActivos}</td>
       <td class="clickable-stat" data-user="all" data-status="revisión" data-type="designer">${totalRevision}</td>
       <td class="clickable-stat" data-user="all" data-status="diseño" data-type="designer">${totalDiseño}</td>
-      <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="designer">${totalCancelado}</td>
       <td class="clickable-stat" data-user="all" data-status="completado" data-type="designer">${totalCompletado}</td>
+      <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="designer">${totalCancelado}</td>
     </tr>
   `;
   
@@ -10725,8 +10872,8 @@ function generateAnalystStatsTable() {
             <th>Act</th>
             <th>Rev</th>
             <th>Dis</th>
-            <th>Can</th>
             <th>Com</th>
+            <th>Can</th>
           </tr>
         </thead>
         <tbody>
@@ -10797,8 +10944,8 @@ function generateAnalystStatsTable() {
         <td class="clickable-stat" data-user="${analyst}" data-status="activos" data-type="analyst">${activos}</td>
         <td class="clickable-stat" data-user="${analyst}" data-status="revisión" data-type="analyst">${revision}</td>
         <td class="clickable-stat" data-user="${analyst}" data-status="diseño" data-type="analyst">${diseño}</td>
-        <td class="clickable-stat" data-user="${analyst}" data-status="cancelado" data-type="analyst">${cancelado}</td>
         <td class="clickable-stat" data-user="${analyst}" data-status="completado" data-type="analyst">${completado}</td>
+        <td class="clickable-stat" data-user="${analyst}" data-status="cancelado" data-type="analyst">${cancelado}</td>
       </tr>
     `;
   });
@@ -10861,8 +11008,8 @@ function generateAnalystStatsTable() {
       <td class="clickable-stat" data-user="all" data-status="activos" data-type="analyst">${totalActivos}</td>
       <td class="clickable-stat" data-user="all" data-status="revisión" data-type="analyst">${totalRevision}</td>
       <td class="clickable-stat" data-user="all" data-status="diseño" data-type="analyst">${totalDiseño}</td>
-      <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="analyst">${totalCancelado}</td>
       <td class="clickable-stat" data-user="all" data-status="completado" data-type="analyst">${totalCompletado}</td>
+      <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="analyst">${totalCancelado}</td>
     </tr>
   `;
   
@@ -10877,8 +11024,6 @@ function generateAnalystStatsTable() {
 
 // Función para configurar event listeners de elementos clicables en la tabla de inventario
 function setupClickableElements() {
-  console.log('🔧 Configurando event listeners para elementos clicables...');
-  
   // Event listeners para comentarios clicables en la tabla de inventario
   document.querySelectorAll('.comment-indicator').forEach(indicator => {
     if (!indicator.hasAttribute('data-listener-setup')) {
@@ -10928,8 +11073,6 @@ function setupStatsTableListeners() {
   // Event listeners para nombres clickeables
   document.querySelectorAll('.clickable-name').forEach(element => {
     element.addEventListener('click', function() {
-      console.log('📊 Click en tabla de stats - Nombre:', { user: this.dataset.user, type: this.dataset.type, id: this.id });
-      
       // Limpiar selecciones anteriores
       clearStatsTableSelections();
       
@@ -10945,8 +11088,6 @@ function setupStatsTableListeners() {
   // Event listeners para estadísticas clickeables
   document.querySelectorAll('.clickable-stat').forEach(element => {
     element.addEventListener('click', function() {
-      console.log('📊 Click en tabla de stats - Stat:', { user: this.dataset.user, status: this.dataset.status, type: this.dataset.type, id: this.id });
-      
       // Limpiar selecciones anteriores
       clearStatsTableSelections();
       
@@ -10969,8 +11110,6 @@ function clearStatsTableSelections() {
 }
 
 function filterInventoryByUser(user, type) {
-  console.log('🔍 Filtrando por usuario:', { user, type });
-  
   // Filtrar por usuario (analista o diseñador) siempre desde datos originales
   let filteredData;
   
@@ -10982,7 +11121,11 @@ function filterInventoryByUser(user, type) {
     if (user === '') {
       filteredData = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
     } else {
-      filteredData = originalInventoryData.filter(row => row.diseñador === user);
+      // Usar normalización para manejar acentos en nombres de diseñadores
+      filteredData = originalInventoryData.filter(row => 
+        normalizeDesignerName(row.diseñador) === normalizeDesignerName(user) ||
+        normalizeDesignerName(row.diseñador) === normalizeDesignerName(USERS[user]?.name)
+      );
     }
   } else if (type === 'analyst') {
     // Filtrar por analista específico o vacío
@@ -10998,8 +11141,6 @@ function filterInventoryByUser(user, type) {
 }
 
 function filterInventoryByUserAndStatus(user, status, type) {
-  console.log('🔍 Filtrando por:', { user, status, type, originalDataLength: originalInventoryData.length });
-  
   let filteredData;
   
   // Manejar caso especial de "all" (todos los usuarios)
@@ -11014,17 +11155,18 @@ function filterInventoryByUserAndStatus(user, status, type) {
   } else {
     // Filtrar por usuario específico
     if (type === 'designer') {
-      filteredData = originalInventoryData.filter(row => row.diseñador === user);
+      // Usar normalización para manejar acentos en nombres de diseñadores
+      filteredData = originalInventoryData.filter(row => 
+        normalizeDesignerName(row.diseñador) === normalizeDesignerName(user) ||
+        normalizeDesignerName(row.diseñador) === normalizeDesignerName(USERS[user]?.name)
+      );
     } else if (type === 'analyst') {
       filteredData = originalInventoryData.filter(row => row.analista === user);
     }
   }
   
-  console.log('📊 Datos después de filtrar por usuario:', filteredData.length);
-  
   // Si hay un status específico, filtrar también por status usando la misma lógica que las tablas
   if (status && status !== '') {
-    console.log('🎯 Filtrando por status:', status);
     
     filteredData = filteredData.filter(row => {
       if (!row.ultimoStatus) return false;
@@ -11056,14 +11198,11 @@ function filterInventoryByUserAndStatus(user, status, type) {
     });
   }
   
-  console.log('✅ Datos finales filtrados:', filteredData.length);
   updateInventoryDisplay(filteredData);
   saveInventoryViewState(); // Guardar estado después del filtro
 }
 
 function clearInventoryFilter() {
-  console.log('🔄 Limpiando filtros, restaurando datos originales:', originalInventoryData.length);
-  
   // Limpiar también los filtros del modal
   document.getElementById('filterAnalyst').value = '';
   document.getElementById('filterDesigner').value = '';
@@ -11078,8 +11217,6 @@ function clearInventoryFilter() {
 }
 
 function updateInventoryDisplay(filteredData) {
-  console.log('🔄 Actualizando display con datos:', filteredData ? filteredData.length : 0);
-  
   // En lugar de reemplazar todo el box4, vamos a actualizar solo la tabla de inventario
   // manteniendo la estructura y funcionalidad original
   
@@ -11089,12 +11226,10 @@ function updateInventoryDisplay(filteredData) {
     if (inventoryTable) {
       inventoryTable.innerHTML = '<tr><td colspan="17" style="text-align: center; color: #666;">No hay datos que coincidan con el filtro actual</td></tr>';
     }
-    console.log('❌ Sin datos para mostrar');
     return;
   }
   
   // NO modificar originalInventoryData, solo usar los datos filtrados para mostrar
-  console.log('✅ Actualizando tabla con', filteredData.length, 'filas');
   updateInventoryTableDirectly(filteredData);
   
   // Limpiar los filtros del estado guardado
@@ -11261,11 +11396,11 @@ function updateInventoryTableDirectly(filteredData) {
       <td class="inventory-cell">${escapeHtml(rowData.importancia || '')}</td>
       <td class="inventory-cell inventory-image">${escapeHtml(getImageColumnValue(rowData))}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="analista-clean" title="Click para ver historial completo">${escapeHtml(rowData.analista || '')}</td>
-      <td class="inventory-cell-clean">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
-      <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.primeraFechaAnalista || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-analista" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaAnalista || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="analista-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioAnalista || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="diseñador-clean" title="Click para ver historial completo">${escapeHtml(rowData.diseñador || '')}</td>
-      <td class="inventory-cell-clean">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
+      <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="fecha-diseñador" title="Click para ver historial completo">${escapeHtml(rowData.ultimaFechaDisenador || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
       <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName || ''}" data-item-name="${rowData.itemName || ''}" data-item-id="${rowData.itemId || ''}" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
       <td class="inventory-cell-clean clickable-status-clean" data-item-group-id="${escapeHtml(itemGroupIdForClick)}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>

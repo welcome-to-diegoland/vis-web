@@ -6669,16 +6669,16 @@ html, body {
   font-weight: 600;
 }
 
-/* Columna Cancelado HEADER (Can) - Color gris */
+/* Columna Completado HEADER (Com) - Color verde más claro */
 .stats-table th:nth-child(6) {
-  background-color: #8a8a8a;
+  background-color: #4ba76f;
   color: #ffffff;
   font-weight: 600;
 }
 
-/* Columna Completado HEADER (Com) - Color verde más claro */
+/* Columna Cancelado HEADER (Can) - Color gris */
 .stats-table th:nth-child(7) {
-  background-color: #4ba76f;
+  background-color: #8a8a8a;
   color: #ffffff;
   font-weight: 600;
 }

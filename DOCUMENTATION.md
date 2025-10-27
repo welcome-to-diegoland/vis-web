@@ -43,6 +43,34 @@
 3. **Búsqueda** → `performImageSearchNew()` → Extracción de imágenes
 4. **Visualización** → `createImageGrid()` → Renderizado en DOM
 
+### Funciones de Procesamiento de Datos
+
+#### parseItemCodeData(concatenatedData)
+- **Propósito**: Analiza datos concatenados y extrae información estructurada de objetos tipo "Item Code"
+- **Parámetros**: `concatenatedData` - cadena de datos en formato Attribute¬Value§Attribute¬Value
+- **Retorna**: Objeto con atributos parseados (Name, Marca, Título, CMS, etc.)
+- **Formato de entrada**: `"Name¬Valor1§Marca¬Valor2§WA_VIS_Comment¬Comentario§..."`
+
+#### parseImageData(concatenatedData)
+- **Propósito**: Analiza datos concatenados y extrae información estructurada de objetos tipo "Image"
+- **Parámetros**: `concatenatedData` - cadena de datos en formato Attribute¬Value§Attribute¬Value
+- **Retorna**: Objeto con atributos parseados incluyendo todos los campos necesarios para la tabla
+- **Formato de entrada**: `"Name¬Valor1§Marca¬Valor2§WA_VIS_Comment¬Comentario§..."`
+- **Cambios recientes**: Expandido para incluir 7 atributos completos (Name, Marca, Título, CMS, Página de Catálogo, WA Importancia, WA_VIS_Comment)
+- **Manejo de errores**: Incluye lógica para limpiar valores duplicados en atributos (ej: WA_VIS_Comment¬WA_VIS_Comment¬)
+
+#### extractItemCodeCommentsFromProcessedData(data)
+- **Propósito**: Filtra y extrae comentarios válidos de objetos "Item Code" 
+- **Parámetros**: `data` - array de objetos procesados
+- **Retorna**: Array de objetos con comentarios válidos para mostrar en tabla
+
+#### extractImageCommentsFromProcessedData(data)
+- **Propósito**: Filtra y extrae comentarios válidos de objetos "Image"
+- **Parámetros**: `data` - array de objetos procesados  
+- **Retorna**: Array de objetos con comentarios válidos para mostrar en tabla
+- **Validación**: Requiere Object Type = 'Image', comentarios válidos (strings >3 caracteres, no solo nombre de atributo)
+- **Cambios recientes**: Mejorada validación para filtrar comentarios vacíos o inválidos
+
 ---
 
 ## 🎯 Funcionalidades por Sección UX
@@ -215,7 +243,59 @@ createImageGrid() → Render DOM
 
 ---
 
-## 6. Sistema de Estados de Aprobación
+## 6. Tabla de Comentarios de Inventario
+
+### **Elementos UX:**
+- Tabla especializada para mostrar elementos con comentarios
+- Columnas: #, ID, Object Type, CMS, Marca, Título, Imp, Imagen, Analista, 1º Fecha, Fecha Analista, Comentario Analista, Diseñador, Fecha Diseño, Comentario Diseñador, Tipo, Status
+- **Celdas Clickables**: Todas las celdas de información (analista, fechas, comentarios, diseñador) abren modal de historial
+- Botones de filtros y asignación de diseñadoras
+- Estados visuales con colores de aprobación
+
+### **Flujo de Usuario:**
+1. Activar "Vista de datos" para mostrar tabla de comentarios
+2. **Click en cualquier celda clickable** para ver historial completo de comentarios
+3. Usar filtros para refinar vista
+4. Asignar diseñadoras a elementos específicos
+
+### **Funciones Técnicas:**
+
+#### `generateImageInventoryTable()`
+- **Propósito**: Generar tabla completa de inventario con comentarios
+- **Input**: Array de datos procesados
+- **Output**: HTML table con elementos clickables
+- **Características**:
+  - Extrae comentarios de Item Codes e Images
+  - Parsea información detallada (analista, diseñador, fechas, estados)
+  - Configura event listeners para interactividad
+
+#### `setupInventoryClickListeners()`
+- **Propósito**: Configurar interactividad de celdas en tabla
+- **Funcionalidad**: 
+  - **Celdas de analista**: Abren modal de historial
+  - **Fechas (1º Fecha, Fecha Analista, Fecha Diseño)**: Abren modal de historial completo
+  - **Comentarios**: Abren modal de historial
+  - **Diseñador**: Abren modal de historial
+  - **Status**: Navegación a Item Group
+- **Tipos soportados**: `analista-clean`, `fecha-analista`, `fecha-diseñador`, `diseñador-clean`, `analista-comment-clean`, `diseñador-comment-clean`, `tipo-clean`
+
+#### Interactividad de Fechas
+- **Fechas de Item Codes**: Usan `data-item-name` y `data-item-id` para buscar en `allLibraryData`
+- **Fechas de Images**: Usan `data-image-name` para buscar comentarios de imagen
+- **Modal resultante**: Muestra historial completo parseado con `parseCommentsFromExcel()`
+
+### **Datos y Conexiones:**
+```javascript
+// Flujo de clicks en fechas:
+Click en fecha → setupInventoryClickListeners() → 
+Detectar tipo (fecha-analista/fecha-diseñador) → 
+Buscar datos (Item/Image) → openCommentModal() → 
+Mostrar historial completo
+```
+
+---
+
+## 7. Sistema de Estados de Aprobación
 
 ### **Elementos UX:**
 - Dropdown con opciones: Normal, Aprobación Completa, Aprobación Filtrada
@@ -246,6 +326,79 @@ createImageGrid() → Render DOM
 ---
 
 ## 🔄 Log de Cambios y Evolución
+
+### **27 de Octubre, 2025 - Tablas de Resumen Optimizadas**
+
+#### 📊 **Reorganización de Columnas en Tablas de Resumen**
+- **Cambio**: Intercambiadas columnas Com y Can en ambas tablas (Diseñadores y Analistas)
+- **Antes**: `Diseño | Total | Act | Rev | Dis | Can | Com`
+- **Después**: `Diseño | Total | Act | Rev | Dis | Com | Can`
+- **Motivo**: Mejor flujo visual al priorizar elementos completados antes que cancelados
+- **Impacto**: Headers y datos reordenados consistentemente, colores CSS actualizados
+
+#### 🎨 **Corrección de Colores de Headers**
+- **Problema**: Headers Com y Can tenían colores intercambiados tras reorganización
+- **Solución**: Actualizado CSS para reflejar nueva posición de columnas:
+  - **Com** (6ª columna): Verde (#4ba76f)
+  - **Can** (7ª columna): Gris (#8a8a8a)
+- **Archivos**: Modificado `styles.css` líneas 6673-6680
+
+#### 🔧 **Corrección de Funcionalidad de Filtros para Verónica**
+- **Problema**: Click en fila "Verónica" mostraba números correctos pero filtrado fallaba
+- **Causa**: Inconsistencia en normalización de nombres con acentos entre generación y filtrado
+- **Solución**: 
+  - Movida función `normalizeDesignerName()` al scope global
+  - Aplicada normalización en `filterInventoryByUser()` y `filterInventoryByUserAndStatus()`
+  - Mapeo: 'Verónica' ↔ 'Veronica' para compatibilidad con datos
+- **Impacto**: Todos los filtros funcionan correctamente independiente de acentos
+
+#### 🧹 **Limpieza de Logs de Producción**
+- **Acción**: Removidos console.log de funciones de filtrado y estadísticas:
+  - `setupStatsTableListeners()`
+  - `filterInventoryByUser()`, `filterInventoryByUserAndStatus()`
+  - `clearInventoryFilter()`, `updateInventoryDisplay()`
+  - `generateDesignerStatsTable()`, `setupClickableElements()`
+- **Beneficio**: Código limpio sin logs de debug en producción
+
+### **Noviembre, 2025 - Mejoras en Procesamiento de Objetos Image**
+
+#### ⚡ **Expansión de parseImageData() para Tabla Completa**
+- **Problema**: Los objetos Image solo mostraban Name y WA_VIS_Comment en la tabla, faltaban CMS, Marca, Título
+- **Solución**: Expandido parseImageData() de 2 a 7 atributos:
+  - Name, Marca, Título, CMS, Página de Catálogo, WA Importancia, WA_VIS_Comment
+- **Impacto**: Tabla de comentarios ahora muestra información completa para objetos Image
+
+#### 🛠️ **Corrección de Parsing con Atributos Duplicados**
+- **Problema**: Datos con formato `WA_VIS_Comment¬WA_VIS_Comment¬` causaban errores de parsing
+- **Solución**: Agregada lógica de limpieza de valores duplicados en parseImageData()
+- **Comportamiento**: Si un valor contiene el nombre del atributo duplicado, se limpia automáticamente
+
+#### 🔍 **Optimización de Filtrado de Comentarios Image**
+- **Mejoras en extractImageCommentsFromProcessedData()**:
+  - Validación estricta: strings >3 caracteres
+  - Filtrado de comentarios vacíos o que solo contengan el nombre del atributo
+  - Mejor manejo de datos inconsistentes
+- **Resultado**: Tabla más limpia con solo comentarios válidos
+
+#### 🧹 **Limpieza de Logs de Debug**
+- **Acción**: Removidos console.log de funciones de procesamiento Image:
+  - hasItemGroupImageComments()
+  - getItemGroupImageComments() 
+  - extractImageCommentsFromProcessedData()
+  - getImageComments()
+- **Beneficio**: Código de producción sin logs innecesarios
+
+#### 🖱️ **Fechas Clickables en Tabla de Comentarios**
+- **Funcionalidad**: Todas las celdas de fecha ahora son clickables y abren modal de historial
+- **Celdas afectadas**: 
+  - 1º Fecha (primera fecha analista)
+  - Fecha Analista (última fecha analista)
+  - Fecha Diseño (fecha diseñador)
+- **Implementación**:
+  - Agregada clase `clickable-comment-clean` a celdas de fecha
+  - Tipos de comentario: `fecha-analista`, `fecha-diseñador`
+  - Lógica actualizada en `setupInventoryClickListeners()`
+- **UX**: Consistencia total - cualquier celda relevante abre el historial completo
 
 ### **27 de Octubre, 2025 - Versión Estable**
 
