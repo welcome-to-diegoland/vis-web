@@ -40,7 +40,6 @@
         </div>
         
         <!-- Botón Cargar datos -->
-        <input type="file" id="combinedFile" accept=".xlsx,.xls" style="display:none;">
         <button id="loadExcelBtn" class="btn btn-primary btn-compact" onclick="loadFromGoogleSheets()">
           <i class="fa-solid fa-cloud"></i> Google Sheets
         </button>
@@ -48,9 +47,6 @@
         <!-- Botón para cargar caché de Item Groups -->
         <button id="loadCacheBtn" class="btn btn-success btn-compact" onclick="optimizeCache()" title="Cargar todos los Item Groups en caché para acceso rápido">
           <i class="fa-solid fa-rocket"></i> Optimizar
-        </button>
-        <button id="loadLocalBtn" class="btn btn-primary btn-compact" onclick="document.getElementById('combinedFile').click()" title="Cargar archivo local">
-          <i class="fa-solid fa-folder-open"></i> Local
         </button>
       </div>
       <div class="header-column center-column">
@@ -64,9 +60,6 @@
           </button>
           <button id="saveChangesBtn" class="btn btn-success">
             <i class="fa-solid fa-save"></i> Guardar cambios
-          </button>
-          <button id="exportBtn" class="btn btn-warning">
-            <i class="bi bi-box-arrow-up"></i> Exportar
           </button>
           <!-- Puedes agregar más botones aquí en el futuro -->
         </div>
