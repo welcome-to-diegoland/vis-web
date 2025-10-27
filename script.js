@@ -201,16 +201,12 @@ async function sendAutoSaveRequest(saveRequest) {
 async function sendAssignmentsBatch(assignmentRecords, user, date) {
   if (assignmentRecords.length === 0) return;
   
-  console.log(`🚀 Enviando ${assignmentRecords.length} asignaciones en batch a Google Sheets...`);
-  
   const payload = {
     records: assignmentRecords,
     user: user,
     date: date,
     type: 'comment_autosave_batch'
   };
-  
-  console.log('📦 Payload batch:', JSON.stringify(payload, null, 2));
   
   try {
     const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -222,7 +218,6 @@ async function sendAssignmentsBatch(assignmentRecords, user, date) {
       }
     });
     
-    console.log(`✅ Batch de ${assignmentRecords.length} asignaciones enviado exitosamente`);
     showAutoSaveNotification(`${assignmentRecords.length} comentarios de asignación guardados`);
     return true;
     
@@ -10091,71 +10086,34 @@ window.distributeEqually = function() {
 };
 
 window.applyDesignerAssignments = async function() {
-  console.log('🔄 === INICIANDO PROCESO DE ASIGNACIONES ===');
+  // CERRAR EL MODAL INMEDIATAMENTE para mejor UX
+  try {
+    closeAssignDesignerModal();
+  } catch (error) {
+    console.error('❌ Error cerrando modal al inicio:', error);
+    const modal = document.getElementById('assignDesignerModal');
+    if (modal) {
+      modal.style.display = 'none';
+      modal.classList.remove('show');
+    }
+  }
+  
+  // Mostrar notificación inmediata de que el proceso ha comenzado
+  showAutoSaveNotification('Procesando asignaciones...', 'info');
+  
+  // LÍMITE DE SEGURIDAD para evitar bucles infinitos
+  const MAX_ASSIGNMENTS = 10000;
+  let assignmentCounter = 0;
   
   const designers = getActiveDesigners();
-  console.log('👥 Diseñadores activos:', designers);
-  
   const unassignedComments = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '');
-  console.log('📊 Comentarios sin asignar ANTES:', unassignedComments.length);
-  console.log('📊 Total datos originalInventoryData:', originalInventoryData.length);
-  
-  // LOGGING DETALLADO DE ELEMENTOS SIN ASIGNAR
-  console.log('🔍 === DETALLE DE ELEMENTOS SIN ASIGNAR ===');
-  
-  // CRÍTICO: Revisar si los IDs problemáticos están aquí
-  const problematicIds = ['42990', '23591'];
-  const expectedIds = ['119495', '193853', '23482', '53764', '23456'];
-  
-  console.log('🚨 VERIFICACIÓN DE IDS PROBLEMÁTICOS:');
-  problematicIds.forEach(id => {
-    const found = unassignedComments.find(row => row.id === id);
-    if (found) {
-      console.log(`❌ ERROR: ID ${id} NO DEBERÍA ESTAR SIN ASIGNAR - Diseñador actual: "${found.diseñador}"`);
-    } else {
-      console.log(`✅ OK: ID ${id} no está en la lista de sin asignar`);
-    }
-  });
-  
-  console.log('🎯 VERIFICACIÓN DE IDS ESPERADOS:');
-  expectedIds.forEach(id => {
-    const found = unassignedComments.find(row => row.id === id);
-    if (found) {
-      console.log(`✅ OK: ID ${id} SÍ está sin asignar - Diseñador: "${found.diseñador}"`);
-    } else {
-      console.log(`❌ FALTA: ID ${id} debería estar sin asignar pero no aparece`);
-    }
-  });
-  
-  unassignedComments.forEach((row, index) => {
-    const isProblematic = problematicIds.includes(row.id);
-    const prefix = isProblematic ? '🚨 PROBLEMA' : '📋';
-    
-    console.log(`${prefix} Elemento ${index + 1}:`);
-    console.log(`   - Nombre: "${row.name}"`);
-    console.log(`   - ID: "${row.id}"`);
-    console.log(`   - Object Type: "${row.objectType}"`);
-    console.log(`   - Comment Type: "${row.commentType}"`);
-    console.log(`   - Analista: "${row.analista}"`);
-    console.log(`   - Diseñador actual: "${row.diseñador}"`);
-    console.log(`   - WA_VIS_Comment: "${row['WA_VIS_Comment'] || 'VACÍO'}"`);
-    console.log(`   - Status actual: "${row.ultimoStatus}"`);
-    if (isProblematic) {
-      console.log(`   - 🚨 ESTE ID NO DEBERÍA PROCESARSE - YA TIENE DISEÑADOR`);
-    }
-    console.log('   ---');
-  });
   
   // Validar que la suma de asignaciones no exceda los comentarios sin asignar
   let totalAssignments = 0;
   designers.forEach(designer => {
-    const input = document.getElementById(`assignment-${designer}`);
-    const assignmentValue = parseInt(input?.value) || 0;
-    totalAssignments += assignmentValue;
-    console.log(`👤 ${designer}: input="${input?.value}", parsed=${assignmentValue}`);
+    const assignmentCount = getAssignmentCount(designer);
+    totalAssignments += assignmentCount;
   });
-  
-  console.log('📊 Total asignaciones a hacer:', totalAssignments);
   
   if (totalAssignments > unassignedComments.length) {
     alert(`Error: Estás intentando asignar ${totalAssignments} comentarios pero solo hay ${unassignedComments.length} sin asignar.`);
@@ -10163,9 +10121,8 @@ window.applyDesignerAssignments = async function() {
   }
   
   // Realizar las asignaciones
-  console.log('🔄 Aplicando asignaciones...');
   let commentIndex = 0;
-  const batchRecords = []; // Array para recolectar todos los registros
+  const batchRecords = [];
   const currentUser = document.getElementById('userSelect').value;
   const currentDate = new Date().toLocaleString('es-ES', { 
     timeZone: 'America/Costa_Rica',
@@ -10182,10 +10139,20 @@ window.applyDesignerAssignments = async function() {
     console.log(`🔄 Procesando ${assignmentCount} asignaciones para ${designer}`);
     
     for (let i = 0; i < assignmentCount && commentIndex < unassignedComments.length; i++) {
+      // VERIFICAR LÍMITE DE SEGURIDAD
+      if (assignmentCounter >= MAX_ASSIGNMENTS) {
+        console.error(`⚠️ LÍMITE DE SEGURIDAD ALCANZADO: ${MAX_ASSIGNMENTS} asignaciones`);
+        break;
+      }
+      
       const row = unassignedComments[commentIndex];
-      console.log(`📝 ANTES Row ${commentIndex}: diseñador="${row.diseñador}", name="${row.name}"`);
+      
+      // Solo log cada 100 elementos para evitar spam
+      if (commentIndex % 100 === 0 || commentIndex < 5) {
+        console.log(`📝 Procesando ${commentIndex + 1}/${unassignedComments.length}: ${row.name} → ${designer}`);
+      }
+      
       row.diseñador = designer;
-      console.log(`📝 DESPUÉS Row ${commentIndex}: diseñador="${row.diseñador}"`);
       
       // Preparar registro para batch (sin enviar individualmente)
       const record = prepareAssignmentRecord(row, currentUser, currentDate);
@@ -10194,6 +10161,7 @@ window.applyDesignerAssignments = async function() {
       }
       
       commentIndex++;
+      assignmentCounter++;
     }
   });
   
@@ -10210,230 +10178,30 @@ window.applyDesignerAssignments = async function() {
     }
   }
   
-  console.log(`✅ Total asignaciones procesadas: ${commentIndex}`);
-  
-  // CRÍTICO: Actualizar originalInventoryData debe reflejar las asignaciones hechas localmente
-  console.log(' originalInventoryData después de asignaciones:', originalInventoryData.length);
-  
-  // Verificar que originalInventoryData mantenga las asignaciones que acabamos de hacer
-  originalInventoryData.forEach((row, index) => {
-    if (index < commentIndex) {
-      // Buscar el diseñador asignado correspondiente
-      let assignedDesigner = '';
-      let currentAssignmentIndex = 0;
-      
-      designers.forEach(designer => {
-        const input = document.getElementById(`assignment-${designer}`);
-        const assignmentValue = parseInt(input?.value) || 0;
-        
-        for (let i = 0; i < assignmentValue; i++) {
-          if (currentAssignmentIndex === index) {
-            assignedDesigner = designer;
-            break;
-          }
-          currentAssignmentIndex++;
-        }
-        if (assignedDesigner) return; // Break outer loop
-      });
-      
-      if (assignedDesigner && row.diseñador !== assignedDesigner) {
-// DESHABILITADO:         console.log(` FORZANDO asignación en originalInventoryData[${index}]: "${row.diseñador}" -> "${assignedDesigner}" para ${row.name}`);
-        // NO SOBREESCRIBIR - row.diseñador = assignedDesigner;
-      }
-    }
-  });
-  
-  console.log('📊 originalInventoryData después de verificar:', originalInventoryData.length);
-  
-  // Verificar el estado después de las asignaciones
-  const assignedAfter = originalInventoryData.filter(row => row.diseñador && row.diseñador.trim() !== '');
-  const unassignedAfter = originalInventoryData.filter(row => !row.diseñador || row.diseñador.trim() === '');
-  
-  console.log('📊 Comentarios asignados DESPUÉS:', assignedAfter.length);
-  console.log('📊 Comentarios sin asignar DESPUÉS:', unassignedAfter.length);
-  
-  // CRÍTICO: Regenerar tabla completa para mostrar asignaciones de tipo "item"
-  console.log('🔄 Regenerando tabla completa después de asignaciones...');
-  
-  // IMPORTANTE: Actualizar currentWorkingData con las asignaciones más recientes de allLibraryData
-  if (allLibraryData && allLibraryData.length > 0) {
-    console.log('🔄 Actualizando currentWorkingData con asignaciones de allLibraryData...');
-    currentWorkingData = [...allLibraryData];
-    console.log(`✅ currentWorkingData actualizado: ${currentWorkingData.length} elementos`);
+  // Verificar si se alcanzó el límite de seguridad
+  if (assignmentCounter >= MAX_ASSIGNMENTS) {
+    alert(`⚠️ Se alcanzó el límite de seguridad de ${MAX_ASSIGNMENTS} asignaciones. Proceso detenido.`);
+    return;
   }
   
-  // Forzar regeneración completa del inventario para que se vean los cambios de "item"
-  const inventoryContainer = document.querySelector('.image-inventory-container');
-  if (inventoryContainer) {
-    console.log('📊 Regenerando inventario completo usando generateInventoryData...');
-    
-    // Regenerar HTML completo del inventario usando datos actualizados
-    // Usar currentLoadedItemGroupData si estamos en contexto de Item Group cargado, sino currentWorkingData
-    const dataToUse = currentLoadedItemGroupData.length > 0 ? currentLoadedItemGroupData : currentWorkingData;
-    const updatedInventoryHTML = generateImageInventoryTable(dataToUse);
-    inventoryContainer.outerHTML = updatedInventoryHTML;
-    
-    console.log('✅ Inventario regenerado completamente - elementos tipo "item" ahora visibles');
-    
-    // Re-configurar event listeners y actualizar datos después de regenerar
-    setTimeout(() => {
-      // Reconfigurar originalInventoryData con los datos actualizados
-      originalInventoryData = [...originalInventoryData];
-      setupClickableElements();
-      setupInventoryClickListeners();
-      console.log('🔗 Event listeners reconfigurados después de regeneración');
-      console.log('📊 originalInventoryData sincronizado con', originalInventoryData.length, 'elementos');
-    }, 100);
-  } else {
-    console.log('❌ No se encontró el contenedor del inventario');
-  }
-  
-  console.log('🔄 Actualizando estadísticas...');
-  const box1 = document.getElementById('tree');
-  const box3 = document.getElementById('box3-content');
-  
-  // Solo actualizar estadísticas si estamos en vista de datos (no en visualizador)
+  // Solo actualizar estadísticas básicas si estamos en vista de datos
   if (isCleanViewActive) {
-    // Forzar regeneración múltiple para asegurar que toma los nuevos datos
-    setTimeout(() => {
-      console.log('🔄 Primera actualización de estadísticas (10ms)...');
-      if (box1) {
-        box1.innerHTML = generateDesignerStatsTable();
-      }
-      
-      if (box3) {
-        box3.innerHTML = generateAnalystStatsTable();
-      }
-      
-      setupStatsTableListeners();
-    }, 10);
+    const box1 = document.getElementById('tree');
+    const box3 = document.getElementById('box3-content');
     
-    setTimeout(() => {
-      console.log('🔄 Segunda actualización de estadísticas (300ms)...');
-      if (box1) {
-        box1.innerHTML = generateDesignerStatsTable();
-      }
-      
-      if (box3) {
-        box3.innerHTML = generateAnalystStatsTable();
-      }
-      
-      setupStatsTableListeners();
-    }, 300);
-    
-    // CRÍTICO: Regenerar originalInventoryData con los nuevos comentarios
-    setTimeout(() => {
-      console.log('🔄 Regenerando datos de inventario con comentarios actualizados...');
-      
-      // PASO 1: Forzar limpieza completa de originalInventoryData
-      originalInventoryData = [];
-      
-      // PASO 2: Regenerar tabla completa para forzar procesamiento de comentarios nuevos
-      const box4Content = document.getElementById('box4-content');
-      if (box4Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
-        console.log('📊 Regenerando tabla completa para reflejar comentarios de asignación...');
-        
-        // IMPORTANTE: Asegurar que currentWorkingData tenga los datos más recientes
-        if (allLibraryData && allLibraryData.length > 0) {
-          console.log('🔄 Actualizando currentWorkingData antes de regenerar tabla...');
-          currentWorkingData = [...allLibraryData];
-        }
-        
-        // Forzar regeneración completa de los datos procesados
-        // Usar currentLoadedItemGroupData si estamos en contexto de Item Group cargado, sino currentWorkingData  
-        const dataToUse = currentLoadedItemGroupData.length > 0 ? currentLoadedItemGroupData : currentWorkingData;
-        box4Content.innerHTML = generateImageInventoryTable(dataToUse, true);
-        
-        // Asegurar que los event listeners se configuren correctamente
-        setTimeout(() => {
-          setupClickableElements();
-          setupStatsTableListeners();
-          
-          // Aplicar el filtro si había uno activo
-          const currentFilters = getActiveTableFilters();
-          if (currentFilters && Object.keys(currentFilters).length > 0) {
-            console.log('🔄 Reaplicando filtros después de regeneración:', currentFilters);
-            // Reaplicar filtros activos
-            Object.entries(currentFilters).forEach(([filterType, filterValue]) => {
-              if (filterType === 'diseñador' && filterValue) {
-                // Simular click en la estadística de diseñador
-                const designerStats = document.querySelectorAll('[data-user-type="designer"]');
-                designerStats.forEach(stat => {
-                  if (stat.textContent.trim() === filterValue || stat.getAttribute('data-user') === filterValue) {
-                    setTimeout(() => stat.click(), 100);
-                  }
-                });
-              }
-            });
-          }
-        }, 100);
-        
-      } else {
-        console.log('❌ No se pudo regenerar tabla: elementos no encontrados');
-      }
-    }, 500);
-  } else {
-    console.log('🚫 No actualizando estadísticas - estamos en visualizador');
-  }
-  
-  // VERIFICACIÓN FINAL COMPLETA
-  console.log('🔍 === VERIFICACIÓN FINAL DE ASIGNACIONES ===');
-  
-  const finalUnassigned = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
-  const finalAssigned = originalInventoryData.filter(row => row.diseñador && row.diseñador !== '');
-  
-  console.log(' Comentarios sin asignar después de todo:', finalUnassigned.length);
-  console.log('📊 Comentarios asignados después de todo:', finalAssigned.length);
-  
-  // Mostrar detalles de elementos asignados EN ESTA SESIÓN SOLAMENTE
-  console.log('🎯 === ELEMENTOS ASIGNADOS EN ESTA SESIÓN ===');
-  
-  // Crear lista de elementos procesados en esta sesión basándose en comentIndex
-  const elementsAssignedThisSession = [];
-  let currentIndex = 0;
-  
-  designers.forEach(designer => {
-    const input = document.getElementById(`assignment-${designer}`);
-    const assignmentValue = parseInt(input?.value) || 0;
-    
-    for (let i = 0; i < assignmentValue; i++) {
-      if (currentIndex < unassignedComments.length) {
-        const assignedElement = unassignedComments[currentIndex];
-        // Obtener el elemento actualizado de originalInventoryData
-        const updatedElement = originalInventoryData.find(row => 
-          row.id === assignedElement.id && row.name === assignedElement.name
-        );
-        
-        if (updatedElement) {
-          elementsAssignedThisSession.push({
-            ...updatedElement,
-            assignedTo: designer
-          });
-        }
-        currentIndex++;
-      }
+    if (box1) {
+      box1.innerHTML = generateDesignerStatsTable();
     }
-  });
-  
-  // Mostrar solo los elementos asignados en esta sesión
-  elementsAssignedThisSession.forEach((row, index) => {
-    console.log(`📋 Asignación ${index + 1}:`);
-    console.log(`   - Nombre: "${row.name}"`);
-    console.log(`   - ID: "${row.id}"`);
-    console.log(`   - Object Type: "${row.objectType}"`);
-    console.log(`   - Comment Type: "${row.commentType}"`);
-    console.log(`   - Diseñador asignado: "${row.assignedTo}" (ahora: "${row.diseñador}")`);
-    console.log(`   - Comentario completo FINAL: "${row['WA_VIS_Comment'] || 'No disponible'}"`);
-    console.log('   ---');
-  });
-  
-  console.log('🔄 === PROCESO DE ASIGNACIONES COMPLETADO ===');
+    
+    if (box3) {
+      box3.innerHTML = generateAnalystStatsTable();
+    }
+    
+    setupStatsTableListeners();
+  }
   
   // Mostrar notificación de éxito
-  showAutoSaveNotification(`Asignaciones completadas con comentarios automáticos`);
-  
-  // Cerrar el modal
-  closeAssignDesignerModal();
+  showAutoSaveNotification(`Asignaciones completadas: ${commentIndex} elementos procesados`);
 };
 
 // Función para agregar comentario automático al asignar diseñadora

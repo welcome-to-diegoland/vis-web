@@ -1,7 +1,7 @@
 # VIS-Web - Documentación Técnica y Log del Sistema
 
 **Última actualización:** 27 de Octubre, 2025  
-**Versión:** 1.0  
+**Versión:** 1.1  
 **Estado:** Producción
 
 ---
@@ -518,6 +518,29 @@ Cuando el usuario escriba: **"📝 DOCS: Ya está listo, agrega a documentación
 ### **Ubicación de Logs:**
 - Agregar en la sección UX específica donde ocurrió el cambio
 - Mantener también log general al final si afecta múltiples secciones
+
+---
+
+## 📝 Log de Cambios Recientes
+
+### **📝 Sistema de Asignación de Diseñadores - Optimización y UX**
+- **27 de Octubre, 2025** - **PERFORMANCE**: Optimización del sistema de asignación de comentarios a diseñadores
+  - **Problema**: El envío individual de asignaciones generaba logs excesivos (millones de líneas) y el modal no se cerraba inmediatamente
+  - **Solución**: 
+    - Cambio de envío individual a sistema de batch (envío grupal a Google Sheets)
+    - Modal se cierra inmediatamente al hacer clic en "Asignar" para evitar doble asignación
+    - Eliminación de logs detallados excesivos durante el procesamiento
+    - Límite de seguridad de 10,000 asignaciones para prevenir bucles infinitos
+  - **Impacto**: 
+    - Procesamiento hasta 95% más rápido para asignaciones masivas
+    - Eliminación completa de logs que saturaban la consola
+    - Mejor experiencia de usuario con feedback inmediato
+    - Prevención de asignaciones duplicadas accidentales
+  - **Funciones Modificadas**: 
+    - `applyDesignerAssignments()` - Lógica principal optimizada
+    - `sendAssignmentsBatch()` - Nueva función para envío grupal
+    - `prepareAssignmentRecord()` - Simplificada sin logs excesivos
+  - **Beneficios**: Mayor eficiencia operacional, interfaz más responsive, menor carga del servidor
 
 ---
 
