@@ -1,3 +1,28 @@
+// ========== LOGIN SYSTEM ==========
+// Variables de estado del sistema de login
+let dataLoaded = false;
+let userAuthenticated = false;
+let currentUser = null;
+
+// Lista de usuarios hardcoded con grupos
+const VALID_USERS = {
+  'Sandra': { password: '1234', group: 'Analista' },
+  'Victor': { password: '1234', group: 'Analista' },
+  'Ximena': { password: '1234', group: 'Analista' },
+  'Carlos': { password: '1234', group: 'Analista' },
+  'Kalem': { password: '1234', group: 'Analista' },
+  'Diego': { password: 'mrmedel', group: 'Admin' },
+  'Verónica': { password: '4321', group: 'Diseño' },
+  'Rossana': { password: '4321', group: 'Diseño' },
+  'Carla': { password: '4321', group: 'Diseño' },
+  'Grecia': { password: '4321', group: 'Diseño' },
+  'Thanya': { password: '4321', group: 'Diseño' },
+  'Gabriela': { password: '4321', group: 'Diseño' },
+  'Cinthya': { password: '4321', group: 'Diseño' }
+};
+
+// ========== END LOGIN SYSTEM ==========
+
 // Elementos del DOM (sección limpia)
 const verticalDivider = document.getElementById('verticalDivider');
 const leftSection = document.getElementById('leftSection');
@@ -844,9 +869,162 @@ let currentItemGroup = null; // Para mantener referencia al Item Group cargado
 
 // Event Listeners (sección limpia)
 document.addEventListener('DOMContentLoaded', function() {
+  // SISTEMA DE LOGIN: Inicializar primero
+  initializeLoginSystem();
+  
+  // Los diagnósticos y inicializaciones se ejecutarán solo después del login exitoso
+});
+
+// ========== FUNCIONES DEL SISTEMA DE LOGIN ==========
+
+function initializeLoginSystem() {
+  console.log('🔐 Inicializando sistema de login...');
+  
   // Limpiar localStorage automáticamente al cargar la página
   console.clear();
   localStorage.clear();
+  
+  // Iniciar carga de datos en background inmediatamente
+  startDataLoading();
+  
+  // Setup login form
+  setupLoginForm();
+}
+
+function setupLoginForm() {
+  const loginBtn = document.getElementById('loginBtn');
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+  
+  // Event listeners para el formulario
+  if (loginBtn) {
+    loginBtn.addEventListener('click', handleLogin);
+  }
+  
+  // Login al presionar Enter
+  if (usernameInput && passwordInput) {
+    [usernameInput, passwordInput].forEach(input => {
+      input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          handleLogin();
+        }
+      });
+    });
+  }
+}
+
+async function startDataLoading() {
+  console.log('📥 Iniciando carga de datos en background...');
+  updateLoadingStatus('Conectando con Google Sheets...', true);
+  
+  try {
+    // Cargar Google Sheets
+    updateLoadingStatus('Cargando datos principales...', true);
+    await loadFromGoogleSheets();
+    
+    // Cargar cache optimizado
+    updateLoadingStatus('Optimizando cache...', true);
+    await optimizeCache();
+    
+    dataLoaded = true;
+    updateLoadingStatus('Datos cargados correctamente', true);
+    console.log('✅ Todos los datos cargados exitosamente');
+    
+    // Verificar si puede acceder a la app
+    checkAppAccess();
+    
+  } catch (error) {
+    console.error('❌ Error cargando datos:', error);
+    updateLoadingStatus('Error cargando datos. Reintentando...', true);
+    
+    // Reintentar después de 3 segundos
+    setTimeout(() => {
+      startDataLoading();
+    }, 3000);
+  }
+}
+
+function handleLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorDiv = document.getElementById('loginError');
+  
+  // Limpiar errores previos
+  errorDiv.style.display = 'none';
+  
+  // Validar campos
+  if (!username || !password) {
+    showLoginError('Por favor completa todos los campos');
+    return;
+  }
+  
+  // Validar credenciales
+  if (VALID_USERS[username] && VALID_USERS[username].password === password) {
+    // Login exitoso
+    userAuthenticated = true;
+    currentUser = {
+      username: username,
+      group: VALID_USERS[username].group
+    };
+    
+    console.log(`✅ Login exitoso: ${username} (${currentUser.group})`);
+    
+    // Verificar si puede acceder a la app
+    checkAppAccess();
+    
+  } else {
+    showLoginError('Usuario o contraseña incorrectos');
+  }
+}
+
+function checkAppAccess() {
+  if (dataLoaded && userAuthenticated) {
+    console.log('🚀 Acceso concedido - Iniciando aplicación...');
+    hideLoginOverlay();
+    initializeMainApplication();
+  } else {
+    // Mostrar estado actual
+    if (!dataLoaded) {
+      updateLoadingStatus('Esperando carga de datos...', true);
+    }
+    if (!userAuthenticated) {
+      updateLoadingStatus('Esperando autenticación...', false);
+    }
+  }
+}
+
+function hideLoginOverlay() {
+  const overlay = document.getElementById('loginOverlay');
+  const mainApp = document.getElementById('mainApp');
+  
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+  if (mainApp) {
+    mainApp.style.display = 'block';
+  }
+}
+
+function showLoginError(message) {
+  const errorDiv = document.getElementById('loginError');
+  if (errorDiv) {
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+  }
+}
+
+function updateLoadingStatus(message, showSpinner = true) {
+  const loadingDiv = document.getElementById('loginLoadingStatus');
+  const textSpan = document.getElementById('loadingText');
+  
+  if (loadingDiv && textSpan) {
+    textSpan.textContent = message;
+    loadingDiv.style.display = showSpinner ? 'flex' : 'none';
+  }
+}
+
+function initializeMainApplication() {
+  console.log('🔧 Inicializando aplicación principal...');
   
   // DIAGNÓSTICO INICIAL: Verificar configuración y elementos DOM
   runInitialDiagnostics();
@@ -880,7 +1058,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (clearSavedBtn) {
     clearSavedBtn.addEventListener('click', clearSavedItemGroups);
   }
-});
+  
+  console.log('✅ Aplicación inicializada completamente');
+}
+
+// ========== END FUNCIONES DEL SISTEMA DE LOGIN ==========
 
 // Función de diagnóstico inicial
 function runInitialDiagnostics() {
