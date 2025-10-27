@@ -10,6 +10,7 @@ let isVerticalDragging = false;
 let startX, startLeftWidth;
 let originalExcelSheets = {}; // Para guardar las hojas del Excel
 let currentWorkingData = []; // Para guardar los datos que se están trabajando
+let currentLoadedItemGroupData = []; // Para guardar datos del Item Group cargado específicamente (sin sobrescribir currentWorkingData)
 let allLibraryData = []; // Para guardar TODOS los datos de la library (no se sobrescribe)
 let originalTreeData = []; // Para preservar la estructura original del árbol para navegación
 let currentColumnsOrder = []; // Para mantener el orden original de las columnas
@@ -869,22 +870,16 @@ async function loadFromGoogleSheets() {
     loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando...';
     loadButton.disabled = true;
     
-    // Crear notificación de progreso
-    showLoadingProgress('Iniciando carga de datos...', 'info');
-    
     // Detectar si estamos en un entorno local (file://)
     const isLocalFile = window.location.protocol === 'file:';
     
     if (isLocalFile) {
       console.log('⚠️ Entorno local detectado (file://). Usando Apps Script proxy...');
-      showLoadingProgress('Entorno local detectado, usando Apps Script...', 'info');
       
       // En entorno local, continuar con Apps Script normalmente
       // El Apps Script maneja CORS correctamente
     }
 
-    showLoadingProgress('Cargando árbol de categorías...', 'info');
-    
     // Cargar datos de la pestaña 'category' para el árbol
     const categoryData = await loadGoogleSheetAsCSV(
       GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.CSV_URL,
@@ -895,13 +890,9 @@ async function loadFromGoogleSheets() {
       throw new Error('No se pudieron cargar datos de la pestaña category');
     }
 
-    showLoadingProgress('Procesando árbol de categorías...', 'info');
-    
     // Procesar y filtrar datos para el árbol
     processCategoryData(categoryData);
 
-    showLoadingProgress('Cargando galerías de imágenes...', 'info');
-    
     // Cargar asset_groups usando el proxy de Apps Script (mismo que category)
     try {
       console.log('🔄 Cargando asset_groups usando Apps Script proxy...');
@@ -914,8 +905,6 @@ async function loadFromGoogleSheets() {
         console.log('📊 Primer elemento de asset_groups:', assetGroupsData[0]);
         console.log('📊 Headers/Keys disponibles:', Object.keys(assetGroupsData[0] || {}));
         
-        showLoadingProgress(`Cargadas ${assetGroupsData.length} galerías de imágenes`, 'success');
-        
         // IMPORTANTE: Poblar el dropdown AHORA que ya tenemos los datos
         console.log('🔄 Poblando dropdown de galerías con datos recién cargados...');
         
@@ -927,29 +916,18 @@ async function loadFromGoogleSheets() {
       } else {
         console.warn('⚠️ asset_groups está vacío o no se pudo procesar');
         currentAssetGroups = [];
-        showLoadingProgress('Sin galerías disponibles', 'warning');
       }
     } catch (assetGroupsError) {
       console.warn('⚠️ No se pudo cargar asset_groups:', assetGroupsError.message);
       console.warn('📋 Detalles del error:', assetGroupsError);
       currentAssetGroups = [];
-      showLoadingProgress('Error cargando galerías: ' + assetGroupsError.message, 'error');
       
       // Intentar cargar desde archivo local como fallback
       console.log('🔄 Intentando método de fallback para asset_groups...');
     }
     
-    showLoadingProgress('¡Carga completada exitosamente!', 'success');
-    
-    // Ocultar notificación después de 3 segundos
-    setTimeout(() => {
-      hideLoadingProgress();
-    }, 3000);
-    
   } catch (error) {
     console.error('❌ Error cargando desde Google Sheets:', error);
-    
-    showLoadingProgress('Error: ' + error.message, 'error');
     
     const helpMessage = `❌ Error cargando desde Google Sheets
 
@@ -981,53 +959,6 @@ Error técnico: ${error.message}
   } finally {
     loadButton.innerHTML = originalText;
     loadButton.disabled = false;
-  }
-}
-
-// Funciones para mostrar progreso de carga
-function showLoadingProgress(message, type = 'info') {
-  // Buscar contenedor existente o crear uno nuevo
-  let progressContainer = document.getElementById('loadingProgressContainer');
-  
-  if (!progressContainer) {
-    progressContainer = document.createElement('div');
-    progressContainer.id = 'loadingProgressContainer';
-    progressContainer.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 10000;
-      min-width: 300px;
-      max-width: 400px;
-    `;
-    document.body.appendChild(progressContainer);
-  }
-  
-  const alertClass = {
-    'info': 'alert-info',
-    'success': 'alert-success', 
-    'warning': 'alert-warning',
-    'error': 'alert-danger'
-  }[type] || 'alert-info';
-  
-  const icon = {
-    'info': '<i class="fa-solid fa-spinner fa-spin"></i>',
-    'success': '<i class="fa-solid fa-check"></i>',
-    'warning': '<i class="fa-solid fa-exclamation-triangle"></i>',
-    'error': '<i class="fa-solid fa-exclamation-circle"></i>'
-  }[type] || '<i class="fa-solid fa-info"></i>';
-  
-  progressContainer.innerHTML = `
-    <div class="alert ${alertClass} alert-dismissible" role="alert" style="margin-bottom: 5px;">
-      ${icon} ${message}
-    </div>
-  `;
-}
-
-function hideLoadingProgress() {
-  const progressContainer = document.getElementById('loadingProgressContainer');
-  if (progressContainer) {
-    progressContainer.remove();
   }
 }
 
@@ -2303,6 +2234,7 @@ function setupTreeEventListeners(treeDiv, treeList) {
   if (catalogSearchInput && catalogSearchButton) {
     let currentCatalogSearchResults = [];
     let currentCatalogSearchIndex = 0;
+    let lastSearchTerm = ''; // Track the last search term to differentiate new searches from cycling
 
     function performCatalogSearch() {
       const searchTerm = catalogSearchInput.value.trim();
@@ -2315,23 +2247,40 @@ function setupTreeEventListeners(treeDiv, treeList) {
         return;
       }
 
-      // Buscar en la columna Name de VIS_AG_Library_Structure
-      const searchResults = currentWorkingData.filter(item => {
-        const itemName = item.Name || '';
-        return itemName.toLowerCase().includes(searchTerm.toLowerCase());
-      });
+      // Check if this is the same search term (cycling through results) or a new search
+      const isNewSearch = searchTerm !== lastSearchTerm;
 
-      if (searchResults.length === 0) {
-        alert('No se encontraron resultados para: ' + searchTerm);
-        return;
+      if (isNewSearch) {
+        // New search - perform the search
+        
+        // Buscar en la columna Name de VIS_AG_Library_Structure
+        const searchResults = currentWorkingData.filter(item => {
+          const itemName = item.Name || '';
+          return itemName.toLowerCase().includes(searchTerm.toLowerCase());
+        });
+
+        if (searchResults.length === 0) {
+          alert('No se encontraron resultados para: ' + searchTerm);
+          return;
+        }
+
+        // Save new search results and reset index
+        currentCatalogSearchResults = searchResults;
+        currentCatalogSearchIndex = 0;
+        lastSearchTerm = searchTerm;
+        
+        // Go to first result
+        navigateToSearchResult();
+      } else {
+        // Same search term - cycle to next result
+        
+        if (currentCatalogSearchResults.length === 0) {
+          return;
+        }
+        
+        // Navigate to next result (index was already incremented in previous navigateToSearchResult call)
+        navigateToSearchResult();
       }
-
-      // Guardar resultados y resetear índice
-      currentCatalogSearchResults = searchResults;
-      currentCatalogSearchIndex = 0;
-      
-      // Ir al primer resultado
-      navigateToSearchResult();
     }
 
     function navigateToSearchResult() {
@@ -2822,8 +2771,15 @@ async function loadImageGridInBox4(itemGroupPath) {
     const allItems = Object.values(detailedData);
     const itemCodes = allItems.filter(item => item['Object Type'] === 'Item Code');
     
-    // Asignar a variable global para que las funciones de comentarios puedan acceder
-    currentWorkingData = allItems;
+    // Asignar a variable específica para el Item Group cargado (para comentarios y funciones relacionadas)
+    // MANTENER searchableData para búsquedas (datos completos del árbol)
+    currentLoadedItemGroupData = allItems;
+    
+    // IMPORTANTE: NO sobrescribir currentWorkingData para mantener datos de búsqueda
+    // Solo actualizar allLibraryData para funciones de comentarios que lo necesiten
+    allLibraryData = [...allLibraryData, ...allItems.filter(item => 
+      !allLibraryData.some(existing => existing.Id === item.Id)
+    )];
 
     if (itemCodes.length === 0) {
       addContentToBox4('<div class="p-3"><p>No se encontraron Item Codes para este grupo.</p></div>');
@@ -8444,75 +8400,15 @@ function restoreNormalView() {
 function generateImageInventoryTable(dataOverride = null) {
   const workingData = dataOverride || currentWorkingData;
   
-  console.log('🚀 generateImageInventoryTable iniciada');
-  console.log('📊 Datos disponibles:', !!workingData);
-  console.log('📊 Longitud de datos:', workingData ? workingData.length : 'N/A');
-  console.log('📊 Usando datos:', dataOverride ? 'parámetro (transformados)' : 'currentWorkingData global');
-  
-  // DEBUGGING: Verificar los primeros 3 elementos DENTRO de la función
-  if (workingData && workingData.length > 0) {
-    console.log('🔍 DEBUGGING - DENTRO de generateImageInventoryTable:');
-    const firstThreeInside = workingData.slice(0, 3);
-    firstThreeInside.forEach((item, index) => {
-      console.log(`🔍 Dentro-Item ${index}:`, {
-        objectType: item['Object Type'],
-        itemGroups: item['Item Groups'],
-        itemGroupsType: typeof item['Item Groups'],
-        name: item.Name,
-        id: item.Id || item.ID
-      });
-    });
-  }
-  
   if (!workingData || workingData.length === 0) {
-    console.log('❌ No hay datos para generar tabla de inventario');
     return '<div class="empty-box-message">No hay datos para mostrar</div>';
   }
 
-  // DEBUG: Verificar qué tipo de datos tenemos
-  console.log('🔍 Analizando estructura de datos...');
-  console.log('📊 Total de elementos en workingData:', workingData.length);
-  
-  // Mostrar algunos ejemplos de datos
-  const firstFew = workingData.slice(0, 3);
-  firstFew.forEach((item, index) => {
-    console.log(`📋 Ejemplo ${index + 1}:`, {
-      'Object Type': item['Object Type'],
-      'Name': item['Name'],
-      'Id': item['Id'],
-      'WA_VIS_Comment': item['WA_VIS_Comment'] ? item['WA_VIS_Comment'].substring(0, 50) + '...' : 'SIN COMENTARIO',
-      'hasWA_VIS_Comment': !!item['WA_VIS_Comment']
-    });
-  });
-  
-  // 🔍 DEBUG ADICIONAL: Mostrar todos los campos disponibles en el primer item
-  if (workingData.length > 0) {
-    const firstItem = workingData[0];
-    const allKeys = Object.keys(firstItem);
-    console.log('🔍 CAMPOS DISPONIBLES en el primer item:', allKeys);
-    
-    // Buscar campos que contengan "comment" en el nombre (case insensitive)
-    const commentFields = allKeys.filter(key => key.toLowerCase().includes('comment'));
-    console.log('🔍 CAMPOS CON "COMMENT":', commentFields);
-    
-    // Buscar campos que contengan "vis" en el nombre (case insensitive)
-    const visFields = allKeys.filter(key => key.toLowerCase().includes('vis'));
-    console.log('🔍 CAMPOS CON "VIS":', visFields);
-    
-    // Mostrar valores de campos de comentarios si existen
-    commentFields.forEach(field => {
-      const value = firstItem[field];
-      console.log(`🔍 VALOR DE ${field}:`, value ? `"${value.substring(0, 100)}..."` : 'VACÍO');
-    });
-  }
-  
   // Contar cuántos tienen comentarios
   const withComments = workingData.filter(item => item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim() !== '');
-  console.log(`📊 Elementos CON comentarios: ${withComments.length}/${workingData.length}`);
   
   // Si no hay comentarios, mostrar mensaje específico
   if (withComments.length === 0) {
-    console.log('⚠️ NO SE ENCONTRARON ELEMENTOS CON COMENTARIOS');
     return `<div class="empty-box-message">
       <h3>No hay elementos con comentarios</h3>
       <p>Se encontraron ${workingData.length} elementos en total, pero ninguno tiene comentarios en WA_VIS_Comment.</p>
@@ -8790,7 +8686,7 @@ function generateImageInventoryTable(dataOverride = null) {
 
     // Debug: solo mostrar si no hay itemGroupId para investigar problemas
     if (!itemGroupId && originalIndex < 3) {
-      console.log(`⚠️ Sin ItemGroupId - Row ${originalIndex}: ObjectType="${metadata.objectType}", NamePath="${metadata.itemGroup}"`);
+      // Log removido para limpieza
     }
 
   // 1. PRIMERO: Verificar si la fila tiene comentario directo en WA_VIS_Comment
@@ -8799,16 +8695,6 @@ function generateImageInventoryTable(dataOverride = null) {
     const parsedComment = parseComment(directComment.trim());
     rowIndex++;
     totalImagesWithComments++;
-    
-    // DEBUG: Detectar IDs problemáticos al agregarlos
-    const problematicIds = ['42990', '23591', '6260']; // Agregado 6260 para debug
-    if (problematicIds.includes(metadata.id)) {
-      console.log(`🚨 DETECTADO ID PROBLEMÁTICO ${metadata.id} siendo agregado a tableRowsData:`);
-      console.log(`   - Diseñador del comentario: "${parsedComment.diseñador}"`);
-      console.log(`   - Status: "${parsedComment.ultimoStatus}"`);
-      console.log(`   - Comentario original: "${directComment}"`);
-      console.log(`   - Comentario parseado:`, parsedComment);
-    }
     
     tableRowsData.push({
         rowNumber: rowIndex,
@@ -8863,17 +8749,6 @@ function generateImageInventoryTable(dataOverride = null) {
             // Determinar si será una fila de tipo 'Image' 
             const isImageType = imageValue && String(imageValue).toLowerCase().includes('.jpg');
             const finalId = isImageType ? (getAssetId(imageValue.trim()) || metadata.id) : metadata.id;
-            
-            // DEBUG: Detectar IDs problemáticos para imágenes
-            const problematicIds = ['42990', '23591'];
-            if (problematicIds.includes(finalId)) {
-              console.log(`🚨 DETECTADO ID PROBLEMÁTICO ${finalId} en imagen siendo agregado a tableRowsData:`);
-              console.log(`   - Imagen: "${imageValue.trim()}"`);
-              console.log(`   - Diseñador del comentario: "${parsedComment.diseñador}"`);
-              console.log(`   - Status: "${parsedComment.ultimoStatus}"`);
-              console.log(`   - Comentario original: "${comment}"`);
-              console.log(`   - metadata.id original: "${metadata.id}"`);
-            }
             
             tableRowsData.push({
               rowNumber: rowIndex,
@@ -8939,17 +8814,6 @@ function generateImageInventoryTable(dataOverride = null) {
 
   // Convertir datos ordenados a HTML
   const tableRows = tableRowsData.map((rowData, index) => {
-    
-    // DEBUG: Solo para las primeras 5 filas, mostrar información detallada
-    if (index < 5) {
-      console.log(`🔍 DEBUG generateImageInventoryTable fila ${index}:`, {
-        objectType: getObjectTypeValue(rowData),
-        itemGroupId: `"${rowData.itemGroupId}"`,
-        'Item Groups': `"${rowData['Item Groups']}"`,
-        itemGroupIdVacio: !rowData.itemGroupId,
-        name: rowData.Name || rowData.name
-      });
-    }
     
     if (rowData.rowType === 'direct-comment') {
       return `
@@ -9069,7 +8933,6 @@ function generateImageInventoryTable(dataOverride = null) {
   // Guardar datos originales para filtros SOLO si no existen ya (para preservar asignaciones)
   if (originalInventoryData.length === 0) {
     originalInventoryData = [...tableRowsData];
-    console.log('🔄 Inicializando originalInventoryData por primera vez con', tableRowsData.length, 'elementos');
   } else {
     // CRÍTICO: Solo actualizar originalInventoryData si NO estamos en medio de un proceso de asignaciones
     // Verificar si algún elemento en originalInventoryData tiene asignaciones recientes que no están en tableRowsData
@@ -9198,7 +9061,7 @@ function generateImageInventoryTable(dataOverride = null) {
   
   // DEBUGGING: Verificar IDs problemáticos en originalInventoryData
   const problematicIds = ['42990', '23591'];
-  console.log('🔍 VERIFICANDO IDS PROBLEMÁTICOS EN originalInventoryData:');
+  // Limpiar logs de verificación
   problematicIds.forEach(id => {
     const found = originalInventoryData.find(row => row.id === id);
     if (found) {
@@ -9309,21 +9172,6 @@ function generateImageInventoryTableFromCache() {
   // Temporalmente asignar los datos transformados a currentWorkingData Y allLibraryData
   currentWorkingData = transformedArray;
   allLibraryData = transformedArray; // ¡IMPORTANTE! Para que funcionen los clicks en comentarios
-  
-  // DEBUGGING: Verificar datos antes de generar tabla
-  console.log('🔍 DEBUGGING - Antes de generateImageInventoryTable:');
-  console.log('📊 currentWorkingData.length:', currentWorkingData.length);
-  
-  const firstThreeItems = currentWorkingData.slice(0, 3);
-  firstThreeItems.forEach((item, index) => {
-    console.log(`🔍 Antes-Item ${index}:`, {
-      objectType: item['Object Type'],
-      itemGroups: item['Item Groups'],
-      itemGroupsType: typeof item['Item Groups'],
-      name: item.Name,
-      id: item.Id || item.ID
-    });
-  });
   
   try {
     // Generar la tabla usando la función existente, pasando los datos transformados directamente
@@ -10223,7 +10071,9 @@ window.applyDesignerAssignments = function() {
     console.log('📊 Regenerando inventario completo usando generateInventoryData...');
     
     // Regenerar HTML completo del inventario usando datos actualizados
-    const updatedInventoryHTML = generateImageInventoryTable(currentWorkingData);
+    // Usar currentLoadedItemGroupData si estamos en contexto de Item Group cargado, sino currentWorkingData
+    const dataToUse = currentLoadedItemGroupData.length > 0 ? currentLoadedItemGroupData : currentWorkingData;
+    const updatedInventoryHTML = generateImageInventoryTable(dataToUse);
     inventoryContainer.outerHTML = updatedInventoryHTML;
     
     console.log('✅ Inventario regenerado completamente - elementos tipo "item" ahora visibles');
@@ -10293,7 +10143,9 @@ window.applyDesignerAssignments = function() {
         }
         
         // Forzar regeneración completa de los datos procesados
-        box4Content.innerHTML = generateImageInventoryTable(currentWorkingData, true);
+        // Usar currentLoadedItemGroupData si estamos en contexto de Item Group cargado, sino currentWorkingData  
+        const dataToUse = currentLoadedItemGroupData.length > 0 ? currentLoadedItemGroupData : currentWorkingData;
+        box4Content.innerHTML = generateImageInventoryTable(dataToUse, true);
         
         // Asegurar que los event listeners se configuren correctamente
         setTimeout(() => {
@@ -11233,10 +11085,8 @@ function getItemGroupIdFromData(rowData) {
     // Si hay múltiples valores separados por comas, tomar el primero
     if (itemGroups.includes(',')) {
       const firstItemGroup = itemGroups.split(',')[0].trim();
-      console.log(`✅ Item code: Usando primer Item Group "${firstItemGroup}" de "${itemGroups}"`);
       return firstItemGroup;
     } else if (itemGroups !== '') {
-      console.log(`✅ Item code: Usando Item Group "${itemGroups}"`);
       return itemGroups;
     }
   }
