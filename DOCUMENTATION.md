@@ -523,6 +523,55 @@ Cuando el usuario escriba: **"📝 DOCS: Ya está listo, agrega a documentación
 
 ## 📝 Log de Cambios Recientes
 
+### **�️ Sistema de Eliminación de Imágenes - Corrección de Doble Eliminación**
+- **27 de Octubre, 2025** - **BUGFIX**: Corrección crítica del sistema de eliminación que borraba imágenes adicionales
+  - **Problema**: Al usar "espacio vacío" (shift+click) para eliminar imágenes, el sistema borraba 2 imágenes consecutivas en lugar de 1
+  - **Síntomas**: 
+    - Click en imagen 3 → borraba imágenes 3 y 4, quedando 1,2 ❌
+    - Click en imagen 1 → borraba imágenes 1 y 2, quedando 3,4 ❌  
+    - Click en header de columna → borraba columna actual + siguiente ❌
+    - Option+click funcionaba correctamente ✅
+  - **Causa**: Doble compactación - las funciones llamaban a `removeImageFromGrid()` (que ya hace compactación) y luego a `shiftImagesLeft()` (segunda compactación)
+  - **Solución**: 
+    - Eliminadas llamadas redundantes a `shiftImagesLeft()` en 4 funciones críticas
+    - `removeImageFromGrid()` ya maneja la compactación internamente, no necesita segunda pasada
+    - Conservada lógica de compactación pero eliminada duplicación
+    - Limpieza de logs de debugging excesivos
+  - **Resultado**: 
+    - ✅ Eliminación de una sola imagen por operación
+    - ✅ Eliminación por columna funciona correctamente  
+    - ✅ Espacio vacío + click elimina solo imagen objetivo
+    - ✅ Option+click mantiene funcionamiento individual
+    - ✅ Compactación correcta sin borrar imágenes extra
+  - **Funciones Modificadas**: 
+    - `handleRemoveImage()` - Eliminada doble compactación
+    - `handleBulkRemoveFromColumn()` - Eliminada doble compactación
+    - `handleBulkImageRemoval()` - Eliminada doble compactación  
+    - `assignWorkingImageToColumn()` - Eliminada doble compactación
+  - **Impacto**: Eliminación precisa de imágenes, mejor control del usuario, interfaz más predecible
+
+### **�📝 Sistema de Comentarios - Auto-guardado de Cambios de Status**
+- **27 de Octubre, 2025** - **BUGFIX**: Corrección del auto-guardado automático para cambios de status
+  - **Problema**: Cuando se cambiaba el status de un comentario a "Completado" o "Cancelado" usando el dropdown, el comentario se agregaba correctamente a los datos locales pero NO se enviaba automáticamente a Google Sheets
+  - **Síntomas**: 
+    - Comentarios manuales se guardaban correctamente ✅
+    - Cambios de status solo se veían localmente ❌ 
+    - No aparecían logs de auto-guardado en la consola para cambios de status
+  - **Causa**: Faltaba la llamada a `autoSaveComment()` en el event listener del control de status
+  - **Solución**: 
+    - Agregada llamada a `autoSaveComment(newComment, type, imageName, context)` después de `addNewCommentToData()` en la función del cambio de status
+    - Limpieza de logs de debugging excesivos para mejorar la claridad de la consola
+  - **Resultado**: 
+    - ✅ Cambios de status ahora se guardan automáticamente en Google Sheets
+    - ✅ Se crean comentarios automáticos: "Status actualizado a Completado/Cancelado"
+    - ✅ Historial completo se preserva correctamente
+    - ✅ Interfaz más limpia sin logs innecesarios
+  - **Funciones Modificadas**: 
+    - `setupStatusControl()` - Agregado auto-guardado para cambios de status
+    - `autoSaveComment()` - Limpieza de logs de debugging
+    - `processAutoSaveQueue()` - Reducción de logs verbosos
+  - **Impacto**: Sistema de comentarios ahora funciona consistentemente para todos los tipos de cambios (comentarios manuales + cambios de status)
+
 ### **📝 Sistema de Asignación de Diseñadores - Optimización y UX**
 - **27 de Octubre, 2025** - **PERFORMANCE**: Optimización del sistema de asignación de comentarios a diseñadores
   - **Problema**: El envío individual de asignaciones generaba logs excesivos (millones de líneas) y el modal no se cerraba inmediatamente

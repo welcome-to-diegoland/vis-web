@@ -128,15 +128,12 @@ async function processAutoSaveQueue() {
   }
   
   isProcessingAutoSave = true;
-  console.log(`🔄 Procesando cola de auto-guardado: ${autoSaveQueue.length} elementos pendientes`);
   
   while (autoSaveQueue.length > 0) {
     const saveRequest = autoSaveQueue.shift();
-    console.log(`📤 Enviando auto-guardado ${autoSaveQueue.length + 1} de ${autoSaveQueue.length + 1}: ID ${saveRequest.record.id}`);
     
     try {
       await sendAutoSaveRequest(saveRequest);
-      console.log(`✅ Auto-guardado exitoso para ID: ${saveRequest.record.id}`);
     } catch (error) {
       console.error(`❌ Error en auto-guardado para ID: ${saveRequest.record.id}`, error);
     }
@@ -149,7 +146,6 @@ async function processAutoSaveQueue() {
   }
   
   isProcessingAutoSave = false;
-  console.log('✅ Cola de auto-guardado procesada completamente');
 }
 
 function addToAutoSaveQueue(record, user, date) {
@@ -161,7 +157,6 @@ function addToAutoSaveQueue(record, user, date) {
   };
   
   autoSaveQueue.push(saveRequest);
-  console.log(`📥 Agregado a cola de auto-guardado: ID ${record.id} (${autoSaveQueue.length} en cola)`);
   
   // Iniciar procesamiento si no está activo
   if (!isProcessingAutoSave) {
@@ -177,9 +172,6 @@ async function sendAutoSaveRequest(saveRequest) {
     type: saveRequest.type
   };
   
-  console.log('🚀 Enviando auto-guardado a Google Sheets...');
-  console.log('📦 Payload:', JSON.stringify(payload, null, 2));
-  
   return fetch(GOOGLE_APPS_SCRIPT_URL, {
     method: 'POST',
     mode: 'no-cors',
@@ -188,11 +180,10 @@ async function sendAutoSaveRequest(saveRequest) {
       'Content-Type': 'application/json'
     }
   }).then(() => {
-    console.log('✅ Auto-guardado enviado exitosamente para ID:', saveRequest.record.id, 'Tipo:', saveRequest.record.objectType);
-    showAutoSaveNotification('Comentario de asignación guardado');
+    showAutoSaveNotification('Comentario guardado');
   }).catch(error => {
     console.error('❌ Error en fetch de auto-guardado:', error);
-    showAutoSaveNotification('Error al guardar comentario de asignación', 'error');
+    showAutoSaveNotification('Error al guardar comentario', 'error');
     throw error;
   });
 }
@@ -3980,11 +3971,26 @@ function extractImageCommentsFromProcessedData() {
 
 // Función helper para encontrar un objeto Image en los datos procesados
 function findImageAssetByName(imageName) {
-  if (!currentWorkingData || !imageName) return null;
+  if (!imageName) return null;
   
-  return currentWorkingData.find(item => 
+  // Buscar primero en currentWorkingData
+  let asset = currentWorkingData ? currentWorkingData.find(item => 
     item['Object Type'] === 'Image' && item.Name === imageName
-  );
+  ) : null;
+  
+  // Si no se encuentra, buscar en allLibraryData
+  if (!asset && allLibraryData) {
+    asset = allLibraryData.find(item => 
+      item['Object Type'] === 'Image' && item.Name === imageName
+    );
+  }
+  
+  // Si no se encuentra, buscar en currentAssetComments
+  if (!asset && currentAssetComments) {
+    asset = currentAssetComments.find(asset => asset.Name === imageName);
+  }
+  
+  return asset;
 }
 
 // Función helper para encontrar un objeto Image por ID en los datos procesados
@@ -4062,37 +4068,46 @@ function getImageComments(imageName) {
   
   console.log(`🔍 DEBUG getImageComments - Buscando imagen: "${imageName}"`);
   
-  // PASO 1: Buscar en datos globales primero (más rápido)
+  // PASO 1: Buscar en currentWorkingData primero (donde se agregan los comentarios nuevos)
+  if (currentWorkingData && currentWorkingData.length > 0) {
+    const imageObject = currentWorkingData.find(item => {
+      return item['Object Type'] === 'Image' && 
+             item.Name === imageName;
+    });
+    
+    if (imageObject && imageObject['WA_VIS_Comment']) {
+      console.log(`✅ Comentario encontrado en currentWorkingData para: ${imageName}`);
+      return imageObject['WA_VIS_Comment'];
+    }
+  }
+  
+  // PASO 2: Buscar en allLibraryData como respaldo
+  if (allLibraryData && allLibraryData.length > 0) {
+    const imageObject = allLibraryData.find(item => {
+      return item['Object Type'] === 'Image' && 
+             item.Name === imageName;
+    });
+    
+    if (imageObject && imageObject['WA_VIS_Comment']) {
+      console.log(`✅ Comentario encontrado en allLibraryData para: ${imageName}`);
+      return imageObject['WA_VIS_Comment'];
+    }
+  }
+  
+  // PASO 3: Buscar en datos globales como último respaldo
   if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
     const imageObject = window.allItemGroupsData.find(item => {
-      // SOLO buscar objetos tipo "Image" con nombre exacto
       return item['Object Type'] === 'Image' && 
-             item.Name === imageName &&
-             item['WA_VIS_Comment'] && 
-             item['WA_VIS_Comment'].trim();
+             item.Name === imageName;
     });
     
-    if (imageObject) {
-      return imageObject['WA_VIS_Comment'] || '';
+    if (imageObject && imageObject['WA_VIS_Comment']) {
+      console.log(`✅ Comentario encontrado en allItemGroupsData para: ${imageName}`);
+      return imageObject['WA_VIS_Comment'];
     }
   }
   
-  // PASO 2: Buscar en currentWorkingData como respaldo (datos locales más completos)
-  if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
-    
-    const localImageObject = currentWorkingData.find(item => {
-      return item['Object Type'] === 'Image' && 
-             item.Name === imageName &&
-             item['WA_VIS_Comment'] && 
-             item['WA_VIS_Comment'].trim();
-    });
-    
-    if (localImageObject) {
-      return localImageObject['WA_VIS_Comment'] || '';
-    }
-  }
-  
-  console.log(`❌ No se encontró comentario específico para imagen "${imageName}"`);
+  console.log(`❌ No se encontraron comentarios para imagen: ${imageName}`);
   return '';
 }
 
@@ -4183,20 +4198,7 @@ function getStatusColor(status) {
 // Función para crear y mostrar la ventana modal de comentarios
 function openCommentModal(title, context, commentText, type = 'item', imageName = null) {
   // IMPORTANTE: Guardar estado actual antes de abrir modal
-  console.log('💾 Guardando estado antes de abrir modal de comentarios...');
   saveInventoryViewState();
-  
-  // LOG DETALLADO de lo que llega al modal
-  console.log('🔍 openCommentModal recibió:', {
-    title,
-    context,
-    commentText,
-    commentTextLength: commentText ? commentText.length : 0,
-    commentTextType: typeof commentText,
-    commentTextPreview: commentText ? commentText.substring(0, 200) : 'VACÍO',
-    type,
-    imageName
-  });
   
   // Verificar si ya existe una modal y cerrarla
   const existingModal = document.getElementById('commentModal');
@@ -4502,6 +4504,9 @@ function setupStatusControl(modal, context, type = 'item', imageName = null, com
     // Agregar el comentario a los datos
     addNewCommentToData(contextForData, newComment, type, imageName);
     
+    // AUTO-GUARDAR COMENTARIO DE CAMBIO DE STATUS INMEDIATAMENTE
+    autoSaveComment(newComment, type, imageName, context);
+    
     // Actualizar la vista de comentarios
     updateCommentsDisplay(modal);
     
@@ -4596,7 +4601,29 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
     if (assetData) {
       // Ya existe el asset Image, agregar al comentario existente
       const existingComments = assetData['WA_VIS_Comment'] || '';
-      assetData['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      const newCompleteComments = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      assetData['WA_VIS_Comment'] = newCompleteComments;
+      
+      // Actualizar también en todas las fuentes
+      const inCurrentWorking = currentWorkingData.find(item => 
+        item['Object Type'] === 'Image' && item.Name === imageName
+      );
+      if (inCurrentWorking) {
+        inCurrentWorking['WA_VIS_Comment'] = newCompleteComments;
+      }
+      
+      const inAllLibrary = allLibraryData.find(item => 
+        item['Object Type'] === 'Image' && item.Name === imageName
+      );
+      if (inAllLibrary) {
+        inAllLibrary['WA_VIS_Comment'] = newCompleteComments;
+      }
+      
+      const inAssetComments = currentAssetComments.find(asset => asset.Name === imageName);
+      if (inAssetComments) {
+        inAssetComments['WA_VIS_Comment'] = newCompleteComments;
+      }
+      
     } else {
       // No existe, crear nuevo registro de tipo Image
       const newImageAsset = {
@@ -4606,13 +4633,22 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
         ID: Date.now(),
         Id: Date.now()
       };
+      
+      // Agregar a todas las fuentes de datos
       currentWorkingData.push(newImageAsset);
-      allLibraryData.push(newImageAsset);
+      if (allLibraryData) {
+        allLibraryData.push(newImageAsset);
+      }
+      if (currentAssetComments) {
+        currentAssetComments.push(newImageAsset);
+      }
+      
+      assetData = newImageAsset;
     }
     
     console.log('Comentario puesto:', newComment, 'para:', imageName);
     console.log('✅ Comentario agregado a objeto Image en currentWorkingData');
-    console.log('Asset agregado/actualizado:', assetData || newAssetComment);
+    console.log('Asset agregado/actualizado:', assetData);
     
     // Marcar Item Group como modificado automáticamente
     markItemGroupAsModified();
@@ -4851,10 +4887,39 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       const itemCodeId = idMatch[1];
       console.log('🔍 Buscando Item Code con ID:', itemCodeId);
       
+      // Buscar primero en currentWorkingData
       itemCodeData = currentWorkingData.find(item => 
         item['Object Type'] === 'Item Code' && 
         (item.Id === itemCodeId || String(item.Id) === itemCodeId)
       );
+      
+      if (itemCodeData) {
+        itemCodeData._source = 'currentWorkingData';
+      }
+      
+      // Si no se encuentra en currentWorkingData, buscar en allLibraryData
+      if (!itemCodeData && allLibraryData && allLibraryData.length > 0) {
+        console.log('🔍 No encontrado en currentWorkingData, buscando en allLibraryData por ID...');
+        itemCodeData = allLibraryData.find(item => 
+          item['Object Type'] === 'Item Code' && 
+          (item.Id === itemCodeId || String(item.Id) === itemCodeId)
+        );
+        
+        if (itemCodeData) {
+          itemCodeData._source = 'allLibraryData';
+          console.log('✅ Item Code encontrado en allLibraryData por ID:', itemCodeData.Name);
+          // Asegurar que también existe en currentWorkingData para futuras referencias
+          const existsInCurrentWorking = currentWorkingData.find(item => 
+            item['Object Type'] === 'Item Code' && 
+            (item.Id === itemCodeData.Id || item.Name === itemCodeData.Name)
+          );
+          
+          if (!existsInCurrentWorking) {
+            console.log('🔄 Agregando Item Code a currentWorkingData para consistencia');
+            currentWorkingData.push({...itemCodeData});
+          }
+        }
+      }
       
       if (itemCodeData) {
         console.log('✅ Item Code encontrado por ID:', itemCodeData.Name);
@@ -4866,10 +4931,39 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       const itemName = context.split(' (')[0]; // Remover el (ID) del final
       console.log('🔍 Buscando Item Code por nombre:', itemName);
       
+      // Buscar primero en currentWorkingData
       itemCodeData = currentWorkingData.find(item => 
         item['Object Type'] === 'Item Code' && 
         (item.Name === itemName || item['Item Code'] === itemName)
       );
+      
+      if (itemCodeData) {
+        itemCodeData._source = 'currentWorkingData';
+      }
+      
+      // Si no se encuentra en currentWorkingData, buscar en allLibraryData
+      if (!itemCodeData && allLibraryData && allLibraryData.length > 0) {
+        console.log('🔍 No encontrado en currentWorkingData, buscando en allLibraryData...');
+        itemCodeData = allLibraryData.find(item => 
+          item['Object Type'] === 'Item Code' && 
+          (item.Name === itemName || item['Item Code'] === itemName)
+        );
+        
+        if (itemCodeData) {
+          itemCodeData._source = 'allLibraryData';
+          console.log('✅ Item Code encontrado en allLibraryData:', itemCodeData.Name);
+          // Asegurar que también existe en currentWorkingData para futuras referencias
+          const existsInCurrentWorking = currentWorkingData.find(item => 
+            item['Object Type'] === 'Item Code' && 
+            (item.Id === itemCodeData.Id || item.Name === itemCodeData.Name)
+          );
+          
+          if (!existsInCurrentWorking) {
+            console.log('🔄 Agregando Item Code a currentWorkingData para consistencia');
+            currentWorkingData.push({...itemCodeData});
+          }
+        }
+      }
       
       if (itemCodeData) {
         console.log('✅ Item Code encontrado por nombre:', itemCodeData.Name);
@@ -4877,19 +4971,63 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
     }
     
     if (itemCodeData) {
+      // DEBUGGING ADICIONAL: Verificar desde dónde viene el Item Code
+      console.log('🔍 === DEBUGGING ORIGEN DEL ITEM CODE ===');
+      console.log('   Fuente del elemento:', itemCodeData._source || 'unknown');
+      console.log('   ID del elemento:', itemCodeData.Id);
+      console.log('   Nombre del elemento:', itemCodeData.Name);
+      console.log('   Object Type:', itemCodeData['Object Type']);
+      
+      // Verificar en ambas fuentes de datos para comparar
+      const inCurrentWorking = currentWorkingData.find(item => 
+        item['Object Type'] === 'Item Code' && 
+        (item.Id === itemCodeData.Id || item.Name === itemCodeData.Name)
+      );
+      
+      const inAllLibrary = allLibraryData ? allLibraryData.find(item => 
+        item['Object Type'] === 'Item Code' && 
+        (item.Id === itemCodeData.Id || item.Name === itemCodeData.Name)
+      ) : null;
+      
+      console.log('🔍 En currentWorkingData:', !!inCurrentWorking, 'Comentarios:', inCurrentWorking ? (inCurrentWorking['WA_VIS_Comment'] || 'VACÍO') : 'N/A');
+      console.log('🔍 En allLibraryData:', !!inAllLibrary, 'Comentarios:', inAllLibrary ? (inAllLibrary['WA_VIS_Comment'] || 'VACÍO') : 'N/A');
+      
+      // Usar la fuente que tenga comentarios, o la original si ambas están iguales
+      let sourceWithComments = itemCodeData;
+      if (inAllLibrary && inAllLibrary['WA_VIS_Comment'] && !itemCodeData['WA_VIS_Comment']) {
+        console.log('🔄 Usando comentarios de allLibraryData porque itemCodeData está vacío');
+        sourceWithComments = inAllLibrary;
+      } else if (inCurrentWorking && inCurrentWorking['WA_VIS_Comment'] && !itemCodeData['WA_VIS_Comment']) {
+        console.log('🔄 Usando comentarios de currentWorkingData porque itemCodeData está vacío');
+        sourceWithComments = inCurrentWorking;
+      }
+      
       // Mostrar el estado ANTES del cambio
-      const existingComments = itemCodeData['WA_VIS_Comment'] || '';
+      const existingComments = sourceWithComments['WA_VIS_Comment'] || '';
       console.log('📋 ANTES - Comentarios existentes (Item Code):', existingComments);
       
       // Parsear comentarios ANTES para comparar
       const commentsBefore = parseCommentForDebugging(existingComments);
       console.log('🔍 ANTES - Datos parseados (Item Code):', commentsBefore);
       
-      // Actualizar el Item Code encontrado
-      itemCodeData['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      // Crear el nuevo comentario completo
+      const newCompleteComments = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      
+      // Actualizar en TODAS las fuentes de datos
+      itemCodeData['WA_VIS_Comment'] = newCompleteComments;
+      
+      if (inCurrentWorking) {
+        inCurrentWorking['WA_VIS_Comment'] = newCompleteComments;
+        console.log('✅ Actualizado en currentWorkingData');
+      }
+      
+      if (inAllLibrary) {
+        inAllLibrary['WA_VIS_Comment'] = newCompleteComments;
+        console.log('✅ Actualizado en allLibraryData');
+      }
       
       // Parsear comentarios DESPUÉS para comparar
-      const commentsAfter = parseCommentForDebugging(itemCodeData['WA_VIS_Comment']);
+      const commentsAfter = parseCommentForDebugging(newCompleteComments);
       console.log('🔍 DESPUÉS - Datos parseados (Item Code):', commentsAfter);
       
       // Mostrar qué cambió específicamente
@@ -4904,20 +5042,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       console.log('   Tipo antes:', commentsBefore.ultimoTipo, '→ después:', commentsAfter.ultimoTipo);
       
       console.log('💾 Comentario guardado en Item Code:', itemCodeData.Name);
-      console.log('💾 Comentario completo guardado:', itemCodeData['WA_VIS_Comment']);
-      
-      // Actualizar también en allLibraryData si existe
-      if (allLibraryData && allLibraryData.length > 0) {
-        const allDataIndex = allLibraryData.findIndex(item => 
-          item['Object Type'] === 'Item Code' && 
-          (item.Id === itemCodeData.Id || item.Name === itemCodeData.Name)
-        );
-        
-        if (allDataIndex !== -1) {
-          allLibraryData[allDataIndex]['WA_VIS_Comment'] = itemCodeData['WA_VIS_Comment'];
-          console.log('💾 También actualizado en allLibraryData (Item Code)');
-        }
-      }
+      console.log('💾 Comentario completo guardado:', newCompleteComments);
       
     } else {
       console.error('❌ No se pudo encontrar el Item Code para guardar el comentario:', context);
@@ -6073,15 +6198,6 @@ function handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIn
   const imageName = existingImage.alt;
   const imageItemCode = extractItemCodeFromImageName(imageName);
   
-  // LOGS DETALLADOS PARA DEBUG
-  console.log('=== DEBUG REMOVE IMAGE ===');
-  console.log('Item Code de la fila (targetItemCode):', targetItemCode);
-  console.log('Nombre de la imagen (alt):', imageName);
-  console.log('Item Code extraído del nombre:', imageItemCode);
-  console.log('Sección:', targetSection);
-  console.log('Imagen src:', existingImage.src);
-  console.log('==========================');
-  
   // Si es REST, no se quita
   if (targetSection === 'rest') {
     console.log('Las imágenes de REST no se pueden quitar');
@@ -6099,7 +6215,6 @@ function handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIn
     updateCurrentWorkingDataWithGridState(100);
   } else {
     // Si es de diferente Item Code, solo quitar
-    console.log('Quitando imagen de diferente Item Code');
     removeImageFromGrid(targetRowIndex, targetColIndex, targetSection);
     // Marcar Item Group como modificado automáticamente
     markItemGroupAsModified();
@@ -6107,8 +6222,7 @@ function handleRemoveImage(imageCell, targetItemCode, targetSection, targetRowIn
     updateCurrentWorkingDataWithGridState(100);
   }
   
-  // Recorrer imágenes hacia la izquierda para llenar el espacio vacío
-  shiftImagesLeft(targetRowIndex, targetColIndex, targetSection);
+  // NOTA: No llamamos a shiftImagesLeft aquí porque removeImageFromGrid y moveImageToRest ya manejan la compactación internamente
 }
 
 // Función optimizada para asignar la imagen de trabajo
@@ -6231,10 +6345,6 @@ function handleBulkImageRemoval(event, imageCell) {
     return;
   }
   
-  console.log('=== ELIMINACIÓN MASIVA ===');
-  console.log('Imagen a eliminar:', imageName);
-  console.log('Item Code origen:', sourceItemCode);
-  
   // Buscar TODAS las imágenes con el mismo nombre en TODO el Item Group
   const allImageCells = document.querySelectorAll('.image-cell .image-thumbnail');
   const imagesToRemove = [];
@@ -6264,28 +6374,20 @@ function handleBulkImageRemoval(event, imageCell) {
   imagesToRemove.forEach(imageInfo => {
     const imageItemCode = extractItemCodeFromImageName(imageInfo.imageName);
     
-    console.log(`Procesando: ${imageInfo.imageName} en ${imageInfo.itemCode} ${imageInfo.section}`);
-    
     // Si pertenece al mismo Item Code que donde se originó la eliminación, mover a REST
     if (imageItemCode === imageInfo.itemCode) {
-      console.log('→ Moviendo a REST (mismo Item Code)');
       // Solo mover a REST si no está ya en REST
       if (imageInfo.section !== 'rest') {
         moveImageToRest(imageInfo.imageName, imageInfo.itemCode, imageInfo.rowIndex, imageInfo.colIndex, imageInfo.section);
       } else {
-        console.log('→ Ya está en REST, eliminando directamente');
         removeImageFromGrid(imageInfo.rowIndex, imageInfo.colIndex, imageInfo.section);
       }
     } else {
-      console.log('→ Eliminando directamente (diferente Item Code)');
       removeImageFromGrid(imageInfo.rowIndex, imageInfo.colIndex, imageInfo.section);
     }
     
-    // Recorrer hacia la izquierda
-    shiftImagesLeft(imageInfo.rowIndex, imageInfo.colIndex, imageInfo.section);
+    // NOTA: No llamamos a shiftImagesLeft aquí porque removeImageFromGrid y moveImageToRest ya manejan la compactación
   });
-  
-  console.log('Eliminación masiva completada');
   
   // Actualizar currentWorkingData después de operación masiva
   updateCurrentWorkingDataWithGridState();
@@ -6343,14 +6445,11 @@ function handleBulkAssignToColumn(columnCells, section, columnNumber) {
     const itemCode = cell.getAttribute('data-item-code');
     const rowIndex = parseInt(cell.getAttribute('data-row-index'));
     
-    console.log(`Asignando a ${itemCode} en fila ${rowIndex}`);
-    
     // Verificar duplicados en esta fila antes de insertar
     const existingPosition = findImageInItemCode(workingImage.imageName, itemCode);
     if (existingPosition) {
-      console.log('→ Quitando duplicado existente');
       removeImageFromGrid(existingPosition.row, existingPosition.col, existingPosition.section);
-      shiftImagesLeft(existingPosition.row, existingPosition.col, existingPosition.section);
+      // NOTA: No llamamos a shiftImagesLeft aquí porque removeImageFromGrid ya maneja la compactación
     }
     
     // Insertar en la posición específica de la columna
@@ -6360,7 +6459,6 @@ function handleBulkAssignToColumn(columnCells, section, columnNumber) {
 
 // Función para eliminar todas las imágenes de una columna
 function handleBulkRemoveFromColumn(columnCells, section, columnNumber) {
-  console.log('Eliminando todas las imágenes de la columna...');
   
   columnCells.forEach(cell => {
     const existingImage = cell.querySelector('.image-thumbnail');
@@ -6374,19 +6472,14 @@ function handleBulkRemoveFromColumn(columnCells, section, columnNumber) {
     const rowIndex = parseInt(cell.getAttribute('data-row-index'));
     const imageItemCode = extractItemCodeFromImageName(imageName);
     
-    console.log(`Quitando ${imageName} de ${itemCode}`);
-    
     // Aplicar reglas de REST
     if (section !== 'rest' && imageItemCode === itemCode) {
-      console.log('→ Moviendo a REST (mismo Item Code)');
       moveImageToRest(imageName, itemCode, rowIndex, columnNumber, section);
     } else {
-      console.log('→ Eliminando directamente');
       removeImageFromGrid(rowIndex, columnNumber, section);
     }
     
-    // Recorrer hacia la izquierda
-    shiftImagesLeft(rowIndex, columnNumber, section);
+    // NOTA: No llamamos a shiftImagesLeft aquí porque removeImageFromGrid y moveImageToRest ya manejan la compactación
   });
   
   // Actualizar currentWorkingData después de operación masiva por columna
@@ -11529,12 +11622,6 @@ function getCurrentUser() {
 
 // Función para auto-guardar un comentario individual inmediatamente después de crearlo
 function autoSaveComment(newComment, type, imageName = null, context = null) {
-  console.log('💾 === INICIO AUTO-GUARDADO DE COMENTARIO ===');
-  console.log('💬 Comentario a guardar:', newComment);
-  console.log('🏷️ Tipo:', type);
-  console.log('🖼️ Imagen:', imageName);
-  console.log('📝 Contexto:', context);
-  
   const currentDate = getLocalDateTime();
   const currentUser = getCurrentUser();
   
@@ -11621,21 +11708,50 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
   };
   
   if (type === 'image' && imageName) {
-    // Comentario de imagen - encontrar el asset ID
-    const asset = currentAssetComments.find(asset => asset.Name === imageName);
+    // Comentario de imagen - buscar o crear asset
+    let asset = currentAssetComments.find(asset => asset.Name === imageName);
     console.log('🔍 Buscando asset para imagen:', imageName);
-    console.log('📋 Asset encontrado:', asset);
+    console.log('📋 Asset encontrado en currentAssetComments:', asset);
+    
+    if (!asset) {
+      // Buscar en currentWorkingData si no está en currentAssetComments
+      asset = currentWorkingData.find(item => 
+        item['Object Type'] === 'Image' && item.Name === imageName
+      );
+      console.log('📋 Asset encontrado en currentWorkingData:', asset);
+    }
+    
+    if (!asset) {
+      // Buscar en allLibraryData si no está en ninguno de los anteriores
+      asset = allLibraryData.find(item => 
+        item['Object Type'] === 'Image' && item.Name === imageName
+      );
+      console.log('📋 Asset encontrado en allLibraryData:', asset);
+    }
     
     if (asset && asset.ID) {
       record.id = asset.ID;
       record.objectType = 'Image';
       console.log('✅ Asset válido con ID:', asset.ID);
     } else {
-      console.warn('❌ No se pudo encontrar ID para imagen:', imageName);
-      console.warn('📊 currentAssetComments tiene', currentAssetComments.length, 'assets');
-      console.warn('🔍 Primeros 3 assets:', currentAssetComments.slice(0, 3));
-      showAutoSaveNotification('Error: No se encontró ID de imagen', 'error');
-      return;
+      // Crear un nuevo registro de imagen con ID generado
+      const newImageId = Date.now();
+      record.id = newImageId;
+      record.objectType = 'Image';
+      
+      console.log('� Creando nuevo registro de imagen con ID:', newImageId);
+      
+      // Agregar a currentAssetComments para futuras referencias
+      const newImageAsset = {
+        Name: imageName,
+        'Object Type': 'Image',
+        'WA_VIS_Comment': updatedComments,
+        ID: newImageId,
+        Id: newImageId
+      };
+      
+      currentAssetComments.push(newImageAsset);
+      console.log('✅ Nuevo asset de imagen creado y agregado a currentAssetComments');
     }
   } else {
     // Comentario de Item Group o Item Code - usar contexto
@@ -11709,9 +11825,6 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
     date: currentDate,
     type: 'comment_autosave'
   };
-  
-  console.log('🚀 Agregando auto-guardado de imagen a cola...');
-  console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
   
   // Usar el sistema de cola para evitar rate limiting
   addToAutoSaveQueue(record, currentUser, currentDate);
@@ -11915,12 +12028,6 @@ function collectVisibleData() {
   
   // NOTA: Los comentarios de imágenes se auto-guardan cuando se crean,
   // por lo que no necesitamos recopilarlos aquí en el guardado principal.
-  console.log('\n💬 PASO 3 OMITIDO: Los comentarios se auto-guardan cuando se crean');
-  
-  console.log(`\n=== RESUMEN FINAL ===`);
-  console.log(` Total de registros recopilados: ${records.length}`);
-  console.log(`️ Solo datos del visualizador (imágenes de galerías, covers, etc.)`);
-  console.log(`💬 Los comentarios se manejan por auto-guardado separado`);
   
   return records;
 }
