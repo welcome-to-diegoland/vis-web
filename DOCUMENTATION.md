@@ -1,7 +1,7 @@
 # VIS-Web - Documentación Técnica y Log del Sistema
 
 **Última actualización:** 27 de Octubre, 2025  
-**Versión:** 1.1  
+**Versión:** 1.2  
 **Estado:** Producción
 
 ---
@@ -17,6 +17,7 @@
 - **Estructura Organizacional**: Filtrado de estructura jerárquica para navegación eficiente
 - **Galerías Prearmadas**: Templates de galerías para asignación rápida según tipo de producto
 - **Colaboración Multiusuario**: Sistema de comentarios asignados a imágenes, Item Codes e Item Groups
+- **Control de Estado**: Sistema de deshacer cambios que permite revertir modificaciones al estado original
 - **Workflow Optimizado**: Herramientas diseñadas para maximizar eficiencia en gestión de contenido visual
 
 ---
@@ -590,6 +591,55 @@ Cuando el usuario escriba: **"📝 DOCS: Ya está listo, agrega a documentación
     - `sendAssignmentsBatch()` - Nueva función para envío grupal
     - `prepareAssignmentRecord()` - Simplificada sin logs excesivos
   - **Beneficios**: Mayor eficiencia operacional, interfaz más responsive, menor carga del servidor
+
+### **🔄 Sistema de Deshacer Cambios - Control de Estado Completo**
+- **27 de Octubre, 2025** - **FEATURE**: Implementación del sistema de deshacer cambios para Item Groups
+  - **Funcionalidad**: Botón "Deshacer" que restaura un Item Group completo al estado original sin confirmación
+  - **Características**:
+    - **Estado Original Guardado**: Se guarda automáticamente al cargar cualquier Item Group
+    - **Restauración Completa**: Revierte todas las modificaciones (asignaciones, eliminaciones, cambios)
+    - **Sin Confirmación**: Funciona instantáneamente al hacer clic
+    - **Event Listeners Preservados**: Todos los controles siguen funcionando después de deshacer
+  - **Implementación Técnica**:
+    - `originalItemGroupState` - Variable global que guarda estado inicial con deep copy
+    - `undoAllChanges()` - Función que restaura todas las variables globales
+    - `regenerateImageGrid()` - Recrea estructura HTML completa con event listeners
+    - Estado incluye: `currentItemCodes`, `currentImageColumns`, `currentItemGroup`, `currentWorkingData`
+  - **Optimizaciones UX**:
+    - Botones "Deshacer" y "Limpiar GAL" con tamaños uniformes y sin iconos
+    - Eliminada ventana de confirmación del botón "Limpiar GAL"
+    - Layout organizado: [Deshacer][Limpiar GAL] ---- [controles de zoom]
+  - **Funciones Clave**:
+    - `loadImageGridInBox4()` - Guarda estado original al cargar
+    - `undoAllChanges()` - Restaura estado y regenera interfaz
+    - `regenerateImageGrid()` - Reconfigura todos los event listeners
+    - `setupZoomControls()` - Incluye configuración de botones de control
+  - **Impacto**: Los usuarios pueden experimentar libremente con cambios y volver al estado inicial instantly, mejorando significativamente el workflow y eliminando miedo a "romper" configuraciones
+
+### **🧹 Limpieza de Interfaz y Simplificación de Código - Interface Streamlined**
+- **27 de Octubre, 2025** - **CLEANUP**: Eliminación completa de funcionalidad de carga manual y exportación
+  - **Elementos Eliminados**:
+    - **HTML**: Input file oculto `combinedFile` para carga local
+    - **Botones Header**: Eliminados botones "Local" y "Export" del header principal
+    - **Funciones JS**: Removidas `handleCombinedExcel()` y `exportToExcel()` completas
+    - **Event Listeners**: Eliminadas referencias a elementos inexistentes
+    - **Fallback Logic**: Removida notificación de carga manual cuando Google Sheets falla
+  - **Beneficios UX**:
+    - **Interface Limpia**: Header más enfocado solo en funciones esenciales
+    - **Flujo Simplificado**: Solo Google Sheets como fuente de datos, sin confusión
+    - **Menos Errores**: Eliminadas referencias a elementos DOM inexistentes (`exportBtn is not defined`)
+    - **Código Mainteninable**: 303 líneas de código eliminadas, sin dependencias rotas
+  - **Funcionalidad Preservada**:
+    - ✅ Google Sheets carga perfectamente
+    - ✅ Sistema de galerías completamente funcional
+    - ✅ Sistema de undo y características principales intactas
+    - ✅ Variable `originalExcelSheets` mantenida para `processWorkbook()`
+  - **Cambios Técnicos**:
+    - Removida variable `combinedFileInput` y sus event listeners
+    - Eliminada lógica de confirmación de fallback en `loadFromGoogleSheets()`
+    - Actualizada verificación DOM crítica sin elementos eliminados
+    - Comentarios actualizados en función `processWorkbook()`
+  - **Resultado Final**: Aplicación más profesional y enfocada, sin opciones de fallback que podrían confundir usuarios o generar errores técnicos
 
 ---
 
