@@ -449,7 +449,7 @@ function navigateToItemGroup(itemGroupId) {
   }
   
   // FALLBACK FINAL: Buscar en currentWorkingData
-  if (!itemGroup && currentWorkingData && currentWorkingData.length > 0) {
+  if (!itemGroup && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
     itemGroup = currentWorkingData.find(item => {
       return item['Object Type'] === 'Item Group' && (item.Id === itemGroupId || String(item.Id) === String(itemGroupId));
     });
@@ -506,11 +506,11 @@ function navigateToItemGroup(itemGroupId) {
     // Intentar usar IdPath como alternativa
     if (itemGroup.IdPath && itemGroup.IdPath.trim() !== '') {
       navigationPath = itemGroup.IdPath;
-      console.log(`� USANDO IdPath como alternativa: ${navigationPath}`);
+      console.log(` USANDO IdPath como alternativa: ${navigationPath}`);
     } else {
       // Como último recurso, usar solo el nombre del Item Group
       navigationPath = itemGroup.Name;
-      console.log(`� USANDO Name como alternativa: ${navigationPath}`);
+      console.log(` USANDO Name como alternativa: ${navigationPath}`);
     }
   }
   
@@ -575,7 +575,7 @@ function navigateToItemGroup(itemGroupId) {
           console.log(`✅ ITEM GROUP SELECCIONADO EN ÁRBOL`);
           
           // 5. Cargar el Item Group en el Box 4
-          console.log(`� CARGANDO IMÁGENES para: ${itemGroup.NamePath}`);
+          console.log(` CARGANDO IMÁGENES para: ${itemGroup.NamePath}`);
           loadImageGridInBox4(navigationPath); // Usar el path original completo
           console.log(`🎉 NAVEGACIÓN COMPLETADA EXITOSAMENTE`);
           
@@ -1074,7 +1074,7 @@ async function loadGoogleSheetAsCSV(csvUrl, sheetName) {
    • ¿El acceso está configurado como "Cualquier persona"?
    • ¿La pestaña "${sheetName}" existe en el Google Sheet?
    
-� SOLUCIÓN:
+ SOLUCIÓN:
    1. Ve a: https://script.google.com/home/projects
    2. Abre tu proyecto del proxy
    3. Verifica que esté implementado correctamente
@@ -3889,7 +3889,7 @@ function hasImageComments(imageName) {
   }
   
   // PASO 2: Buscar en currentWorkingData como respaldo (datos locales más completos)
-  if (currentWorkingData && currentWorkingData.length > 0) {
+  if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
     const localImageObject = currentWorkingData.find(item => {
       return item['Object Type'] === 'Image' && 
              item.Name === imageName &&
@@ -3928,7 +3928,7 @@ function getImageComments(imageName) {
   }
   
   // PASO 2: Buscar en currentWorkingData como respaldo (datos locales más completos)
-  if (currentWorkingData && currentWorkingData.length > 0) {
+  if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
     console.log(`🔍 No encontrado en datos globales, buscando en currentWorkingData...`);
     
     const localImageObject = currentWorkingData.find(item => {
@@ -4952,7 +4952,7 @@ function updateTablesAfterComment() {
       console.log('✅ TABLA NORMAL - Regenerando completamente');
       // Regenerar la tabla de inventario completamente
       const box4Content = document.getElementById('box4-content');
-      if (box4Content && currentWorkingData && currentWorkingData.length > 0) {
+      if (box4Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
         // Regenerar tabla de inventario
         box4Content.innerHTML = generateImageInventoryTable();
         
@@ -4990,7 +4990,7 @@ function updateFilteredInventoryTableAfterComment() {
   // IMPORTANTE: Regenerar la tabla completa para actualizar originalInventoryData con los nuevos comentarios
   // Esto ejecuta generateImageInventoryTable() que actualiza originalInventoryData con la función parseComment actualizada
   const box4Content = document.getElementById('box4-content');
-  if (box4Content && currentWorkingData && currentWorkingData.length > 0) {
+  if (box4Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
     // Regenerar tabla de inventario completamente en el DOM real para que originalInventoryData se actualice
     console.log('🔄 Regenerando tabla completa para actualizar originalInventoryData...');
     box4Content.innerHTML = generateImageInventoryTable();
@@ -5011,7 +5011,7 @@ function updateFilteredInventoryTableAfterComment() {
     // CRÍTICO: Aplicar filtros inmediatamente con datos actualizados
     const currentFilters = inventoryViewState?.activeFilters;
     if (currentFilters) {
-      console.log('� APLICANDO filtros de tabla inmediatamente:', currentFilters);
+      console.log(' APLICANDO filtros de tabla inmediatamente:', currentFilters);
       
       // Buscar el elemento de filtro activo y simular click para aplicar filtros actualizados
       let filterElement = null;
@@ -5129,7 +5129,7 @@ function updateStatsTablesOnDataChange() {
     if (isCleanViewActive) {
       // Regenerar completamente las tablas de estadísticas
       const box3Content = document.getElementById('box3-content');
-      if (box3Content && currentWorkingData && currentWorkingData.length > 0) {
+      if (box3Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
         // Regenerar el contenido de estadísticas
         // Esto depende de cómo se generen las estadísticas en tu sistema
         // Por ahora, simplemente forzamos una actualización
@@ -5790,7 +5790,7 @@ function handleItemGroupImageRemoval() {
     return;
   }
   
-  console.log(`�️ Quitando imagen del Item Group`);
+  console.log(`️ Quitando imagen del Item Group`);
   
   // Simplemente quitar la imagen del Item Group
   currentItemGroup['WA_Gallery_01'] = '';
@@ -7734,7 +7734,11 @@ function performImageSearchNew() {
   const searchInput = document.getElementById('imageSearchInput');
   const gallerySelect = document.getElementById('gallerySelect');
   
-  if (!searchInput) return;
+  if (!searchInput) {
+    console.log('⚠️ No se encontró searchInput, inicializando Box 3...');
+    initializeGallerySystem();
+    return;
+  }
   
   const searchTerm = searchInput.value.trim();
   
@@ -7747,207 +7751,98 @@ function performImageSearchNew() {
   if (gallerySelect) {
     gallerySelect.value = '';
   }
-  
-  console.log('🔍 Iniciando búsqueda ACTUALIZADA para:', searchTerm);
+
+  console.log('🔍 Búsqueda de imágenes por Item Code:', searchTerm);
   
   // Array para almacenar todos los resultados
   let allResults = [];
+  let uniqueResults = []; // Declarar aquí para que esté disponible siempre
   
-  // 1. BÚSQUEDA EN OBJETOS IMAGE (desde datos procesados)
-  if (currentWorkingData && currentWorkingData.length > 0) {
-    console.log('🔍 Buscando en objetos Image:', currentWorkingData.filter(item => item['Object Type'] === 'Image').length, 'registros');
+  // BUSCAR EN DATOS COMPLETOS: window.allItemGroupsData (datos procesados con campos de imagen)
+  if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+    console.log('📊 Buscando Item Codes en', window.allItemGroupsData.length, 'registros completos...');
     
-    const assetResults = currentWorkingData.filter(item => {
-      if (item['Object Type'] !== 'Image') return false;
-      const imageName = item.Name || '';
-      return imageName.toLowerCase().includes(searchTerm.toLowerCase());
+    // Filtrar Item Codes que contengan el término de búsqueda en el campo Name
+    const matchingItemCodes = window.allItemGroupsData.filter(item => {
+      const itemName = item.Name || '';
+      return itemName.toLowerCase().includes(searchTerm.toLowerCase());
     });
     
-    console.log('📸 Resultados en objetos Image:', assetResults.length, 'imágenes encontradas');
-    allResults = [...assetResults];
-  } else {
-    console.log('⚠️ No hay datos de objetos Image cargados');
-  }
-  
-  // 2. NUEVA BÚSQUEDA EN DATOS ACTUALES (allLibraryData + currentWorkingData)
-  console.log('🔍 Buscando en datos actuales...');
-  
-  // A. Buscar objetos Image directos que contengan el término
-  if (allLibraryData && allLibraryData.length > 0) {
-    const directImageMatches = allLibraryData.filter(item => {
-      if (item['Object Type'] === 'Image') {
-        const imageName = item.Name || '';
-        return imageName.toLowerCase().includes(searchTerm.toLowerCase());
-      }
-      return false;
-    });
+    console.log('🎯 Encontrados', matchingItemCodes.length, 'Item Codes que coinciden');
     
-    console.log('🖼️ Objetos Image directos encontrados:', directImageMatches.length);
-    
-    directImageMatches.forEach(imageItem => {
-      allResults.push({
-        Name: imageItem.Name,
-        ID: imageItem.Id || imageItem.ID,
-        Source: 'DirectImage',
-        ObjectType: 'Image'
-      });
-    });
-    
-    // B. Buscar Item Codes que contengan el término
-    const itemCodeMatches = allLibraryData.filter(item => {
-      if (item['Object Type'] === 'Item Code') {
-        const itemName = item.Name || '';
-        return itemName.toLowerCase().includes(searchTerm.toLowerCase());
-      }
-      return false;
-    });
-    
-    console.log('📦 Item Codes que contienen el término:', itemCodeMatches.length);
-    
-    // Para cada Item Code, buscar sus imágenes en el caché de Item Groups
-    for (const itemCode of itemCodeMatches) {
-      const itemCodeId = itemCode.Id || itemCode.ID;
-      console.log(`🔍 Buscando imágenes para Item Code: ${itemCode.Name} (ID: ${itemCodeId})`);
+    // Extraer imágenes usando formato Attribute-Value
+    matchingItemCodes.forEach(itemCode => {
+      const itemName = itemCode.Name || '';
+      const itemId = itemCode.ID || itemCode.Id;
       
-      // Buscar en el caché de Item Groups si está disponible
-      if (itemGroupDataCache && itemGroupDataCache.size > 0) {
-        let foundImages = false;
+      // Buscar TODAS las filas con este ID para obtener todos los atributos
+      const allRowsForThisItem = window.allItemGroupsData.filter(row => row.ID === itemId || row.Id === itemId);
+      
+      // Buscar filas de imagen específicamente
+      const imageRows = allRowsForThisItem.filter(row => {
+        const attr = (row.Attribute || '').toLowerCase();
+        return attr === 'wa_vis_cover' || attr === 'wa_vis_gallery' || attr === 'wa_vis_rest';
+      });
+      
+      // Procesar cada fila de imagen encontrada
+      imageRows.forEach(imageRow => {
+        const attribute = imageRow.Attribute || '';
+        const imageValue = imageRow.value || '';
         
-        // Revisar todos los Item Groups en caché
-        for (const [groupId, groupData] of itemGroupDataCache) {
-          // Buscar si este Item Code está en este grupo
-          const itemCodeInGroup = groupData.find(row => 
-            (row.ID === itemCodeId || row.Id === itemCodeId) && 
-            row['Object Type'] === 'Item Code'
-          );
+        if (imageValue && imageValue.trim()) {
+          // Dividir por comas y procesar cada imagen
+          const images = imageValue.split(',').map(img => img.trim()).filter(img => img);
           
-          if (itemCodeInGroup) {
-            console.log(`✅ Item Code ${itemCode.Name} encontrado en grupo ${groupId}`);
+          images.forEach(imageName => {
+            let imageType = 'Unknown';
+            let source = 'ItemCode';
             
-            // Transformar los datos para obtener las columnas de imagen
-            const transformedData = transformKeyValueData(groupData);
-            const transformedItemCode = transformedData[itemCodeId];
-            
-            if (transformedItemCode) {
-              // Extraer todas las imágenes de este Item Code
-              const imageColumns = [
-                'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
-                'WA_Gallery_01', 'WA_Gallery_02', 'WA_Gallery_03', 'WA_Gallery_04', 'WA_Gallery_05',
-                'WA_Gallery_06', 'WA_Gallery_07', 'WA_Gallery_08', 'WA_Gallery_09', 'WA_Gallery_10',
-                'WA_Gallery_11', 'WA_Gallery_12', 'WA_Gallery_13', 'WA_Gallery_14', 'WA_Gallery_15',
-                'WA_Gallery_16', 'WA_Gallery_17', 'WA_Gallery_18', 'WA_Gallery_19', 'WA_Gallery_20',
-                'WA_Gallery_21', 'WA_Gallery_22', 'WA_Gallery_23', 'WA_Gallery_24', 'WA_Gallery_25',
-                'WA_Rest_01', 'WA_Rest_02', 'WA_Rest_03', 'WA_Rest_04', 'WA_Rest_05',
-                'WA_Rest_06', 'WA_Rest_07', 'WA_Rest_08', 'WA_Rest_09', 'WA_Rest_10',
-                'WA_Rest_11', 'WA_Rest_12', 'WA_Rest_13', 'WA_Rest_14', 'WA_Rest_15',
-                'WA_Rest_16', 'WA_Rest_17', 'WA_Rest_18', 'WA_Rest_19', 'WA_Rest_20',
-                'WA_Rest_21', 'WA_Rest_22', 'WA_Rest_23', 'WA_Rest_24', 'WA_Rest_25'
-              ];
-              
-              imageColumns.forEach(column => {
-                const imageName = transformedItemCode[column];
-                if (imageName && imageName.trim() !== '') {
-                  allResults.push({
-                    Name: imageName.trim(),
-                    ID: itemCodeId,
-                    Source: 'ItemCodeCached',
-                    ItemCodeName: itemCode.Name,
-                    ItemGroupId: groupId,
-                    ObjectType: 'Item Code Image'
-                  });
-                  foundImages = true;
-                }
-              });
+            if (attribute === 'WA_VIS_Cover') {
+              imageType = 'Cover';
+              source = 'ItemCodeCover';
+            } else if (attribute === 'WA_VIS_Gallery') {
+              imageType = 'Gallery';
+              source = 'ItemCodeGallery';
+            } else if (attribute === 'WA_VIS_Rest') {
+              imageType = 'Rest';
+              source = 'ItemCodeRest';
             }
-            break; // Salir del loop una vez encontrado
-          }
-        }
-        
-        if (!foundImages) {
-          // Si no se encontraron imágenes en caché, agregar el Item Code como referencia
-          allResults.push({
-            Name: itemCode.Name,
-            ID: itemCodeId,
-            Source: 'ItemCodeMatch',
-            ObjectType: 'Item Code',
-            Note: 'Sin imágenes en caché - seleccionar Item Group para cargar'
-          });
-        }
-      } else {
-        // Si no hay caché, agregar el Item Code como referencia
-        allResults.push({
-          Name: itemCode.Name,
-          ID: itemCodeId,
-          Source: 'ItemCodeMatch',
-          ObjectType: 'Item Code',
-          Note: 'Cargar caché con "Optimizar" para ver imágenes'
-        });
-      }
-    }
-  }
-  
-  // C. BÚSQUEDA DIRECTA POR NOMBRE DE IMAGEN en datos transformados (currentWorkingData)
-  if (currentWorkingData && currentWorkingData.length > 0) {
-    console.log('🔍 Búsqueda directa por nombre de imagen en datos transformados...');
-    
-    const imageColumns = [
-      'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
-      'WA_Gallery_01', 'WA_Gallery_02', 'WA_Gallery_03', 'WA_Gallery_04', 'WA_Gallery_05',
-      'WA_Gallery_06', 'WA_Gallery_07', 'WA_Gallery_08', 'WA_Gallery_09', 'WA_Gallery_10',
-      'WA_Gallery_11', 'WA_Gallery_12', 'WA_Gallery_13', 'WA_Gallery_14', 'WA_Gallery_15',
-      'WA_Gallery_16', 'WA_Gallery_17', 'WA_Gallery_18', 'WA_Gallery_19', 'WA_Gallery_20',
-      'WA_Gallery_21', 'WA_Gallery_22', 'WA_Gallery_23', 'WA_Gallery_24', 'WA_Gallery_25',
-      'WA_Rest_01', 'WA_Rest_02', 'WA_Rest_03', 'WA_Rest_04', 'WA_Rest_05',
-      'WA_Rest_06', 'WA_Rest_07', 'WA_Rest_08', 'WA_Rest_09', 'WA_Rest_10',
-      'WA_Rest_11', 'WA_Rest_12', 'WA_Rest_13', 'WA_Rest_14', 'WA_Rest_15',
-      'WA_Rest_16', 'WA_Rest_17', 'WA_Rest_18', 'WA_Rest_19', 'WA_Rest_20',
-      'WA_Rest_21', 'WA_Rest_22', 'WA_Rest_23', 'WA_Rest_24', 'WA_Rest_25'
-    ];
-    
-    currentWorkingData.forEach(item => {
-      imageColumns.forEach(column => {
-        const imageName = item[column];
-        if (imageName && imageName.trim() !== '' && 
-            imageName.toLowerCase().includes(searchTerm.toLowerCase())) {
-          
-          allResults.push({
-            Name: imageName.trim(),
-            ID: item.Id || item.ID,
-            Source: 'TransformedData',
-            ParentName: item.Name,
-            ObjectType: item['Object Type']
+            
+            allResults.push({
+              Name: imageName,
+              Source: source,
+              ObjectType: 'Image',
+              ItemCodeName: itemName,
+              ItemCodeId: itemId,
+              ImageType: imageType,
+              Attribute: attribute
+            });
           });
         }
       });
     });
+    
+    console.log('✨ Extraídas', allResults.length, 'imágenes de los Item Codes encontrados (con duplicados)');
+    
+    // DEDUPLICAR resultados por nombre de imagen
+    const seenImages = new Set();
+    
+    allResults.forEach(result => {
+      if (!seenImages.has(result.Name)) {
+        seenImages.add(result.Name);
+        uniqueResults.push(result);
+      }
+    });
+    
+    console.log('🎯 Después de deduplicar:', uniqueResults.length, 'imágenes únicas');
+  } else {
+    console.log('⚠️ No hay datos de window.allItemGroupsData cargados');
+    uniqueResults = []; // Asegurar que uniqueResults esté definido
   }
   
-  // 3. DEDUPLICACIÓN - Eliminar imágenes repetidas por nombre
-  const uniqueResults = [];
-  const seenImages = new Set();
-  
-  allResults.forEach(result => {
-    const identifier = result.Name.toLowerCase() + '_' + (result.Source || 'unknown');
-    if (!seenImages.has(identifier)) {
-      seenImages.add(identifier);
-      uniqueResults.push(result);
-    }
-  });
-  
-  console.log('✨ Resultados finales después de deduplicación:', uniqueResults.length, 'elementos únicos');
-  console.log('📊 Fuentes encontradas:', {
-    Assets: allResults.filter(r => !r.Source).length,
-    DirectImage: allResults.filter(r => r.Source === 'DirectImage').length,
-    ItemCodeMatch: allResults.filter(r => r.Source === 'ItemCodeMatch').length,
-    ItemCodeCached: allResults.filter(r => r.Source === 'ItemCodeCached').length,
-    TransformedData: allResults.filter(r => r.Source === 'TransformedData').length
-  });
-  
-  // Mostrar resultados
+  // Mostrar resultados únicos
   showSearchResults(uniqueResults);
-}
-
-// Función para realizar búsqueda de imágenes (ORIGINAL - mantener como backup)
+}// Función para realizar búsqueda de imágenes (ORIGINAL - mantener como backup)
 function performImageSearch() {
   const searchInput = document.getElementById('imageSearchInput');
   const gallerySelect = document.getElementById('gallerySelect');
@@ -7995,7 +7890,7 @@ function performImageSearch() {
       return itemName.toLowerCase().includes(searchTerm.toLowerCase());
     });
     
-    console.log('� Elementos encontrados en Library:', libraryMatches.length);
+    console.log(' Elementos encontrados en Library:', libraryMatches.length);
     
     // Extraer imágenes de las columnas de Library
     const imageColumns = [
@@ -8058,8 +7953,34 @@ function performImageSearch() {
 
 // Función para mostrar resultados de búsqueda
 function showSearchResults(results) {
-  const galleryGrid = document.getElementById('galleryGrid');
-  if (!galleryGrid) return;
+  let galleryGrid = document.getElementById('galleryGrid');
+  
+  // Si no existe galleryGrid, intentar crearlo
+  if (!galleryGrid) {
+    console.log('⚠️ galleryGrid no encontrado, verificando si Box 3 está inicializado...');
+    
+    // Verificar si existe el contenedor padre
+    const box3Content = document.getElementById('box3-content');
+    if (!box3Content) {
+      console.error('❌ Box 3 no está disponible');
+      return;
+    }
+    
+    // Verificar si ya existe galleryGridContainer
+    let galleryContainer = document.getElementById('galleryGridContainer');
+    if (!galleryContainer) {
+      console.log('🔧 Inicializando sistema de galerías...');
+      initializeGallerySystem();
+      galleryGrid = document.getElementById('galleryGrid');
+    } else {
+      galleryGrid = galleryContainer.querySelector('#galleryGrid');
+    }
+    
+    if (!galleryGrid) {
+      console.error('❌ No se pudo crear galleryGrid');
+      return;
+    }
+  }
   
   if (results.length === 0) {
     galleryGrid.innerHTML = '<div class="gallery-placeholder">No se encontraron imágenes</div>';
@@ -8351,7 +8272,7 @@ function clearAllBoxes() {
       }, 200);
     } 
     // SEGUNDA OPCIÓN: Usar currentWorkingData solo como fallback (datos del árbol, sin comentarios)
-    else if (currentWorkingData && currentWorkingData.length > 0) {
+    else if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
       console.log('🔄 Generando tabla de inventario desde currentWorkingData (fallback - datos del árbol)...');
       const inventoryHTML = generateImageInventoryTable();
       console.log('📊 Tabla de inventario generada, longitud HTML:', inventoryHTML.length);
@@ -9154,7 +9075,7 @@ function generateImageInventoryTableFromCache() {
     return '<div class="empty-box-message">No hay datos válidos en el caché para mostrar</div>';
   }
 
-  // � CONVERTIR datos concatenados a formato Attribute-Value
+  //  CONVERTIR datos concatenados a formato Attribute-Value
   console.log('🔄 Convirtiendo datos concatenados a formato Attribute-Value...');
   let attributeValueData = [];
   
@@ -9185,7 +9106,7 @@ function generateImageInventoryTableFromCache() {
   
   console.log(`📊 Datos convertidos a Attribute-Value: ${attributeValueData.length} registros`);
 
-  // �🚀 NUEVA LÓGICA: Transformar los datos de Attribute-Value al formato expandido
+  // 🚀 NUEVA LÓGICA: Transformar los datos de Attribute-Value al formato expandido
   // 🚀 NUEVA LÓGICA: Transformar los datos de Attribute-Value al formato expandido
   console.log('🔄 Transformando datos de formato Attribute-Value...');
   const transformedData = transformAttributeValueData(allCachedData);
@@ -9252,10 +9173,10 @@ function setupInventoryClickListeners() {
   const clickableStatusesClean = document.querySelectorAll('.clickable-status-clean');
   
   console.log(`🔗 Configurando ${clickableComments.length} elementos clickeables de comentarios`);
-  console.log(`� Configurando ${clickableStatuses.length} elementos clickeables de status`);
+  console.log(` Configurando ${clickableStatuses.length} elementos clickeables de status`);
   console.log(`🧹 Configurando ${clickableCommentsClean.length} elementos clickeables de comentarios LIMPIOS`);
   console.log(`🧹 Configurando ${clickableStatusesClean.length} elementos clickeables de status LIMPIOS`);
-  console.log(`�📊 Datos disponibles: currentWorkingData=${currentWorkingData?.length || 0}, allLibraryData=${allLibraryData?.length || 0}`);
+  console.log(`📊 Datos disponibles: currentWorkingData=${currentWorkingData?.length || 0}, allLibraryData=${allLibraryData?.length || 0}`);
   
   if (!allLibraryData || allLibraryData.length === 0) {
     console.warn('⚠️ allLibraryData no está disponible. Los clicks en Item Codes/Groups no funcionarán.');
@@ -10079,7 +10000,7 @@ window.applyDesignerAssignments = function() {
       });
       
       if (assignedDesigner && row.diseñador !== assignedDesigner) {
-// DESHABILITADO:         console.log(`� FORZANDO asignación en originalInventoryData[${index}]: "${row.diseñador}" -> "${assignedDesigner}" para ${row.name}`);
+// DESHABILITADO:         console.log(` FORZANDO asignación en originalInventoryData[${index}]: "${row.diseñador}" -> "${assignedDesigner}" para ${row.name}`);
         // NO SOBREESCRIBIR - row.diseñador = assignedDesigner;
       }
     }
@@ -10172,7 +10093,7 @@ window.applyDesignerAssignments = function() {
       
       // PASO 2: Regenerar tabla completa para forzar procesamiento de comentarios nuevos
       const box4Content = document.getElementById('box4-content');
-      if (box4Content && currentWorkingData && currentWorkingData.length > 0) {
+      if (box4Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
         console.log('📊 Regenerando tabla completa para reflejar comentarios de asignación...');
         
         // IMPORTANTE: Asegurar que currentWorkingData tenga los datos más recientes
@@ -10224,7 +10145,7 @@ window.applyDesignerAssignments = function() {
   const finalUnassigned = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
   const finalAssigned = originalInventoryData.filter(row => row.diseñador && row.diseñador !== '');
   
-  console.log('� Comentarios sin asignar después de todo:', finalUnassigned.length);
+  console.log(' Comentarios sin asignar después de todo:', finalUnassigned.length);
   console.log('📊 Comentarios asignados después de todo:', finalAssigned.length);
   
   // Mostrar detalles de elementos asignados EN ESTA SESIÓN SOLAMENTE
@@ -11550,7 +11471,7 @@ async function saveToGoogleSheets() {
         
       } catch (error) {
         if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
-          console.log(`� Intentando método alternativo para lote ${i + 1}...`);
+          console.log(` Intentando método alternativo para lote ${i + 1}...`);
           
           // Crear formulario para este lote
           const form = document.createElement('form');
@@ -11582,7 +11503,7 @@ async function saveToGoogleSheets() {
     
     // Guardado exitoso - sin alerta popup
     
-    console.log(`� Datos del visualizador guardados exitosamente: ${totalSaved} registros`);
+    console.log(` Datos del visualizador guardados exitosamente: ${totalSaved} registros`);
     
   } catch (error) {
     alert(`❌ Error al guardar: ${error.message}`);
@@ -12008,8 +11929,8 @@ function collectVisibleData() {
   console.log('\n💬 PASO 3 OMITIDO: Los comentarios se auto-guardan cuando se crean');
   
   console.log(`\n=== RESUMEN FINAL ===`);
-  console.log(`� Total de registros recopilados: ${records.length}`);
-  console.log(`�️ Solo datos del visualizador (imágenes de galerías, covers, etc.)`);
+  console.log(` Total de registros recopilados: ${records.length}`);
+  console.log(`️ Solo datos del visualizador (imágenes de galerías, covers, etc.)`);
   console.log(`💬 Los comentarios se manejan por auto-guardado separado`);
   
   return records;
