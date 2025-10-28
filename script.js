@@ -8545,19 +8545,19 @@ function toggleCleanView() {
   console.log('🔍 ToggleButton encontrado:', !!toggleButton);
   
   if (isCleanViewActive) {
-    // Activar vista limpia - limpiar todos los boxes
+    // Activar vista limpia - mostrar vista de datos (tabla de inventario)
     console.log('🔄 Activando vista de datos...');
     clearAllBoxes();
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Datos';
-    toggleButton.className = 'btn btn-warning btn-compact';
-    console.log('✅ Vista limpia activada');
-  } else {
-    // Restaurar vista normal - mostrar árbol/inventario
-    console.log('🔄 Restaurando vista normal...');
-    restoreNormalView();
     toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Visualizador';
     toggleButton.className = 'btn btn-secondary btn-compact';
-    console.log('✅ Vista normal restaurada');
+    console.log('✅ Vista de datos activada - mostrando tabla de inventario');
+  } else {
+    // Restaurar vista normal - mostrar árbol/visualizador
+    console.log('🔄 Restaurando vista normal...');
+    restoreNormalView();
+    toggleButton.innerHTML = '<i class="fa-solid fa-table-list"></i> Datos';
+    toggleButton.className = 'btn btn-warning btn-compact';
+    console.log('✅ Vista normal restaurada - mostrando elementos del visualizador');
   }
 }
 

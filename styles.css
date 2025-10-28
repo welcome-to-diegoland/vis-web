@@ -171,7 +171,7 @@ html, body {
   color: white;
   z-index: 1000;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  background: #2c3e50;
+  background: linear-gradient(90deg,  #162546 20%, #1D1B28 80%);
 }
 
 .header-content {
@@ -190,7 +190,6 @@ html, body {
 
 .left-column {
   width: 40%; /* Aumentado de 30% a 40% para acomodar logo + elementos */
-  background-color: #2c3e50;
   justify-content: flex-start;
   gap: 15px; /* Aumentado gap para mejor separación */
   padding: 0 15px 0 0 !important; /* Eliminar padding izquierdo para dar espacio al logo */
@@ -205,7 +204,6 @@ html, body {
 
 .center-column {
   flex: 1;
-  background-color: #2c3e50; /* Mismo color que el resto del header */
   justify-content: center;
   padding: 0 20px;
 }
@@ -213,7 +211,6 @@ html, body {
 .right-column {
   width: 30%; /* Mantener balanceado */
   display: flex;
-  background-color: #2c3e50; /* Mismo color que el resto del header */
   justify-content: flex-end;
   align-items: center;
   padding: 0 20px;
@@ -344,6 +341,39 @@ html, body {
 #cleanViewToggle {
   min-width: 120px;
   margin-left: 10px;
+  width: 140px !important; /* Ancho fijo para ambos estados */
+}
+
+/* ESTADO VISUALIZADOR - Amarillo con texto negro */
+#cleanViewToggle.btn.btn-secondary {
+  background-color: #FFAA0A !important;
+  border-color: #FFAA0A !important;
+  color: #000000 !important; /* Texto negro */
+  width: 140px !important;
+  font-weight: 600 !important; /* Peso mayor */
+}
+
+#cleanViewToggle.btn.btn-secondary:hover {
+  background-color: #FA9F3A !important;
+  border-color: #FA9F3A !important;
+  color: #000000 !important; /* Texto negro en hover */
+  font-weight: 600 !important; /* Peso mayor */
+}
+
+/* ESTADO DATOS - Azul con texto blanco */
+#cleanViewToggle.btn.btn-warning {
+  background-color: #4347FF !important;
+  border-color: #4347FF !important;
+  color: #ffffff !important; /* Texto blanco */
+  width: 140px !important;
+  font-weight: 600 !important; /* Peso mayor */
+}
+
+#cleanViewToggle.btn.btn-warning:hover {
+  background-color: #3539CC !important;
+  border-color: #3539CC !important;
+  color: #ffffff !important; /* Texto blanco en hover */
+  font-weight: 600 !important; /* Peso mayor */
 }
 
 .btn-compact {
@@ -2226,10 +2256,61 @@ html, body {
     grid-template-columns: 1fr;
   }
 }
-#btn-cargar-categoria {
-  font-size: 16px !important;
-  display: block;
-    padding: 1px;
+/* FORZAR ESTILO DEL BOTÓN CARGAR - SOBRESCRIBIR BOOTSTRAP COMPLETAMENTE */
+#tree #btn-cargar-categoria.btn.btn-secondary,
+.approval-toggle-container #btn-cargar-categoria.btn.btn-secondary,
+button#btn-cargar-categoria.btn.btn-secondary {
+  background-color: #FFAA0A !important; /* Verde como los otros botones de acción */
+  border-color: #FFAA0A !important;
+  color: rgb(0, 0, 0) !important;
+  /* Mantener estilos originales de Bootstrap */
+  font-size: 12px !important; /* Bootstrap default */
+  font-weight: 400 !important; /* Bootstrap default */
+  line-height: 1.5 !important; /* Bootstrap default */
+  padding: 4px 12px !important; /* Bootstrap default */
+  border-radius: 4px !important; /* Bootstrap default */
+  font-family: inherit !important; /* Mantener fuente del sistema */
+}
+
+#tree #btn-cargar-categoria.btn.btn-secondary:hover,
+.approval-toggle-container #btn-cargar-categoria.btn.btn-secondary:hover,
+button#btn-cargar-categoria.btn.btn-secondary:hover {
+  background-color: #FA9F3A !important; /* Verde más oscuro en hover */
+  border-color: #FA9F3A !important;
+  color: white !important;
+}
+
+#tree #btn-cargar-categoria.btn.btn-secondary:disabled,
+.approval-toggle-container #btn-cargar-categoria.btn.btn-secondary:disabled,
+button#btn-cargar-categoria.btn.btn-secondary:disabled {
+  background-color: #6c757d !important; /* Gris cuando está disabled */
+  border-color: #6c757d !important;
+  color: white !important;
+  opacity: 0.65 !important;
+}
+
+/* FALLBACK ABSOLUTO - Si nada más funciona */
+button[id="btn-cargar-categoria"] {
+  background: #28a745 !important;
+  border: 1px solid #28a745 !important;
+  color: white !important;
+  /* Mantener tipografía Bootstrap */
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  padding: 0.375rem 0.75rem !important;
+  border-radius: 0.375rem !important;
+  font-family: inherit !important;
+}
+
+button[id="btn-cargar-categoria"]:hover {
+  background: #218838 !important;
+  border: 1px solid #1e7e34 !important;
+}
+
+button[id="btn-cargar-categoria"]:disabled {
+  background: #6c757d !important;
+  border: 1px solid #6c757d !important;
 }
 
 .category-tree-list {
@@ -5183,12 +5264,12 @@ html, body {
 }
 
 .btn-secondary {
-  background: #6c757d;
+  background: #4347FF;
   color: white;
 }
 
 .btn-secondary:hover {
-  background: #5a6268;
+  background: #3539CC;
 }
 
 .form-select:hover {
@@ -5440,7 +5521,7 @@ html, body {
   border: 1px solid #007bff;
   border-radius: 4px;
   font-size: 12px;
-  background-color: #007bff;
+  background-color: #4347FF;
   color: white;
   cursor: pointer;
   height: 28px;
@@ -5452,7 +5533,7 @@ html, body {
 }
 
 .approval-toggle-container .search-button:hover {
-  background-color: #0056b3;
+  background-color: #4347FF;
   border-color: #0056b3;
   color: white;
 }
@@ -5513,8 +5594,8 @@ html, body {
 
 #tree .approval-toggle-container .search-button,
 #box3-content .approval-toggle-container .search-button {
-  background-color: #007bff !important;
-  border-color: #007bff !important;
+  background-color: #4347FF !important;
+  border-color: #4347FF !important;
   color: white !important;
   cursor: pointer !important;
   white-space: nowrap !important;
@@ -5526,8 +5607,8 @@ html, body {
 
 #tree .approval-toggle-container .search-button:hover,
 #box3-content .approval-toggle-container .search-button:hover {
-  background-color: #0056b3 !important;
-  border-color: #0056b3 !important;
+  background-color: #3539CC !important;
+  border-color: #3539CC !important;
   color: white !important;
 }
 
@@ -6293,12 +6374,12 @@ html, body {
 }
 
 .inventory-filters-modal .btn-secondary {
-  background: #6c757d;
+  background: #4347FF;
   color: white;
 }
 
 .inventory-filters-modal .btn-secondary:hover {
-  background: #5a6268;
+  background: #4347FF;
 }
 
 .inventory-filters-modal .btn-primary {
@@ -6523,7 +6604,7 @@ html, body {
 }
 
 .assignment-modal .btn-secondary {
-  background: #6c757d;
+  background: #4347FF;
   color: white;
 }
 
