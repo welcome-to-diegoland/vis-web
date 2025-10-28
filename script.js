@@ -915,19 +915,15 @@ function setupLoginForm() {
 
 async function startDataLoading() {
   console.log('📥 Iniciando carga de datos en background...');
-  updateLoadingStatus('Conectando con Google Sheets...', true);
   
   try {
     // Cargar Google Sheets
-    updateLoadingStatus('Cargando datos principales...', true);
     await loadFromGoogleSheets();
     
     // Cargar cache optimizado
-    updateLoadingStatus('Optimizando cache...', true);
     await optimizeCache();
     
     dataLoaded = true;
-    updateLoadingStatus('Datos cargados correctamente', true);
     console.log('✅ Todos los datos cargados exitosamente');
     
     // Verificar si puede acceder a la app
@@ -935,7 +931,6 @@ async function startDataLoading() {
     
   } catch (error) {
     console.error('❌ Error cargando datos:', error);
-    updateLoadingStatus('Error cargando datos. Reintentando...', true);
     
     // Reintentar después de 3 segundos
     setTimeout(() => {
@@ -948,6 +943,7 @@ function handleLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errorDiv = document.getElementById('loginError');
+  const loginBtn = document.getElementById('loginBtn');
   
   // Limpiar errores previos
   errorDiv.style.display = 'none';
@@ -969,6 +965,12 @@ function handleLogin() {
     
     console.log(`✅ Login exitoso: ${username} (${currentUser.group})`);
     
+    // Si los datos no están listos, reemplazar botón con texto de carga
+    if (!dataLoaded) {
+      loginBtn.style.display = 'none';
+      showLoadingText();
+    }
+    
     // Verificar si puede acceder a la app
     checkAppAccess();
     
@@ -982,15 +984,8 @@ function checkAppAccess() {
     console.log('🚀 Acceso concedido - Iniciando aplicación...');
     hideLoginOverlay();
     initializeMainApplication();
-  } else {
-    // Mostrar estado actual
-    if (!dataLoaded) {
-      updateLoadingStatus('Esperando carga de datos...', true);
-    }
-    if (!userAuthenticated) {
-      updateLoadingStatus('Esperando autenticación...', false);
-    }
   }
+  // Si no están ambos listos, no mostrar nada al usuario
 }
 
 function hideLoginOverlay() {
@@ -1013,14 +1008,49 @@ function showLoginError(message) {
   }
 }
 
-function updateLoadingStatus(message, showSpinner = true) {
-  const loadingDiv = document.getElementById('loginLoadingStatus');
-  const textSpan = document.getElementById('loadingText');
+function showLoadingText() {
+  const loginInputs = document.querySelector('.login-inputs');
   
-  if (loadingDiv && textSpan) {
-    textSpan.textContent = message;
-    loadingDiv.style.display = showSpinner ? 'flex' : 'none';
+  // Crear elemento de texto de carga con el mismo estilo que el botón
+  const loadingText = document.createElement('div');
+  loadingText.id = 'loadingTextReplace';
+  loadingText.style.cssText = `
+    background: #9ca3af;
+    color: white;
+    border: none;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: lowercase;
+    text-align: center;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+  
+  // Crear spinner
+  const spinner = document.createElement('div');
+  spinner.className = 'loading-spinner';
+  
+  // Crear texto
+  const textSpan = document.createElement('span');
+  textSpan.textContent = 'cargando...';
+  
+  // Agregar spinner y texto al elemento
+  loadingText.appendChild(spinner);
+  loadingText.appendChild(textSpan);
+  
+  // Agregar el texto donde estaba el botón
+  if (loginInputs) {
+    loginInputs.appendChild(loadingText);
   }
+}
+
+function updateLoadingStatus(message, showSpinner = true) {
+  // Esta función ahora no hace nada visible para el usuario
+  // Solo para logs internos
 }
 
 function initializeMainApplication() {
@@ -1044,6 +1074,12 @@ function initializeMainApplication() {
   const treeDiv = document.getElementById('tree');
   if (treeDiv) {
     initializeTreeControls(treeDiv);
+  }
+  
+  // IMPORTANTE: Renderizar el árbol automáticamente si ya hay datos
+  if (currentWorkingData && currentWorkingData.length > 0) {
+    console.log('🌳 Renderizando árbol automáticamente con datos existentes...');
+    renderAssetLibraryTree(currentWorkingData, document.getElementById('tree'));
   }
   
   // Event listeners para los botones del header

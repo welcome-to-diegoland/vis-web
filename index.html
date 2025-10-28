@@ -14,27 +14,19 @@
   <!-- Login Overlay -->
   <div id="loginOverlay" class="login-overlay">
     <div class="login-container">
+      <!-- Logo fuera del recuadro -->
+      <div class="login-logo">
+        <img src="assets/reviw-logo.svg" alt="Reviw Logo" class="login-logo-img">
+      </div>
+      
+      <!-- Título fuera del recuadro -->
+      
       <div class="login-form">
-        <!-- Logo -->
-        <div class="login-logo">
-          <img src="assets/reviw-logo.svg" alt="Reviw Logo" class="login-logo-img">
-        </div>
-        
-        <!-- Título -->
-        <h1 class="login-title">reviw.</h1>
-        <p class="login-subtitle">bienvenido</p>
-        
         <!-- Formulario -->
         <div class="login-inputs">
           <input type="text" id="loginUsername" class="login-input" placeholder="usuario...">
           <input type="password" id="loginPassword" class="login-input" placeholder="contraseña...">
           <button id="loginBtn" class="login-button">entrar</button>
-        </div>
-        
-        <!-- Loading Status -->
-        <div id="loginLoadingStatus" class="login-loading" style="display:none;">
-          <div class="loading-spinner"></div>
-          <span id="loadingText">cargando datos...</span>
         </div>
         
         <!-- Error Message -->
