@@ -255,6 +255,26 @@ html, body {
   font-size: 0.85rem; /* Mismo tamaño que botones */
 }
 
+.user-info {
+  color: white;
+}
+
+.user-name-text {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.user-group-text {
+  color: #bdc3c7;
+  font-size: 0.8rem;
+  font-weight: 400;
+  margin: 0;
+  white-space: nowrap;
+}
+
 .user-label {
   color: white;
   font-size: 0.85rem; /* Mismo tamaño que botones */

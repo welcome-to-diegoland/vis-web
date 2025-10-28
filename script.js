@@ -454,14 +454,20 @@ const USERS = {
 
 // Función para obtener el usuario actual
 function getCurrentUser() {
-  const userSelect = document.getElementById('userSelect');
-  return userSelect ? userSelect.value : 'usuario'; // Usuario por defecto
+  // Usar el usuario del sistema de login
+  if (currentUser && currentUser.username) {
+    return currentUser.username;
+  }
+  return 'usuario'; // Usuario por defecto
 }
 
 // Función para obtener información completa del usuario actual
 function getCurrentUserInfo() {
-  const currentUserId = getCurrentUser();
-  return USERS[currentUserId] || USERS.usuario;
+  // Usar el usuario del sistema de login
+  if (currentUser && currentUser.username) {
+    return USERS[currentUser.username] || USERS.usuario;
+  }
+  return USERS.usuario;
 }
 
 // ===== SISTEMA GENERAL DE GESTIÓN DE MODALES =====
@@ -1056,6 +1062,9 @@ function updateLoadingStatus(message, showSpinner = true) {
 function initializeMainApplication() {
   console.log('🔧 Inicializando aplicación principal...');
   
+  // Actualizar información del usuario en el header
+  updateUserInfoInHeader();
+  
   // DIAGNÓSTICO INICIAL: Verificar configuración y elementos DOM
   runInitialDiagnostics();
   
@@ -1063,9 +1072,6 @@ function initializeMainApplication() {
   loadCacheFromLocalStorage();
   
   setupDragAndDrop();
-  
-  // Inicializar sistema de usuarios
-  initializeUserSelector();
   
   // Inicializar Box 3 con el sistema de galerías
   initializeGallerySystem();
@@ -1098,6 +1104,17 @@ function initializeMainApplication() {
   console.log('✅ Aplicación inicializada completamente');
 }
 
+function updateUserInfoInHeader() {
+  const userNameElement = document.getElementById('currentUserName');
+  const userGroupElement = document.getElementById('currentUserGroup');
+  
+  if (currentUser && userNameElement && userGroupElement) {
+    userNameElement.textContent = currentUser.username;
+    userGroupElement.textContent = `(${currentUser.group})`;
+    console.log(`👤 Usuario actualizado en header: ${currentUser.username} (${currentUser.group})`);
+  }
+}
+
 // ========== END FUNCIONES DEL SISTEMA DE LOGIN ==========
 
 // Función de diagnóstico inicial
@@ -1115,8 +1132,7 @@ function runInitialDiagnostics() {
   // 2. Verificar elementos DOM críticos
   const criticalElements = [
     'box3-content',
-    'tree',
-    'loadExcelBtn'
+    'tree'
   ];
   
   console.log('🎯 Verificación de elementos DOM críticos:');
@@ -1228,12 +1244,17 @@ function initHorizontalDrag(e, topBoxId, bottomBoxId) {
 // Función para cargar datos desde Google Sheets (FASE 1: Carga inicial ligera)
 async function loadFromGoogleSheets() {
   const loadButton = document.getElementById('loadExcelBtn');
-  const originalText = loadButton.innerHTML;
+  let originalText = '';
   
   try {
-    // Mostrar estado de carga
-    loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando...';
-    loadButton.disabled = true;
+    // Mostrar estado de carga solo si el botón existe (compatibilidad)
+    if (loadButton) {
+      originalText = loadButton.innerHTML;
+      loadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando...';
+      loadButton.disabled = true;
+    }
+    
+    console.log('📥 Cargando datos desde Google Sheets...');
     
     // Detectar si estamos en un entorno local (file://)
     const isLocalFile = window.location.protocol === 'file:';
@@ -1295,8 +1316,11 @@ async function loadFromGoogleSheets() {
     console.error('❌ Error cargando desde Google Sheets:', error);
     
   } finally {
-    loadButton.innerHTML = originalText;
-    loadButton.disabled = false;
+    // Restaurar botón solo si existe (compatibilidad)
+    if (loadButton && originalText) {
+      loadButton.innerHTML = originalText;
+      loadButton.disabled = false;
+    }
   }
 }
 
@@ -7147,40 +7171,52 @@ async function loadAllItemGroupsToCache() {
 // Función para optimizar caché con feedback visual
 async function optimizeCache() {
   const btn = document.getElementById('loadCacheBtn');
-  if (!btn) return;
-  
-  const originalHTML = btn.innerHTML;
+  let originalHTML = '';
   
   try {
-    // Cambiar botón a estado de carga
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Optimizando...';
+    // Cambiar botón a estado de carga solo si existe
+    if (btn) {
+      originalHTML = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Optimizando...';
+    }
+    
+    console.log('🚀 Iniciando optimización de cache...');
     
     await loadAllItemGroupsToCache();
     
-    // Mostrar éxito
-    btn.innerHTML = '<i class="fa-solid fa-check"></i> ¡Optimizado!';
-    btn.className = 'btn btn-success btn-compact';
+    console.log('✅ Cache optimizado exitosamente');
     
-    // Restaurar después de 3 segundos
-    setTimeout(() => {
-      btn.disabled = false;
-      btn.innerHTML = originalHTML;
-    }, 3000);
+    // Mostrar éxito solo si el botón existe
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> ¡Optimizado!';
+      btn.className = 'btn btn-success btn-compact';
+      
+      // Restaurar después de 3 segundos
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+      }, 3000);
+    }
     
   } catch (error) {
-    console.error('Error optimizando caché:', error);
+    console.error('❌ Error optimizando caché:', error);
     
-    // Mostrar error
-    btn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Error';
-    btn.className = 'btn btn-danger btn-compact';
+    // Mostrar error solo si el botón existe
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Error';
+      btn.className = 'btn btn-danger btn-compact';
+      
+      // Restaurar después de 3 segundos
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        btn.className = 'btn btn-success btn-compact';
+      }, 3000);
+    }
     
-    // Restaurar después de 3 segundos
-    setTimeout(() => {
-      btn.disabled = false;
-      btn.innerHTML = originalHTML;
-      btn.className = 'btn btn-success btn-compact';
-    }, 3000);
+    // Re-lanzar el error para que lo maneje startDataLoading()
+    throw error;
   }
 }
 
@@ -11571,29 +11607,6 @@ async function saveToGoogleSheets() {
     saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar cambios';
     saveBtn.disabled = false;
   }
-}
-
-function getCurrentUser() {
-  const userSelect = document.getElementById('userSelect');
-  const selectedValue = userSelect?.value;
-  
-  // Mapeo de valores del select a nombres de usuario
-  const userMap = {
-    'Sandra': 'Sandra',
-    'Victor': 'Victor',
-    'Ximena': 'Ximena',
-    'Carlos': 'Carlos',
-    'Kalem': 'Kalem',
-    'Veronica': 'Veronica',
-    'Rossana': 'Rossana',
-    'Carla': 'Carla',
-    'Gabriela': 'Gabriela',
-    'Thanya': 'Thanya',
-    'Grecia': 'Grecia',
-    'Cinthya': 'Cinthya'
-  };
-  
-  return userMap[selectedValue] || null;
 }
 
 // Función para auto-guardar un comentario individual inmediatamente después de crearlo
