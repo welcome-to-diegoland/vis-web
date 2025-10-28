@@ -1,7 +1,7 @@
 # VIS-Web - Documentación Técnica y Log del Sistema
 
 **Última actualización:** 27 de Octubre, 2025  
-**Versión:** 1.2  
+**Versión:** 1.5  
 **Estado:** Producción
 
 ---
@@ -640,6 +640,99 @@ Cuando el usuario escriba: **"📝 DOCS: Ya está listo, agrega a documentación
     - Actualizada verificación DOM crítica sin elementos eliminados
     - Comentarios actualizados en función `processWorkbook()`
   - **Resultado Final**: Aplicación más profesional y enfocada, sin opciones de fallback que podrían confundir usuarios o generar errores técnicos
+
+### **🔐 Sistema de Login y Autenticación Completo - User Authentication System**
+- **27 de Octubre, 2025** - **FEATURE**: Implementación completa de sistema de login con usuarios hardcoded
+  - **Overlay de Login**:
+    - **Diseño**: Modal overlay que bloquea acceso hasta autenticación exitosa
+    - **Campos**: Username y password con placeholders intuitivos
+    - **Validación**: Verificación instantánea contra base de usuarios predefinidos
+    - **Feedback**: Mensajes de error claros por credenciales inválidas
+  - **Base de Usuarios Hardcoded** (13 usuarios configurados):
+    - **Grupo Analista**: Sandra, Miguel, Carlos, Ana, Luis (acceso estándar)
+    - **Grupo Admin**: Diego, María (permisos administrativos)
+    - **Grupo Diseño**: Jorge, Carmen, Pablo, Rosa, Elena, Sofía (acceso especializado)
+  - **Funcionalidades del Sistema**:
+    - **Carga Automática**: Datos de Google Sheets se cargan automáticamente tras login exitoso
+    - **Header Actualizado**: Muestra información del usuario logueado (nombre y grupo)
+    - **Integración Completa**: Todas las funciones existentes usan el sistema de usuarios
+    - **Persistencia Sesión**: Usuario activo mantenido en variable global `currentUser`
+  - **Mejoras UX**:
+    - **Acceso Bloqueado**: Sin login válido, la aplicación permanece inaccesible
+    - **Información Contextual**: Header muestra claramente quién está usando el sistema
+    - **Workflow Automático**: Eliminada necesidad de cargar datos manualmente
+    - **Seguridad Visual**: Overlay profesional con branding corporativo
+  - **Implementación Técnica**:
+    - **CSS**: Estilos completos para overlay con efectos de backdrop y transiciones
+    - **JavaScript**: Función `initializeLoginSystem()` maneja todo el flujo de autenticación
+    - **Validación**: Objeto `VALID_USERS` con mapping username->password->grupo
+    - **Integración**: `getCurrentUser()` actualizada para usar sistema de login
+  - **Funciones Clave**:
+    - `initializeLoginSystem()` - Configura overlay y event listeners
+    - `validateLogin()` - Verifica credenciales contra base de usuarios
+    - `showMainApplication()` - Revela aplicación tras autenticación exitosa
+    - `updateUserInfoInHeader()` - Actualiza información de usuario en header
+  - **Resultado Final**: Sistema profesional que combina seguridad básica con experiencia de usuario fluida
+
+### **🧹 Reorganización del Header y Controles de Usuario - Header Cleanup & User Controls**
+- **27 de Octubre, 2025** - **REFACTOR**: Limpieza completa del header y eliminación de controles manuales obsoletos
+  - **Elementos Eliminados del Header**:
+    - **Dropdown de Usuarios**: Removido selector manual de usuarios (reemplazado por sistema de login)
+    - **Botones de Carga Manual**: Eliminados "loadExcelBtn" y "loadCacheBtn" (datos se cargan automáticamente)
+    - **Funcionalidad Legacy**: Removidas funciones de selección manual incompatibles con login
+  - **Header Optimizado**:
+    - **Logo Corporativo**: Mantenido reviw-logo.svg para branding
+    - **Información de Usuario**: Muestra nombre y grupo del usuario logueado
+    - **Layout Simplificado**: Solo elementos esenciales, sin controles redundantes
+    - **Consistencia Visual**: Diseño limpio que complementa el sistema de login
+  - **Actualización de Funciones Compatibles**:
+    - **getCurrentUser()**: Actualizada para usar variable global `currentUser` del sistema de login
+    - **getCurrentUserInfo()**: Refactorizada para trabajar con objeto de usuario logueado
+    - **Eliminación de Duplicados**: Removida función `getCurrentUser()` duplicada que causaba conflictos
+    - **Integración Sistema Login**: Todas las funciones ahora usan `currentUser` en lugar de dropdown
+  - **Beneficios Técnicos**:
+    - **Código Limpio**: Eliminadas 127 líneas de código obsoleto y referencias rotas
+    - **Sin Conflictos**: No más errores por elementos DOM inexistentes
+    - **Integración Completa**: Sistema de usuarios totalmente compatible con funcionalidades existentes
+    - **Mantenibilidad**: Menos complejidad, flujo de datos más claro
+  - **Mejoras UX**:
+    - **Workflow Automático**: Usuario se loguea una vez y todo funciona automáticamente
+    - **Interface Profesional**: Header limpio sin controles manuales confusos
+    - **Información Clara**: Siempre visible quién está usando el sistema
+    - **Menos Clutter**: Foco en funcionalidades principales sin distracciones
+  - **Resultado Final**: Header minimalista y profesional que muestra información relevante del usuario sin controles manuales obsoletos
+
+### **🎛️ Reorganización de Controles y Botón de Guardar - Controls Bar Restructure**
+- **27 de Octubre, 2025** - **UX**: Reubicación del botón "Guardar cambios" del header a la barra de controles
+  - **Nueva Arquitectura de Controles** (diseño de tres secciones):
+    - **Sección Izquierda**: [Deshacer] [Limpiar GAL] - Controles de modificación de Item Groups
+    - **Sección Central**: [Guardar cambios] - Acción principal de persistencia
+    - **Sección Derecha**: [Zoom In] [Zoom Out] [Reset] - Controles de visualización
+  - **Beneficios de Organización**:
+    - **Flujo Lógico**: Modificar → Guardar → Visualizar agrupados secuencialmente
+    - **Contexto Visual**: Botón de guardar ahora está junto a las acciones que guarda
+    - **Consistencia UX**: Todos los controles de Item Group en una sola área
+    - **Header Simplificado**: Eliminado botón global que se sentía desconectado
+  - **Implementación Técnica**:
+    - **HTML Structure**: Agregada sección `controls-center` en funciones de generación de grilla
+    - **CSS Styling**: Nueva clase `save-button` con tema verde consistente con otros botones
+    - **Layout Responsive**: `controls-center` con flex centering para alineación perfecta
+    - **Event Listeners**: Configuración movida a `setupZoomControls()` junto con otros controles
+  - **Actualización de IDs y Referencias**:
+    - **ID Change**: `saveChangesBtn` → `saveChangesButton` para consistencia
+    - **Function Updates**: Todas las referencias actualizadas en `saveToGoogleSheets()` y funciones relacionadas
+    - **DOM References**: Event listeners reconfigurados para nueva ubicación
+    - **Error Handling**: Fix del error "Cannot read properties of null" por ID incorrecto
+  - **Funciones Actualizadas**:
+    - `loadImageGridInBox4()` - Genera nueva estructura de controles con tres secciones
+    - `regenerateImageGrid()` - Incluye controles reorganizados al regenerar
+    - `setupZoomControls()` - Configura event listener del botón de guardar
+    - `saveToGoogleSheets()` - Referencias actualizadas al nuevo ID del botón
+  - **Estilos CSS Implementados**:
+    - **controls-center**: Flex centering para posicionamiento perfecto del botón
+    - **save-button**: Tema verde (#28a745) con hover effects y transiciones suaves
+    - **Layout Consistency**: Tamaños y espaciado uniforme con botones de undo/cleanup
+  - **Resultado Final**: Organización lógica de controles que mejora el workflow del usuario y elimina la desconexión visual del botón de guardar en el header global
 
 ---
 

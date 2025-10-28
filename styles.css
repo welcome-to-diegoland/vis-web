@@ -2773,6 +2773,13 @@ html, body {
   gap: 10px;
 }
 
+.controls-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
 .controls-right {
   display: flex;
   align-items: center;
@@ -3190,6 +3197,31 @@ html, body {
 }
 
 .cleanup-button:active {
+  transform: translateY(0);
+}
+
+.save-button {
+  background: #28a745;
+  color: white;
+  border: 2px solid #28a745;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.save-button:hover {
+  background: #218838;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.25);
+}
+
+.save-button:active {
   transform: translateY(0);
 }
 

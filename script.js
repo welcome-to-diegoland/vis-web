@@ -1088,13 +1088,6 @@ function initializeMainApplication() {
     renderAssetLibraryTree(currentWorkingData, document.getElementById('tree'));
   }
   
-  // Event listeners para los botones del header
-  const saveChangesBtn = document.getElementById('saveChangesBtn');
-  
-  if (saveChangesBtn) {
-    saveChangesBtn.addEventListener('click', saveToGoogleSheets);
-  }
-  
   // Event listener para botón de limpiar Item Groups guardados
   const clearSavedBtn = document.getElementById('clearSavedBtn');
   if (clearSavedBtn) {
@@ -3118,6 +3111,11 @@ async function loadImageGridInBox4(itemGroupPath) {
               Limpiar GAL
             </button>
           </div>
+          <div class="controls-center">
+            <button class="save-button" id="saveChangesButton" title="Guardar todos los cambios realizados">
+              Guardar cambios
+            </button>
+          </div>
           <div class="controls-right">
             <div class="zoom-controls">
               <button class="zoom-button" id="zoomOut" title="Reducir tamaño">🔍−</button>
@@ -3629,6 +3627,11 @@ function regenerateImageGrid() {
             Limpiar GAL
           </button>
         </div>
+        <div class="controls-center">
+          <button class="save-button" id="saveChangesButton" title="Guardar todos los cambios realizados">
+            Guardar cambios
+          </button>
+        </div>
         <div class="controls-right">
           <div class="zoom-controls">
             <button class="zoom-button" id="zoomOut" title="Reducir tamaño">🔍−</button>
@@ -3791,6 +3794,14 @@ function setupZoomControls() {
   if (undoBtn) {
     undoBtn.addEventListener('click', () => {
       undoAllChanges();
+    });
+  }
+  
+  // Event listener para el botón de guardar cambios
+  const saveBtn = document.getElementById('saveChangesButton');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      saveToGoogleSheets();
     });
   }
 }
@@ -7014,7 +7025,7 @@ function saveToLocalStorage() {
     }
     
     // Mostrar feedback al usuario
-    const saveBtn = document.getElementById('saveChangesBtn');
+    const saveBtn = document.getElementById('saveChangesButton');
     const originalText = saveBtn.innerHTML;
     saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Guardado!';
     saveBtn.classList.remove('btn-success');
@@ -7031,7 +7042,7 @@ function saveToLocalStorage() {
     console.error('Error guardando en localStorage:', error);
     
     // Mostrar feedback específico para error de cuota
-    const saveBtn = document.getElementById('saveChangesBtn');
+    const saveBtn = document.getElementById('saveChangesButton');
     const originalText = saveBtn.innerHTML;
     
     if (error.message.includes('quota') || error.name === 'QuotaExceededError') {
@@ -11527,7 +11538,7 @@ async function saveToGoogleSheets() {
     console.log(`📊 Total de datos del visualizador a guardar: ${visibleData.length}`);
     
     // Mostrar progreso
-    const saveBtn = document.getElementById('saveChangesBtn');
+    const saveBtn = document.getElementById('saveChangesButton');
     const originalText = saveBtn.innerHTML;
     saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
     saveBtn.disabled = true;
@@ -11603,7 +11614,7 @@ async function saveToGoogleSheets() {
     alert(`❌ Error al guardar: ${error.message}`);
   } finally {
     // Restaurar botón
-    const saveBtn = document.getElementById('saveChangesBtn');
+    const saveBtn = document.getElementById('saveChangesButton');
     saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar cambios';
     saveBtn.disabled = false;
   }
