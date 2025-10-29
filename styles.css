@@ -769,6 +769,7 @@ input[type="file"] {
   color: #3539CC;
   width: 100%;
   font-size: 18px;
+  letter-spacing: -0.02em;
 }
 
 
@@ -2315,9 +2316,9 @@ button#btn-cargar-categoria.btn.btn-secondary {
   color: rgb(0, 0, 0) !important;
   /* Mantener estilos originales de Bootstrap */
   font-size: 12px !important; /* Bootstrap default */
-  font-weight: 400 !important; /* Bootstrap default */
+  font-weight: 500 !important; /* Bootstrap default */
   line-height: 1.5 !important; /* Bootstrap default */
-  padding: 4px 12px !important; /* Bootstrap default */
+  padding: 4px 26px !important; /* Bootstrap default */
   border-radius: 4px !important; /* Bootstrap default */
   font-family: inherit !important; /* Mantener fuente del sistema */
 }
@@ -2886,7 +2887,7 @@ button[id="btn-cargar-categoria"]:disabled {
   background: #f8f9fa; /* Fondo claro y limpio */
   color: #495057; /* Texto gris oscuro */
   border-bottom: 1px solid #dee2e6; /* Borde sutil */
-  padding: 12px 20px;
+  padding: 5px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2901,7 +2902,8 @@ button[id="btn-cargar-categoria"]:disabled {
 .controls-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  margin-left: -4px;
 }
 
 .controls-center {
@@ -2931,7 +2933,7 @@ button[id="btn-cargar-categoria"]:disabled {
   border-radius: 8px;
   overflow: hidden;
   background: #f8f9fa;
-  border: 2px solid #dee2e6;
+  border: 1px solid #dee2e6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2952,10 +2954,7 @@ button[id="btn-cargar-categoria"]:disabled {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.item-group-image:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
+
 
 .item-group-image::after {
   content: "⌘⌥⇧ + Click para asignar";
@@ -3141,11 +3140,10 @@ button[id="btn-cargar-categoria"]:disabled {
   border-radius: 8px;
   overflow: hidden;
   background: #f8f9fa;
-  border: 2px solid #dee2e6;
+  border: 1px solid #dee2e6;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-style: dashed; /* Diferenciarlo como placeholder */
 }
 
 .no-image-selected {
@@ -3225,7 +3223,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .zoom-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
 }
 
 .zoom-button {
@@ -3247,8 +3245,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .zoom-button:hover {
   background: #f8f9fa;
   border-color: #adb5bd;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  /* box-shadow: 0 2px 6px rgba(0,0,0,0.1); */
 }
 
 .zoom-button:active {
@@ -3266,7 +3263,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .zoom-info {
   background: #f8f9fa;
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
   color: #495057;
@@ -3281,10 +3278,10 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .undo-button {
   background: white;
-  color: #007bff;
-  border: 1px solid #007bff;
+  color: #4347FF;
+  border: 1px solid #4347FF;
   border-radius: 6px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 14px;
@@ -3295,10 +3292,9 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .undo-button:hover {
-  background: #007bff;
+  background: #3539CC;
   color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.25);
+  /* box-shadow: 0 2px 8px rgba(67, 71, 255, 0.1); */
 }
 
 .undo-button:active {
@@ -3307,10 +3303,10 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .cleanup-button {
   background: white;
-  color: #dc3545;
-  border: 1px solid #dc3545;
+  color: #4347FF;
+  border: 1px solid #4347FF;
   border-radius: 6px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 14px;
@@ -3321,10 +3317,9 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .cleanup-button:hover {
-  background: #dc3545;
+  background: #3539CC;
   color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.25);
+  /* box-shadow: 0 2px 8px rgba(67, 71, 255, 0.25); */
 }
 
 .cleanup-button:active {
@@ -3332,24 +3327,26 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .save-button {
-  background: #28a745;
+  background: #FFAA0A;
   color: white;
-  border: 2px solid #28a745;
-  padding: 8px 16px;
+  border: 2px solid #FFAA0A;
+  padding: 4px 16px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   text-transform: none;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .save-button:hover {
-  background: #218838;
+  background: #FA9F3A;
   color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.25);
+  /* box-shadow: 0 2px 8px rgba(255, 170, 10, 0.25); */
 }
 
 .save-button:active {

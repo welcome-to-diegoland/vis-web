@@ -899,7 +899,7 @@ function initializeLoginSystem() {
 
 function setupLoginForm() {
   // 🚀 MODO DESARROLLO - AUTO LOGIN (comentar/descomentar para activar)
-  const DEV_MODE = false; // Cambiar a false para restaurar login normal
+  const DEV_MODE = true; // Cambiar a false para restaurar login normal
   
   if (DEV_MODE) {
     console.log('🚀 MODO DESARROLLO ACTIVADO - Auto login como Sandra');
@@ -3118,22 +3118,22 @@ async function loadImageGridInBox4(itemGroupPath) {
         <div class="controls-bar">
           <div class="controls-left">
             <button class="undo-button" id="undoChangesButton" title="Deshacer todos los cambios y volver al estado original">
-              Deshacer
+              <i class="fa-solid fa-reply"></i>
             </button>
             <button class="cleanup-button" id="cleanupGalButton" title="Limpiar GAL: Elimina imágenes que no pertenecen a su Item Code">
-              Limpiar GAL
+              <i class="fa-solid fa-eraser"></i>
             </button>
           </div>
           <div class="controls-center">
             <button class="save-button" id="saveChangesButton" title="Guardar todos los cambios realizados">
-              Guardar cambios
+              <i class="fa-solid fa-floppy-disk"></i> Guardar
             </button>
           </div>
           <div class="controls-right">
             <div class="zoom-controls">
-              <button class="zoom-button" id="zoomOut" title="Reducir tamaño">🔍−</button>
+              <button class="zoom-button" id="zoomOut" title="Reducir tamaño"><i class="fa-solid fa-magnifying-glass"></i>−</button>
               <span class="zoom-info" id="zoomInfo">100%</span>
-              <button class="zoom-button" id="zoomIn" title="Aumentar tamaño">🔍+</button>
+              <button class="zoom-button" id="zoomIn" title="Aumentar tamaño"><i class="fa-solid fa-magnifying-glass"></i>+</button>
             </div>
           </div>
         </div>
@@ -3634,22 +3634,22 @@ function regenerateImageGrid() {
       <div class="controls-bar">
         <div class="controls-left">
           <button class="undo-button" id="undoChangesButton" title="Deshacer todos los cambios y volver al estado original">
-            Deshacer
+            <i class="fa-solid fa-reply"></i>
           </button>
           <button class="cleanup-button" id="cleanupGalButton" title="Limpiar GAL: Elimina imágenes que no pertenecen a su Item Code">
-            Limpiar GAL
+            <i class="fa-solid fa-eraser"></i>
           </button>
         </div>
         <div class="controls-center">
           <button class="save-button" id="saveChangesButton" title="Guardar todos los cambios realizados">
-            Guardar cambios
+            <i class="fa-solid fa-floppy-disk"></i> Guardar
           </button>
         </div>
         <div class="controls-right">
           <div class="zoom-controls">
-            <button class="zoom-button" id="zoomOut" title="Reducir tamaño">🔍−</button>
+            <button class="zoom-button" id="zoomOut" title="Reducir tamaño"><i class="fa-solid fa-magnifying-glass"></i>−</button>
             <span class="zoom-info" id="zoomInfo">100%</span>
-            <button class="zoom-button" id="zoomIn" title="Aumentar tamaño">🔍+</button>
+            <button class="zoom-button" id="zoomIn" title="Aumentar tamaño"><i class="fa-solid fa-magnifying-glass"></i>+</button>
           </div>
         </div>
       </div>
