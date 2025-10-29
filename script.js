@@ -898,6 +898,19 @@ function initializeLoginSystem() {
 }
 
 function setupLoginForm() {
+  // 🚀 MODO DESARROLLO - AUTO LOGIN (comentar/descomentar para activar)
+  const DEV_MODE = true; // Cambiar a false para restaurar login normal
+  
+  if (DEV_MODE) {
+    console.log('🚀 MODO DESARROLLO ACTIVADO - Auto login como Sandra');
+    // Auto login inmediato
+    currentUser = { name: 'Sandra', group: 'Analista' };
+    userAuthenticated = true;
+    hideLoginOverlay();
+    checkAppAccess();
+    return; // Salir sin configurar el formulario
+  }
+  
   const loginBtn = document.getElementById('loginBtn');
   const usernameInput = document.getElementById('loginUsername');
   const passwordInput = document.getElementById('loginPassword');
@@ -3472,7 +3485,7 @@ function generateEmptyImageCell() {
   return `
     <div class="empty-image-cell">
       <div class="drop-zone" title="Arrastrar imagen aquí">
-        <span class="add-icon">+</span>
+        <span class="add-icon"></span>
       </div>
     </div>
   `;
@@ -3906,8 +3919,8 @@ function setupImageSystemEventListeners() {
           const commentText = currentItemGroup['WA_VIS_Comment'] || '';
           const itemGroupId = currentItemGroup['ID'] || currentItemGroup['Item Group ID'] || currentItemGroup['Id'] || '';
           const itemGroupName = currentItemGroup['Name'] || 'Item Group';
-          const contextInfo = `${itemGroupName} (${itemGroupId})`;
-          openCommentModal('Comentario del Item Group', contextInfo, commentText, 'group', null);
+          const contextInfo = `${itemGroupName} </br> (${itemGroupId})`;
+          openCommentModal('Comentarios de Item Group', contextInfo, commentText, 'group', null);
         } else {
           console.log('❌ No hay currentItemGroup disponible');
         }
@@ -3916,7 +3929,7 @@ function setupImageSystemEventListeners() {
         console.log('💬 Abriendo comentario de imagen del grid');
         const imageName = imageThumbnail.alt;
         const commentText = getImageComments(imageName);
-        openCommentModal('Comentario de la Imagen', imageName, commentText || '', 'image', imageName);
+        openCommentModal('Comentarios de Imagen', imageName, commentText || '', 'image', imageName);
       } else if ((emptyImageCell || imageCell) && !imageThumbnail) {
         // Click en espacio vacío en celda de imagen - buscar item code desde la celda
         console.log('💬 Abriendo comentario de item code desde celda vacía');
@@ -3929,7 +3942,7 @@ function setupImageSystemEventListeners() {
             );
             const commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
             const fullContext = generateItemCodeContext(itemCode);
-            openCommentModal('Comentario del Item Code', fullContext, commentText, 'item', null);
+            openCommentModal('Comentarios de Item Code', fullContext, commentText, 'item', null);
           }
         }
       } else if (itemCodeCell) {
@@ -3941,7 +3954,7 @@ function setupImageSystemEventListeners() {
         );
         const commentText = itemCodeData ? (itemCodeData['WA_VIS_Comment'] || '') : '';
         const fullContext = generateItemCodeContext(itemCode);
-        openCommentModal('Comentario del Item Code', fullContext, commentText, 'item', null);
+        openCommentModal('Comentarios de Item Code', fullContext, commentText, 'item', null);
       } else {
         console.log('❌ No se detectó ningún elemento válido para comentario');
         console.log('Target:', event.target);
@@ -4019,12 +4032,12 @@ function handleCommentClick(event, commentIndicator) {
   let contextInfo = '';
   
   if (isGroupComment) {
-    modalTitle = 'Comentario del Item Group';
+    modalTitle = 'Comentarios de Item Group';
     const itemGroupId = currentItemGroup['Id'] || currentItemGroup['ID'] || '';
     const itemGroupName = currentItemGroup['Name'] || 'Item Group';
     contextInfo = `${itemGroupName} (${itemGroupId})`;
   } else {
-    modalTitle = 'Comentario del Item Code';
+    modalTitle = 'Comentarios de Item Code';
     const itemCodeCell = commentIndicator.closest('.item-code-cell');
     const itemCode = itemCodeCell ? itemCodeCell.getAttribute('data-item-code') : 'Item Code';
     contextInfo = generateItemCodeContext(itemCode);
@@ -4045,7 +4058,7 @@ function handleImageCommentClick(event, imageName) {
     return;
   }
   
-  const modalTitle = 'Comentario de la Imagen';
+  const modalTitle = 'Comentarios de Imagen';
   const contextInfo = imageName;
   
   // Crear y mostrar la ventana modal
@@ -4360,14 +4373,14 @@ function getCommentTypeColor(tipo) {
 // Función para obtener el color del status
 function getStatusColor(status) {
   const colors = {
-    'Diseño': '#8e44ad',    // Morado - igual que status-badge
-    'Revision': '#ff6b35',   // Naranja - igual que status-badge
-    'Completado': '#28a745', // Verde - igual que status-badge
-    'Cancelado': '#6c757d',  // Gris - igual que status-badge
-    'Analista': '#ff6b35',   // Naranja - igual que Revision
-    'Sin status': '#95a5a6'
+    'Diseño': '#A92DE7',     // Morado - nuevo color
+    'Revision': '#00C1FF',   // Azul - nuevo color
+    'Completado': '#74BE12', // Verde - nuevo color
+    'Cancelado': '#AFAFAF',  // Gris - nuevo color
+    'Analista': '#00C1FF',   // Azul - igual que Revision
+    'Sin status': '#AFAFAF'  // Gris - igual que Cancelado
   };
-  return colors[status] || '#95a5a6';
+  return colors[status] || '#AFAFAF';
 }
 
 // Función para crear y mostrar la ventana modal de comentarios
@@ -4419,7 +4432,6 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
       </div>
       <div class="modal-body">
         <div class="comments-section">
-          <h4 class="section-title">Comentarios Existentes</h4>
           <div class="comments-container">
             ${parsedComments.length > 0 ? generateCommentsHTML(parsedComments) : '<div class="no-comments">No hay comentarios existentes</div>'}
           </div>
@@ -4453,7 +4465,7 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
               <div class="textarea-actions-row">
                 <textarea class="form-textarea comment-text-input" id="commentTextInput" placeholder="Escribir comentario..."></textarea>
                 <div class="form-actions-vertical">
-                  <button class="btn btn-comment-submit btn-textarea-height" id="addCommentBtn">✓</button>
+                  <button class="btn btn-comment-submit btn-textarea-height" id="addCommentBtn"><i class="fa-solid fa-paper-plane" style="font-size: 18px;"></i></button>
                 </div>
               </div>
             </div>
@@ -5775,7 +5787,7 @@ function generateCommentsHTML(comments) {
         </div>
         ${showMeta ? `
           <div class="comment-meta">
-            <div class="comment-type" style="background-color: ${getCommentTypeColor(comment.tipoComentario)};">
+            <div class="comment-type" style="border: 1px solid #878787; color: #878787;">
               <span class="type-text">${comment.tipoComentario}</span>
             </div>
           </div>
@@ -7027,7 +7039,7 @@ function saveToLocalStorage() {
     // Mostrar feedback al usuario
     const saveBtn = document.getElementById('saveChangesButton');
     const originalText = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Guardado!';
+    saveBtn.innerHTML = '<i class="fa-solid fa-check" style="font-weight: 2000;"></i> Guardado!';
     saveBtn.classList.remove('btn-success');
     saveBtn.classList.add('btn-outline-success');
     
@@ -8555,7 +8567,7 @@ function toggleCleanView() {
     // Restaurar vista normal - mostrar árbol/visualizador
     console.log('🔄 Restaurando vista normal...');
     restoreNormalView();
-    toggleButton.innerHTML = '<i class="fa-solid fa-table-list"></i> Datos';
+    toggleButton.innerHTML = '<i class="fa-solid fa-table-list" style="margin-right: 8px;"></i>Datos';
     toggleButton.className = 'btn btn-warning btn-compact';
     console.log('✅ Vista normal restaurada - mostrando elementos del visualizador');
   }
@@ -9175,19 +9187,19 @@ function generateImageInventoryTable(dataOverride = null) {
             <tr class="inventory-header-row">
               <th class="inventory-header-cell">#</th>
               <th class="inventory-header-cell">ID</th>
-              <th class="inventory-header-cell">Object Type</th>
+              <th class="inventory-header-cell">Object</br>Type</th>
               <th class="inventory-header-cell">CMS</th>
               <th class="inventory-header-cell">Marca</th>
               <th class="inventory-header-cell">Título</th>
               <th class="inventory-header-cell">Imp</th>
               <th class="inventory-header-cell">Imagen</th>
               <th class="inventory-header-cell">Analista</th>
-              <th class="inventory-header-cell">1º Fecha</th>
-              <th class="inventory-header-cell">Fecha Analista</th>
-              <th class="inventory-header-cell">Comentario Analista</th>
+              <th class="inventory-header-cell">Fecha</br>Creación</th>
+              <th class="inventory-header-cell">Fecha</br>Analista</th>
+              <th class="inventory-header-cell">Comentario</br>Analista</th>
               <th class="inventory-header-cell">Diseñador</th>
-              <th class="inventory-header-cell">Fecha Diseño</th>
-              <th class="inventory-header-cell">Comentario Diseñador</th>
+              <th class="inventory-header-cell">Fecha</br>Diseño</th>
+              <th class="inventory-header-cell">Comentario</br>Diseñador</th>
               <th class="inventory-header-cell">Tipo</th>
               <th class="inventory-header-cell">Status</th>
             </tr>
@@ -9530,7 +9542,7 @@ function setupInventoryClickListeners() {
         
         // Para comentarios de imagen - usar el comentario original completo
         const originalComment = getOriginalImageComment(imageName);
-        const modalTitle = `Historial de Comentarios - Imagen: ${imageName}`;
+        const modalTitle = `Comentarios de Imagen`;
         
         console.log('📸 Abriendo modal de imagen:', { imageName, originalComment });
         openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
@@ -9540,7 +9552,7 @@ function setupInventoryClickListeners() {
         saveInventoryViewState();
         
         const originalComment = getOriginalImageComment(imageName);
-        const modalTitle = `Historial de Comentarios - Imagen: ${imageName}`;
+        const modalTitle = `Comentarios de Imagen`;
         
         console.log('📅📸 Abriendo modal de imagen por fecha:', { imageName, commentType, originalComment });
         openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
@@ -9572,8 +9584,8 @@ function setupInventoryClickListeners() {
           const originalComment = itemData['WA_VIS_Comment'] || '';
           const contextInfo = `${itemData.Name} (${itemData.Id})`;
           const modalTitle = itemData['Object Type'] === 'Item Group' 
-            ? `Historial de Comentarios - Item Group: ${itemData.Name}`
-            : `Historial de Comentarios - Item Code: ${itemData.Name}`;
+            ? `Comentarios de Item Group`
+            : `Comentarios de Item Code`;
           
           // Debug completo de todos los campos del item
           console.log('📋 ITEM COMPLETO encontrado por búsqueda directa:', {
@@ -9631,8 +9643,8 @@ function setupInventoryClickListeners() {
             const originalComment = itemDataById['WA_VIS_Comment'] || '';
             const contextInfo = `${itemDataById.Name} (${itemDataById.Id})`;
             const modalTitle = itemDataById['Object Type'] === 'Item Group' 
-              ? `Historial de Comentarios - Item Group: ${itemDataById.Name}`
-              : `Historial de Comentarios - Item Code: ${itemDataById.Name}`;
+              ? `Comentarios de Item Group`
+              : `Comentarios de Item Code`;
             
             console.log('📝 Abriendo modal por ID:', { 
               Name: itemDataById.Name, 
@@ -9742,7 +9754,7 @@ function setupInventoryClickListeners() {
         // Para comentarios de imagen
         if (imageName && imageName !== '-') {
           const originalComment = getOriginalImageComment(imageName);
-          const modalTitle = `Historial de Comentarios - Imagen: ${imageName}`;
+          const modalTitle = `Comentarios de Imagen`;
           openCommentModal(modalTitle, imageName, originalComment, 'image', imageName);
         }
         // Para comentarios directos (item-based)
@@ -9757,8 +9769,8 @@ function setupInventoryClickListeners() {
             const originalComment = itemData['WA_VIS_Comment'] || '';
             const contextInfo = `${itemData.Name} (${itemData.Id})`;
             const modalTitle = itemData['Object Type'] === 'Item Group' 
-              ? `Historial de Comentarios - Item Group: ${itemData.Name}`
-              : `Historial de Comentarios - Item Code: ${itemData.Name}`;
+              ? `Comentarios de Item Group`
+              : `Comentarios de Item Code`;
             
             openCommentModal(modalTitle, contextInfo, originalComment, 'item', null);
           } else {
@@ -9773,8 +9785,8 @@ function setupInventoryClickListeners() {
               const originalComment = itemDataById['WA_VIS_Comment'] || '';
               const contextInfo = `${itemDataById.Name} (${itemDataById.Id})`;
               const modalTitle = itemDataById['Object Type'] === 'Item Group' 
-                ? `Historial de Comentarios - Item Group: ${itemDataById.Name}`
-                : `Historial de Comentarios - Item Code: ${itemDataById.Name}`;
+                ? `Comentarios de Item Group`
+                : `Comentarios de Item Code`;
               
               openCommentModal(modalTitle, contextInfo, originalComment, 'item', null);
             }

@@ -178,12 +178,14 @@ html, body {
   width: 100%;
   height: 100%;
   display: flex;
+  align-items: center !important; /* Forzar centrado vertical */
+  padding: 0 !important; /* Sobrescribir bootstrap px-3 py-2 */
 }
 
 .header-column {
   display: flex;
   height: 100%;
-  align-items: center;
+  align-items: center !important; /* Forzar centrado en todas las columnas */
   padding: 0 15px;
   box-sizing: border-box;
 }
@@ -192,7 +194,8 @@ html, body {
   width: 40%; /* Aumentado de 30% a 40% para acomodar logo + elementos */
   justify-content: flex-start;
   gap: 15px; /* Aumentado gap para mejor separación */
-  padding: 0 15px 0 0 !important; /* Eliminar padding izquierdo para dar espacio al logo */
+  padding: 0 15px 0 15px !important; /* Padding horizontal uniforme */
+  align-items: center !important; /* Forzar centrado vertical */
 }
 
 /* Override específico para el contenedor del logo en left-column */
@@ -200,6 +203,7 @@ html, body {
   flex-shrink: 0 !important;
   flex-grow: 0 !important;
   margin-right: 10px !important;
+  align-items: center !important; /* Forzar centrado */
 }
 
 .center-column {
@@ -220,24 +224,41 @@ html, body {
 /* ===== LOGO EN HEADER ===== */
 .header-logo {
   display: flex !important;
-  align-items: flex-end !important; /* Cambio a flex-end para bajarlo */
+  align-items: center !important;
   justify-content: center !important;
-  padding: 5px 10px 8px 10px !important; /* Más padding abajo para bajarlo */
+  padding: 0 !important;
   margin: 0 !important;
   height: 70px !important; /* Altura exacta del header */
   width: auto !important;
   background: transparent !important;
   box-sizing: border-box !important;
+  line-height: 70px !important; /* Forzar line-height igual a la altura */
+}
+
+/* Más específico para sobrescribir Bootstrap completamente */
+.main-header .header-content .left-column .header-logo {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 70px !important;
+  line-height: 70px !important;
 }
 
 .logo-img {
-  height: 45px !important; /* Aumentado de 40px a 45px */
+  height: 45px !important;
   width: auto !important;
   max-width: none !important;
   max-height: 45px !important;
   object-fit: contain !important;
   display: block !important;
   flex-shrink: 0 !important;
+  margin: 0 !important; /* Centrado automático en flexbox */
+}
+
+/* Regla súper específica para sobrescribir cualquier interferencia */
+.main-header .header-content .left-column .header-logo .logo-img {
+  margin: 0 !important;
+  align-self: center !important; /* Esto sí funciona en flexbox */
 }
 
 /* ===== SELECTOR DE USUARIO EN HEADER ===== */
@@ -254,6 +275,17 @@ html, body {
 
 .user-info {
   color: white;
+  align-self: flex-end !important; /* Alinear al bottom del left-column */
+  display: flex !important;
+  align-items: center !important; /* Centrar el contenido interno (ícono + texto) */
+  margin-bottom: 8px !important; /* Ajuste fino para alineación con el bottom del logo */
+}
+
+/* Regla específica para sobrescribir Bootstrap */
+.main-header .left-column .user-info.d-flex.align-items-center {
+  align-items: center !important; /* Mantener centrado el contenido interno */
+  align-self: flex-end !important; /* Posicionar al bottom del contenedor */
+  margin-bottom: 8px !important; /* Mismo ajuste fino */
 }
 
 .user-name-text {
@@ -526,7 +558,7 @@ input[type="file"] {
 }
 
 .left-section {
-  width: 300px;
+  width: 329px;
   min-width: 200px;
   max-width: 500px;
   flex-shrink: 0;
@@ -716,7 +748,7 @@ input[type="file"] {
 
 .group-title {
   margin-bottom: 5px;
-  color: #333;
+  color: #3539CC;
   width: 100%;
   font-size: 18px;
 }
@@ -2946,7 +2978,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .group-title {
   font-weight: 600;
   font-size: 19px;
-  color: #212529;
+  color: #3539CC;
   line-height: 1.3;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -2975,15 +3007,15 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .group-brand::before {
-  content: "🏷️";
+  content: "";
 }
 
 .group-page::before {
-  content: "📄";
+  content: "Pag. ";
 }
 
 .group-id::before {
-  content: "🆔";
+  content: "";
 }
 
 /* Estilos para el link del ID del Item Group */
@@ -3008,7 +3040,7 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .group-cms::before {
-  content: "💾";
+  content: "";
 }
 
 /* Estilos para el filtro de marcas */
@@ -3673,7 +3705,6 @@ button[id="btn-cargar-categoria"]:disabled {
 .drop-zone {
   width: calc(var(--image-width) * var(--image-scale));
   height: calc(var(--image-height) * var(--image-scale));
-  border: 1px dashed #f1f3f4; /* Línea casi invisible */
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -3684,7 +3715,6 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .drop-zone:hover {
-  border-color: #e9ecef; /* Hover apenas visible */
   background: #f8f9fa;
 }
 
@@ -3697,7 +3727,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .drop-zone:hover .add-icon {
   color: #6c757d; /* Hover más sutil */
-  opacity: 1;
+  opacity: 0;
 }
 
 /* Estilos para columnas colapsables */
@@ -4747,25 +4777,25 @@ button[id="btn-cargar-categoria"]:disabled {
   box-shadow: 0 6px 16px rgba(0,0,0,0.5);
 }
 
-/* Colores basados en status - Usar los mismos colores que status-badge */
+/* Colores basados en status - Nuevos colores */
 .comment-indicator[data-status="Diseño"] {
-  background: #8e44ad; /* Morado - igual que status-badge */
+  background: #A92DE7; /* Morado - nuevo color */
 }
 
 .comment-indicator[data-status="Revision"] {
-  background: #ff6b35; /* Naranja - igual que status-badge */
+  background: #00C1FF; /* Azul - nuevo color */
 }
 
 .comment-indicator[data-status="Completado"] {
-  background: #28a745; /* Verde - igual que status-badge */
+  background: #74BE12; /* Verde - nuevo color */
 }
 
 .comment-indicator[data-status="Cancelado"] {
-  background: #6c757d; /* Gris - igual que status-badge */
+  background: #AFAFAF; /* Gris - nuevo color */
 }
 
 .comment-indicator[data-status="Analista"] {
-  background: #ff6b35; /* Naranja - igual que Revision */
+  background: #00C1FF; /* Azul - igual que Revision */
 }
 
 /* Burbuja de comentario para Item Group - en la imagen */
@@ -4794,25 +4824,25 @@ button[id="btn-cargar-categoria"]:disabled {
   box-shadow: 0 6px 16px rgba(0,0,0,0.5);
 }
 
-/* Colores basados en status para group comments - Usar los mismos colores que status-badge */
+/* Colores basados en status para group comments - Nuevos colores */
 .comment-indicator.group-comment[data-status="Diseño"] {
-  background: #8e44ad; /* Morado - igual que status-badge */
+  background: #A92DE7; /* Morado - nuevo color */
 }
 
 .comment-indicator.group-comment[data-status="Revision"] {
-  background: #ff6b35; /* Naranja - igual que status-badge */
+  background: #00C1FF; /* Azul - nuevo color */
 }
 
 .comment-indicator.group-comment[data-status="Completado"] {
-  background: #28a745; /* Verde - igual que status-badge */
+  background: #74BE12; /* Verde - nuevo color */
 }
 
 .comment-indicator.group-comment[data-status="Cancelado"] {
-  background: #6c757d; /* Gris - igual que status-badge */
+  background: #AFAFAF; /* Gris - nuevo color */
 }
 
 .comment-indicator.group-comment[data-status="Analista"] {
-  background: #ff6b35; /* Naranja - igual que Revision */
+  background: #00C1FF; /* Azul - igual que Revision */
 }
 
 /* Asegurar que el contenedor de imagen del item group tenga posición relativa */
@@ -4848,23 +4878,23 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Colores basados en status para image comments */
 .comment-bubble.image-comment[data-status="Diseño"] {
-  background: #8e44ad; /* Morado - igual que status-badge */
+  background: #A92DE7; /* Morado - nuevo color */
 }
 
 .comment-bubble.image-comment[data-status="Revision"] {
-  background: #ff6b35; /* Naranja - igual que status-badge */
+  background: #00C1FF; /* Azul - nuevo color */
 }
 
 .comment-bubble.image-comment[data-status="Completado"] {
-  background: #28a745; /* Verde - igual que status-badge */
+  background: #74BE12; /* Verde - nuevo color */
 }
 
 .comment-bubble.image-comment[data-status="Cancelado"] {
-  background: #6c757d; /* Gris - igual que status-badge */
+  background: #AFAFAF; /* Gris - nuevo color */
 }
 
 .comment-bubble.image-comment[data-status="Analista"] {
-  background: #ff6b35; /* Naranja - igual que Revision */
+  background: #00C1FF; /* Azul - igual que Revision */
 }
 
 /* Asegurar que los contenedores de imágenes tengan posición relativa */
@@ -4924,7 +4954,7 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .comment-modal .modal-header {
-  background: #4a90e2 !important;
+  background: #4347FF !important;
   border-bottom: none !important;
   padding: 20px 25px !important;
   display: flex;
@@ -4933,6 +4963,17 @@ button[id="btn-cargar-categoria"]:disabled {
   cursor: move;
   user-select: none;
   gap: 15px;
+  color: #333333 !important; /* Texto gris oscuro */
+}
+
+/* Asegurar que todo el texto del header sea gris oscuro, EXCEPTO status badges */
+.comment-modal .modal-header * {
+  color: #333333 !important;
+}
+
+/* Excepción: Los status badges deben mantener su color blanco */
+.comment-modal .modal-header .status-badge {
+  color: white !important;
 }
 
 /* Contenedor del status en el header */
@@ -4960,23 +5001,23 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Colores específicos por status - sin gradientes */
 .status-badge[data-status="Diseño"] {
-  background-color: #8e44ad;
+  background-color: #A92DE7;
 }
 
 .status-badge[data-status="Revision"] {
-  background-color: #ff6b35;
+  background-color: #00C1FF;
 }
 
 .status-badge[data-status="Completado"] {
-  background-color: #28a745;
+  background-color: #74BE12;
 }
 
 .status-badge[data-status="Cancelado"] {
-  background-color: #6c757d;
+  background-color: #AFAFAF;
 }
 
 .status-badge[data-status="Analista"] {
-  background-color: #ff6b35;
+  background-color: #00C1FF;
 }
 
 /* Dropdown de control de status */
@@ -5075,7 +5116,6 @@ button[id="btn-cargar-categoria"]:disabled {
   font-weight: 500 !important;
   color: #4a5568 !important;
   border-bottom: 1px solid #e2e8f0 !important;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
@@ -5103,10 +5143,9 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .new-comment-section .section-title {
-  margin: 0 0 16px 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #374151;
+  color: #3539CC;
   padding-bottom: 8px;
   border-bottom: 1px solid #e5e7eb;
 }
@@ -5240,27 +5279,32 @@ button[id="btn-cargar-categoria"]:disabled {
   cursor: not-allowed;
 }
 
-/* Botón específico para comentarios */
-.btn-comment-submit {
-  background: #4a90e2 !important;
-  color: white;
-  border-radius: 6px;
-  transition: background 0.2s ease;
-  box-shadow: none;
-  border: none;
+/* Botón específico para comentarios - Azul con icono blanco */
+.comment-modal .btn.btn-comment-submit.btn-textarea-height,
+.btn.btn-comment-submit.btn-textarea-height {
+  background: #FFAA0A !important;
+  color: white !important;
+  border-radius: 6px !important;
+  transition: background 0.2s ease !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
-.btn-comment-submit:hover:not(:disabled) {
-  background: #357abd !important;
-  transform: none;
-  box-shadow: none;
+.comment-modal .btn.btn-comment-submit.btn-textarea-height:hover:not(:disabled),
+.btn.btn-comment-submit.btn-textarea-height:hover:not(:disabled) {
+  background: #FA9F3A !important;
+  color: white !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
-.btn-comment-submit:disabled {
+.comment-modal .btn.btn-comment-submit.btn-textarea-height:disabled,
+.btn.btn-comment-submit.btn-textarea-height:disabled {
   background: #95a5a6 !important;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+  color: white !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .btn-secondary {
@@ -5330,7 +5374,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .comment-modal .user-name {
   font-weight: 600;
-  color: #2c3e50;
+  color: #3539CC;
   font-size: 14px;
 }
 
@@ -5342,7 +5386,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .comment-modal .date-text {
   font-size: 12px;
-  color: #6c757d;
+  color: #3539CC;
 }
 
 .comment-modal .date-text:empty {
@@ -5843,7 +5887,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .inventory-header {
   background: #f8f9fa;
-  padding: 15px 20px;
+  padding: 11px 8px;
   border-bottom: 2px solid #dee2e6;
   display: flex;
   justify-content: space-between;
@@ -5852,9 +5896,9 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .inventory-header h3 {
   margin: 0;
-  color: #495057;
+  color: #3539CC;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .inventory-stats {
@@ -5884,7 +5928,7 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .inventory-header-row {
-  background: #343a40;
+  background: #959595;
   color: white;
   position: sticky;
   top: 0;
@@ -5893,9 +5937,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .inventory-header-cell {
   padding: 6px 6px;
-  text-align: left;
   font-weight: 600;
-  border-right: 1px solid #495057;
   text-align: center;
 }
 
@@ -5929,16 +5971,16 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .inventory-row:nth-child(even) {
-  background-color: #f8f9fa; /* Gris claro */
+  background-color: #ffffff; /* Gris claro */
 }
 
 .inventory-row:nth-child(odd) {
   background-color: #ffffff; /* Blanco */
 }
 
-.inventory-row:hover {
-  background-color: rgba(108, 117, 125, 0.2);
-}
+/*.inventory-row:hover {
+  background-color: #FFF7ED;
+} hover tabla comentarios*/
 
 .inventory-cell {
   padding: 8px;
@@ -6043,21 +6085,7 @@ button[id="btn-cargar-categoria"]:disabled {
   font-style: italic;
 }
 
-/* Columnas con colores específicos - Analista (naranja claro) */
-.inventory-cell:nth-child(9), /* Analista */
-.inventory-cell:nth-child(10), /* Primera Fecha Analista */
-.inventory-cell:nth-child(11), /* Fecha Analista */
-.inventory-cell:nth-child(12) { /* Último Comentario Analista */
-  background-color: rgba(255, 165, 0, 0.15); /* Naranja claro */
-  font-size: 12px;
-}
 
-/* Columnas con colores específicos - Diseñador (morado claro) */
-.inventory-cell:nth-child(13), /* Diseñador */
-.inventory-cell:nth-child(14), /* Fecha Diseñador */
-.inventory-cell:nth-child(15) { /* Último Comentario Diseñador */
-  background-color: rgba(147, 112, 219, 0.15); /* Morado claro */
-}
 
 /* Columna Tipo (gris) */
 .inventory-cell:nth-child(16) { /* Tipo */
@@ -6126,22 +6154,22 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .status-tag.revision {
-  background-color: #ff6b35; /* Naranja como modales */
+  background-color: #00C1FF; /* Azul - nuevo color */
   color: white;
 }
 
 .status-tag.diseno {
-  background-color: #8e44ad; /* Morado como modales */
+  background-color: #A92DE7; /* Morado - nuevo color */
   color: white;
 }
 
 .status-tag.cancelado {
-  background-color: #6c757d; /* Gris como modales */
+  background-color: #AFAFAF; /* Gris - nuevo color */
   color: white;
 }
 
 .status-tag.completado {
-  background-color: #28a745; /* Verde como modales */
+  background-color: #74BE12; /* Verde - nuevo color */
   color: white;
 }
 
@@ -6395,7 +6423,6 @@ button[id="btn-cargar-categoria"]:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 15px;
   flex-wrap: wrap;
 }
 
@@ -6758,7 +6785,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .stats-table .clickable-name:hover,
 .stats-table .clickable-stat:hover {
-  background-color: #a8a8a8 !important;
+  background-color: #EEEEEE !important;
   color: #ffffff !important;
 }
 
@@ -6769,6 +6796,72 @@ button[id="btn-cargar-categoria"]:disabled {
 #box3-content .stats-table td {
   font-size: 12px !important;
   padding: 6px !important;
+}
+
+/* ============ COLORES PARA COLUMNAS DE RESUMEN ============ */
+/* Headers de las columnas específicas */
+.stats-table th:nth-child(3) { /* Act */
+  background-color: #FFB155 !important;
+  color: #FFFFFF !important;
+}
+
+.stats-table th:nth-child(4) { /* Rev */
+  background-color: #5EDDFF !important;
+  color: #FFFFFF !important;
+}
+
+.stats-table th:nth-child(5) { /* Dis */
+  background-color: #D77DF8 !important;
+  color: #FFFFFF !important;
+}
+
+.stats-table th:nth-child(6) { /* Com */
+  background-color: #A0DA61 !important;
+  color: #FFFFFF !important;
+}
+
+.stats-table th:nth-child(7) { /* Can */
+  background-color: #AFAFAF !important;
+  color: #FFFFFF !important;
+}
+
+/* Texto de las celdas de datos */
+.stats-table td:nth-child(3) { /* Act */
+  color: #FFB155 !important;
+  font-weight: 600 !important;
+}
+
+.stats-table td:nth-child(4) { /* Rev */
+  color: #5EDDFF !important;
+  font-weight: 600 !important;
+}
+
+.stats-table td:nth-child(5) { /* Dis */
+  color: #D77DF8 !important;
+  font-weight: 600 !important;
+}
+
+.stats-table td:nth-child(6) { /* Com */
+  color: #A0DA61 !important;
+  font-weight: 600 !important;
+}
+
+.stats-table td:nth-child(7) { /* Can */
+  color: #AFAFAF !important;
+  font-weight: 600 !important;
+}
+
+/* ============ HOVERS ESPECÍFICOS ============ */
+/* Hover para celdas de Total (sin data-status específico) */
+.stats-table td.clickable-stat[data-status=""]:hover {
+  color: #000000 !important;
+  background-color: #E9ECEF !important;
+}
+
+/* Hover para nombres clickeables */
+.stats-table td.clickable-name:hover {
+  color: #000000 !important;
+  background-color: #E9ECEF !important;
 }
 
 .no-data {
@@ -6816,86 +6909,85 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Analista Clean - Columna 9 */
 .inventory-cell-clean:nth-child(9) {
-  background-color: rgba(255, 165, 0, 0.15);
   min-width: 120px;
   width: 120px;
-  color: #000000 !important;
+  color: #FA890D !important;
   font-weight: 600 !important;
   font-style: normal !important;
+  background: #FFFBF2;
 }
 
 /* Primera Fecha Analista Clean - Columna 10 */
 .inventory-cell-clean:nth-child(10) {
-  background-color: rgba(255, 165, 0, 0.15);
   min-width: 100px;
   width: 100px;
   font-size: 11px;
   text-align: center;
-  color: #000000 !important;
+  color: #FA890D !important;
   font-style: normal !important;
+  background: #FFFBF2;
 }
 
 /* Fecha Analista Clean - Columna 11 */
 .inventory-cell-clean:nth-child(11) {
-  background-color: rgba(255, 165, 0, 0.15);
   min-width: 90px;
   width: 90px;
   font-size: 11px;
   text-align: center;
-  color: #000000 !important;
+  color: #FA890D !important;
   font-style: normal !important;
+  background: #FFFBF2;
 }
 
 /* Comentario Analista Clean - Columna 12 */
 .inventory-cell-clean:nth-child(12) {
-  background-color: rgba(255, 165, 0, 0.15);
   min-width: 170px;
   width: 170px;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  color: #000000 !important;
+  color: #FA890D !important;
   font-style: normal !important;
+  background: #FFFBF2;
 }
 
 /* Diseñador Clean - Columna 13 */
 .inventory-cell-clean:nth-child(13) {
-  background-color: rgba(147, 112, 219, 0.15);
   min-width: 120px;
   width: 120px;
-  color: #000000 !important;
+  background: #F2F2FF;
+  color: #3539CC !important;
   font-weight: 600 !important;
   font-style: normal !important;
 }
 
 /* Fecha Diseñador Clean - Columna 14 */
 .inventory-cell-clean:nth-child(14) {
-  background-color: rgba(147, 112, 219, 0.15);
   min-width: 100px;
   width: 100px;
   font-size: 11px;
   text-align: center;
-  color: #000000 !important;
+  color: #3539CC !important;
   font-style: normal !important;
+  background: #F2F2FF;
 }
 
 /* Comentario Diseñador Clean - Columna 15 */
 .inventory-cell-clean:nth-child(15) {
-  background-color: rgba(147, 112, 219, 0.15);
   min-width: 170px;
   width: 170px;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  color: #000000 !important;
+  color: #3539CC !important;
   font-style: normal !important;
+  background: #F2F2FF;
 }
 
 /* Tipo Clean - Columna 16 */
 .inventory-cell-clean:nth-child(16) {
-  background-color: rgba(108, 117, 125, 0.1);
   min-width: 140px;
   width: 140px;
-  color: #000000 !important;
-  font-weight: 600 !important;
+  color: #878787 !important;
+  font-weight: 650 !important;
   font-style: normal !important;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -6907,14 +6999,13 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Status Clean - Columna 17 */
 .inventory-cell-clean:nth-child(17) {
-  background-color: rgba(248, 249, 250, 0.8);
   min-width: 120px;
   width: 120px;
   text-align: center;
   vertical-align: middle;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  color: #000000 !important;
+  color: #3539CC !important;
   font-style: normal !important;
 }
 
@@ -7005,33 +7096,38 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .stats-table tbody tr:hover {
-  background: rgba(108, 117, 125, 0.15);
+  background: #EEEEEE ;
   color: #ffffff !important;
 }
 
 /* Estilos específicos para celdas de estado según su contenido */
 .stats-table td.clickable-stat[data-status="activos"] {
-  color: #5dade2 !important;
+  color: #FFB155;
   font-weight: 700;
 }
 
 .stats-table td.clickable-stat[data-status="revisión"] {
-  color: #ff9a56 !important;
+  color: #5EDDFF;
   font-weight: 700;
 }
 
 .stats-table td.clickable-stat[data-status="diseño"] {
-  color: #8e6bb8 !important;
+  color: #D77DF8;
   font-weight: 700;
 }
 
 .stats-table td.clickable-stat[data-status="cancelado"] {
-  color: #8a8a8a !important;
+  color: #AFAFAF;
   font-weight: 700;
 }
 
 .stats-table td.clickable-stat[data-status="completado"] {
-  color: #4ba76f !important;
+  color: #A0DA61;
+  font-weight: 700;
+}
+
+.stats-table td.clickable-stat:hover [data-status="designer"] {
+  color: #0f5132 !important;
   font-weight: 700;
 }
 
@@ -7107,6 +7203,10 @@ table.image-inventory-table td:nth-child(14) { width: 90px !important; min-width
 table.image-inventory-table td:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 table.image-inventory-table td:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
 table.image-inventory-table td:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+
+/* ===== COLORES DE FONDO PARA COLUMNAS DE ANALISTA Y DISEÑADOR ===== */
+
+
 
 /* REGLAS PARA inventory-cell-clean - LAS COLUMNAS 9-16 USAN ESTA CLASE */
 .image-inventory-table .inventory-cell-clean:nth-child(9) { width: 70px !important; min-width: 70px !important; max-width: 70px !important; }
