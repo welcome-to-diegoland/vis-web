@@ -1,6 +1,6 @@
 :root {
   --espacio: 3px;
-  --header-height: 70px;
+  --header-height: 53px;
   --image-size: 80px;
   --font-scale: 8px; /* Variable de escala de fuente por defecto */
 }
@@ -202,7 +202,7 @@ html, body {
 .left-column .header-logo {
   flex-shrink: 0 !important;
   flex-grow: 0 !important;
-  margin-right: 10px !important;
+  margin-right: 9px !important;
   align-items: center !important; /* Forzar centrado */
 }
 
@@ -245,7 +245,7 @@ html, body {
 }
 
 .logo-img {
-  height: 45px !important;
+  height: 38px !important;
   width: auto !important;
   max-width: none !important;
   max-height: 45px !important;
@@ -285,7 +285,7 @@ html, body {
 .main-header .left-column .user-info.d-flex.align-items-center {
   align-items: center !important; /* Mantener centrado el contenido interno */
   align-self: flex-end !important; /* Posicionar al bottom del contenedor */
-  margin-bottom: 8px !important; /* Mismo ajuste fino */
+  margin-bottom: 3px !important; /* Mismo ajuste fino */
 }
 
 .user-name-text {
@@ -349,7 +349,12 @@ html, body {
 
 /* Estandarizar tamaño de fuente para todos los botones del header */
 .main-header .btn {
-  font-size: 0.85rem !important;
+  font-size: 15px !important;
+  height: 31px !important; /* Altura consistente */
+  margin-right: 2px !important; /* Margin right siempre */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Estilos para botones compactos */
@@ -374,22 +379,29 @@ html, body {
   min-width: 120px;
   margin-left: 10px;
   width: 140px !important; /* Ancho fijo para ambos estados */
+  height: 31px !important; /* Altura fija */
+  margin-right: 2px !important; /* Margin right siempre */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* ESTADO VISUALIZADOR - Amarillo con texto negro */
 #cleanViewToggle.btn.btn-secondary {
   background-color: #FFAA0A !important;
   border-color: #FFAA0A !important;
-  color: #000000 !important; /* Texto negro */
+  color: #252525 !important; /* Texto negro */
   width: 140px !important;
-  font-weight: 600 !important; /* Peso mayor */
+  font-weight: 543 !important; /* Peso mayor */
+  font-size: 14px !important; /* Tamaño de fuente */
 }
 
 #cleanViewToggle.btn.btn-secondary:hover {
   background-color: #FA9F3A !important;
   border-color: #FA9F3A !important;
   color: #000000 !important; /* Texto negro en hover */
-  font-weight: 600 !important; /* Peso mayor */
+  font-weight: 543 !important; /* Peso mayor */
+  font-size: 14px !important; /* Mantener tamaño de fuente */
 }
 
 /* ESTADO DATOS - Azul con texto blanco */
@@ -398,21 +410,27 @@ html, body {
   border-color: #4347FF !important;
   color: #ffffff !important; /* Texto blanco */
   width: 140px !important;
-  font-weight: 600 !important; /* Peso mayor */
+  font-weight: 543 !important; /* Peso mayor */
+  font-size: 14px !important; /* Tamaño de fuente */
 }
 
 #cleanViewToggle.btn.btn-warning:hover {
   background-color: #3539CC !important;
   border-color: #3539CC !important;
   color: #ffffff !important; /* Texto blanco en hover */
-  font-weight: 600 !important; /* Peso mayor */
+  font-weight: 543 !important; /* Peso mayor */
+  font-size: 14px !important; /* Mantener tamaño de fuente */
 }
 
 .btn-compact {
   padding: 6px 12px;
   font-size: 14px;
   min-width: 120px;
-  height: 38px;
+  height: 31px; /* Altura consistente */
+  margin-right: 2px !important; /* Margin right siempre */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #loadLocalBtn:hover {
@@ -543,7 +561,7 @@ input[type="file"] {
 .left-section {
   display: flex;
   flex-direction: column;
-  height: calc(100% - 70px);
+  height: calc(100% - 53px);
   min-height: 0;
   gap: var(--espacio);
 }
@@ -567,7 +585,7 @@ input[type="file"] {
 .box {
   flex: 1 1 auto;
   min-height: 50px;
-  max-height: calc(100% - 50px);
+  max-height: calc(100% - 33px);
   overflow: hidden;
   background: white;
   border: 1px solid #ddd;
@@ -592,7 +610,7 @@ input[type="file"] {
   cursor: col-resize;
   flex-shrink: 0;
   background: #ddd;
-  height: calc(100% - 70px);
+  height: calc(100% - 54px);
 }
 
 .horizontal-divider {
@@ -5901,11 +5919,6 @@ button[id="btn-cargar-categoria"]:disabled {
   font-weight: 700;
 }
 
-.inventory-stats {
-  color: #6c757d;
-  font-size: 14px;
-}
-
 .inventory-stats strong {
   color: #495057;
   font-weight: 600;
@@ -6422,24 +6435,79 @@ button[id="btn-cargar-categoria"]:disabled {
 .inventory-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   flex-wrap: wrap;
 }
 
-/* Botones de acción del inventario */
+/* Botones de acción del inventario - ESTILOS PERSONALIZADOS */
+.inventory-btn {
+  font-size: 12px;
+  padding: 4px 15px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+
+
+.inventory-btn-primary {
+  background-color: #4347FF;
+  color: #ffffff;
+  border: 1px solid #4347FF;
+}
+
+.inventory-btn-primary:hover {
+  background-color: #3539CC;
+  border-color: #3539CC;
+}
+
+.inventory-btn-primary:active {
+  background-color: #2B2C7D;
+  border-color: #575AFF;
+}
+
+.inventory-btn-secondary {
+  background-color: #4347FF;
+  color: #ffffff;
+  border: 1px solid #4347FF;
+}
+
+.inventory-btn-secondary:hover {
+  background-color: #3539CC;
+  border-color: #3539CC;
+}
+
+.inventory-btn-secondary:active {
+  background-color: #2B2C7D;
+  border-color: #2B2C7D;
+}
+
+/* Iconos dentro de los botones */
+.inventory-btn i {
+  font-size: 0.9rem;
+}
+
+/* Eliminar estilos antiguos de Bootstrap override */
 .btn-inventory-action {
-  font-size: 0.85rem !important;
-  padding: 6px 12px !important;
-  height: 36px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 4px !important;
-  white-space: nowrap !important;
+  /* Mantener para compatibilidad pero ya no se usa */
+  display: none;
 }
 
 .inventory-stats {
   margin-left: auto;
-  font-size: 0.9rem;
+  font-size: 15px;
+  margin-left: 22px;
+  margin-right: 27px;
   color: #495057;
 }
 
@@ -6986,7 +7054,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .inventory-cell-clean:nth-child(16) {
   min-width: 140px;
   width: 140px;
-  color: #878787 !important;
+  color: #808080 !important;
   font-weight: 650 !important;
   font-style: normal !important;
   cursor: pointer;

@@ -899,7 +899,7 @@ function initializeLoginSystem() {
 
 function setupLoginForm() {
   // 🚀 MODO DESARROLLO - AUTO LOGIN (comentar/descomentar para activar)
-  const DEV_MODE = true; // Cambiar a false para restaurar login normal
+  const DEV_MODE = false; // Cambiar a false para restaurar login normal
   
   if (DEV_MODE) {
     console.log('🚀 MODO DESARROLLO ACTIVADO - Auto login como Sandra');
@@ -8560,14 +8560,14 @@ function toggleCleanView() {
     // Activar vista limpia - mostrar vista de datos (tabla de inventario)
     console.log('🔄 Activando vista de datos...');
     clearAllBoxes();
-    toggleButton.innerHTML = '<i class="fa-solid fa-eye"></i> Visualizador';
+    toggleButton.innerHTML = '<i class="fa-solid fa-eye" style="margin-right: 8px;"></i>Visualizador';
     toggleButton.className = 'btn btn-secondary btn-compact';
     console.log('✅ Vista de datos activada - mostrando tabla de inventario');
   } else {
     // Restaurar vista normal - mostrar árbol/visualizador
     console.log('🔄 Restaurando vista normal...');
     restoreNormalView();
-    toggleButton.innerHTML = '<i class="fa-solid fa-table-list" style="margin-right: 8px;"></i>Datos';
+    toggleButton.innerHTML = '<i class="fa-solid fa-table-list" style="margin-right: 6px;"></i>Información';
     toggleButton.className = 'btn btn-warning btn-compact';
     console.log('✅ Vista normal restaurada - mostrando elementos del visualizador');
   }
@@ -9167,13 +9167,13 @@ function generateImageInventoryTable(dataOverride = null) {
       <div class="inventory-header">
         <h3>Comentarios del Visualizador</h3>
         <div class="inventory-actions">
-          <button id="assignDesignerBtn" class="btn btn-success btn-inventory-action">
-            <i class="fas fa-user-plus"></i> Asignar Diseñadora
+          <button id="assignDesignerBtn" class="inventory-btn inventory-btn-primary">
+            <i class="fas fa-user-plus"></i> Asignar
           </button>
-          <button id="openInventoryFilters" class="btn btn-secondary btn-inventory-action">
+          <button id="openInventoryFilters" class="inventory-btn inventory-btn-secondary">
             <i class="fas fa-filter"></i> Filtros
           </button>
-          <button id="clearFiltersBtn" class="btn btn-secondary btn-inventory-action" onclick="clearInventoryFilter()">
+          <button id="clearFiltersBtn" class="inventory-btn inventory-btn-secondary" onclick="clearInventoryFilter()">
             <i class="fas fa-times"></i> Limpiar Filtros
           </button>
           <div class="inventory-stats">
