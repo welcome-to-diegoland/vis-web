@@ -3293,7 +3293,7 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
           </div>
           <div class="selected-image-placeholder">
             <div class="selected-image-container">
-              <div class="no-image-selected">🖼️</div>
+              <div class="no-image-selected"><img src="assets/no-img-orange.svg" alt="No image selected" style="width: 100%; height: 100%; object-fit: contain;"></div>
             </div>
           </div>
         </div>
@@ -3838,7 +3838,7 @@ function updateWorkingImagePlaceholder() {
       </div>
     `;
   } else {
-    placeholder.innerHTML = '<div class="no-image-selected">🖼️</div>';
+    placeholder.innerHTML = '<div class="no-image-selected"><img src="assets/no-img-orange.svg" alt="No image selected" style="width: 100%; height: 100%; object-fit: contain;"></div>';
   }
 }
 
@@ -5986,7 +5986,7 @@ function updateItemGroupHeaderImage(imageName) {
     setupItemGroupDeleteButton();
     setupItemGroupImageClick(); // Configurar click en imagen
   } else {
-    groupImageContainer.innerHTML = '<div class="no-image">📷</div>';
+    groupImageContainer.innerHTML = '<div class="no-image"><img src="assets/no-img-purple.svg" alt="No image" style="width: 100%; height: 100%; object-fit: contain;"></div>';
   }
   
   console.log('Header del Item Group actualizado con nueva imagen. Comentario presente:', hasComment, 'Status:', commentStatus);

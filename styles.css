@@ -388,18 +388,18 @@ html, body {
 
 /* ESTADO VISUALIZADOR - Amarillo con texto negro */
 #cleanViewToggle.btn.btn-secondary {
-  background-color: #FFAA0A !important;
-  border-color: #FFAA0A !important;
-  color: #252525 !important; /* Texto negro */
+  background-color: #FA9F3A !important;
+  border-color: #FA9F3A !important;
+  color: #ffffff !important; /* Texto negro */
   width: 140px !important;
   font-weight: 543 !important; /* Peso mayor */
   font-size: 14px !important; /* Tamaño de fuente */
 }
 
 #cleanViewToggle.btn.btn-secondary:hover {
-  background-color: #FA9F3A !important;
-  border-color: #FA9F3A !important;
-  color: #000000 !important; /* Texto negro en hover */
+  background-color: #FFAA0A !important;
+  border-color: #FFAA0A !important;
+  color: #ffffff !important; /* Texto negro en hover */
   font-weight: 543 !important; /* Peso mayor */
   font-size: 14px !important; /* Mantener tamaño de fuente */
 }
@@ -2313,7 +2313,7 @@ html, body {
 button#btn-cargar-categoria.btn.btn-secondary {
   background-color: #FFAA0A !important; /* Verde como los otros botones de acción */
   border-color: #FFAA0A !important;
-  color: rgb(0, 0, 0) !important;
+  color: #ffffff !important;
   /* Mantener estilos originales de Bootstrap */
   font-size: 12px !important; /* Bootstrap default */
   font-weight: 500 !important; /* Bootstrap default */
@@ -2933,7 +2933,7 @@ button[id="btn-cargar-categoria"]:disabled {
   border-radius: 8px;
   overflow: hidden;
   background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  border: 1px solid #8c90ff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3140,7 +3140,7 @@ button[id="btn-cargar-categoria"]:disabled {
   border-radius: 8px;
   overflow: hidden;
   background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  border: 1px solid #febc6b;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5915,6 +5915,7 @@ button[id="btn-cargar-categoria"]:disabled {
   color: #3539CC;
   font-size: 18px;
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .inventory-stats strong {
