@@ -3469,6 +3469,7 @@ function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, 
     <div class="image-thumbnail-container">
       <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
            alt="${imageName}" class="image-thumbnail" 
+           data-filename="${imageName}"
            onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
       <div class="image-controls">
         <button class="btn-remove" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>
@@ -3927,7 +3928,8 @@ function setupImageSystemEventListeners() {
       } else if (imageThumbnail && imageCell) {
         // Click en imagen del grid
         console.log('💬 Abriendo comentario de imagen del grid');
-        const imageName = imageThumbnail.alt;
+        // Priorizar data-filename, luego alt como fallback
+        const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
         const commentText = getImageComments(imageName);
         openCommentModal('Comentarios de Imagen', imageName, commentText || '', 'image', imageName);
       } else if ((emptyImageCell || imageCell) && !imageThumbnail) {
@@ -5908,7 +5910,8 @@ function handleItemGroupImageAssignment(event, imageCell, imageThumbnail) {
     return;
   }
   
-  const imageName = imageThumbnail.alt;
+  // Priorizar data-filename, luego alt como fallback
+  const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
   const itemCode = imageCell.getAttribute('data-item-code');
   
   // Encontrar el Item Group actual en los datos
@@ -6001,7 +6004,8 @@ function handleImagePreview(event, imageThumbnail) {
     return; // No mostrar modal para imágenes vacías
   }
   
-  const imageName = imageThumbnail.alt;
+  // Priorizar data-filename, luego alt como fallback
+  const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
   const imageSrc = imageThumbnail.src;
   
   console.log(`🖼️ Mostrando vista previa de: ${imageName}`);
@@ -6077,7 +6081,8 @@ function handleImageSelection(event, imageCell, imageThumbnail) {
   
   // Si hay imagen en la celda, seleccionarla
   if (imageThumbnail && imageThumbnail.src && !imageThumbnail.src.includes('data:image/svg+xml')) {
-    const imageName = imageThumbnail.alt;
+    // Priorizar data-filename, luego alt como fallback
+    const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
     const itemCode = imageCell.getAttribute('data-item-code');
     const section = imageCell.getAttribute('data-section');
     const rowIndex = parseInt(imageCell.getAttribute('data-row-index'));
@@ -6133,7 +6138,8 @@ function handleImageRemoval(event, imageCell, imageThumbnail) {
     return;
   }
   
-  const imageName = imageThumbnail.alt;
+  // Priorizar data-filename, luego alt como fallback
+  const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
   const itemCode = imageCell.getAttribute('data-item-code');
   const section = imageCell.getAttribute('data-section');
   const rowIndex = parseInt(imageCell.getAttribute('data-row-index'));
@@ -6522,7 +6528,8 @@ function handleBulkImageRemoval(event, imageCell) {
     return;
   }
   
-  const imageName = imageThumbnail.alt;
+  // Priorizar data-filename, luego alt como fallback
+  const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
   const sourceItemCode = imageCell.getAttribute('data-item-code');
   
   // Confirmación del usuario
@@ -6846,17 +6853,17 @@ function compactImagesInSection(itemCode, section, removedColIndex) {
     if (newPosition < rowCells.length) {
       const targetCell = rowCells[newPosition]?.cell;
       if (targetCell) {
-        // Insertar la imagen en su nueva posición
+        // Insertar la imagen en su nueva posición usando el mismo formato que generateImageCellHTML
         targetCell.innerHTML = `
-          <div class="image-item">
-            <img class="image-thumbnail" src="${imageData.src}" 
-                 data-filename="${imageData.filename}" 
-                 title="${imageData.filename}">
-            <div class="image-overlay">
-              <div class="image-info">
-                <span class="image-name">${imageData.filename}</span>
-              </div>
+          <div class="image-thumbnail-container">
+            <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageData.filename}" 
+                 alt="${imageData.filename}" class="image-thumbnail" 
+                 data-filename="${imageData.filename}"
+                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageData.filename}';">
+            <div class="image-controls">
+              <button class="btn-remove" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>
             </div>
+            <div class="image-name">${imageData.filename}</div>
           </div>
         `;
         
@@ -7521,7 +7528,8 @@ function handleGalCleanup() {
     if (imageThumbnail && !imageThumbnail.src.includes('data:image/svg+xml')) {
       totalImages++;
       
-      const imageName = imageThumbnail.alt;
+      // Priorizar data-filename, luego alt como fallback
+      const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
       const cellItemCode = cell.getAttribute('data-item-code');
       const rowIndex = parseInt(cell.getAttribute('data-row-index'));
       const colIndex = parseInt(cell.getAttribute('data-col-index'));

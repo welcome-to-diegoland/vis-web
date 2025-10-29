@@ -2424,13 +2424,13 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .category-tree-li .category-tree-li-content:hover {
-  background-color: rgba(0, 123, 255, 0.1);
+  background-color: #4347ff1c;
 }
 
 
 
 .category-tree-li > .category-tree-li-content:has(.category-tree-label.selected) {
-  background: #ffe0b2;
+  background: #4347ff29;
 }
 
 .category-tree-label.selected {
@@ -2511,8 +2511,8 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .approval-view-active .category-tree-li-content.approval-green {
-  background-color: rgba(40, 167, 69, 0.08);
-  border-left: 3px solid #28a745;
+  background-color: #a0da613d;
+  border-left: 3px solid #A0DA61;
 }
 
 .approval-view-active .category-tree-li-content.approval-green:hover {
@@ -2520,8 +2520,8 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .approval-view-active .category-tree-li-content.approval-orange {
-  background-color: rgba(255, 143, 0, 0.08);
-  border-left: 3px solid #ff8f00;
+  background-color: #ffb15521;
+  border-left: 3px solid #FFB155;
 }
 
 .approval-view-active .category-tree-li-content.approval-orange:hover {
@@ -2530,22 +2530,22 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Mantener la selección visible en modo aprobación */
 .approval-view-active .category-tree-li > .category-tree-li-content:has(.category-tree-label.selected).approval-green {
-  background: linear-gradient(90deg, rgba(40, 167, 69, 0.2) 0%, #ffe0b2 50%);
+  background: linear-gradient(90deg, rgba(40, 167, 69, 0.2) 0%, #4347ff59 50%);
 }
 
 .approval-view-active .category-tree-li > .category-tree-li-content:has(.category-tree-label.selected).approval-orange {
-  background: linear-gradient(90deg, rgba(255, 143, 0, 0.2) 0%, #ffe0b2 50%);
+  background: linear-gradient(90deg, rgb(255 143 0 / 37%) 0%, #4347ff59 50%);
 }
 
 /* Estilos de aprobación para el grid (Item Codes) - Solo raya izquierda */
 .approval-view-active .item-code-cell.approval-green,
 .image-grid-container.approval-view-active .item-code-cell.approval-green {
-  border-left: 4px solid #28a745 !important;
+  border-left: 4px solid #A0DA61 !important;
 }
 
 .approval-view-active .item-code-cell.approval-orange,
 .image-grid-container.approval-view-active .item-code-cell.approval-orange {
-  border-left: 4px solid #ff8f00 !important;
+  border-left: 4px solid #FFB155 !important;
 }
 
 /* Estilo para el botón de cargar categoría */
@@ -2989,7 +2989,7 @@ button[id="btn-cargar-categoria"]:disabled {
   gap: 6px;
   min-width: 0;
   flex: 1; /* Expandir para usar espacio disponible */
-  max-width: 600px; /* Límite máximo para no ocupar todo */
+  max-width: 690px; /* Límite máximo para no ocupar todo */
 }
 
 .group-title {
@@ -3037,7 +3037,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Estilos para el link del ID del Item Group */
 .group-id-link {
-  color: #007bff;
+  color: #4347FF;
   text-decoration: none;
   font-weight: 600;
   transition: all 0.2s ease;
@@ -3046,10 +3046,8 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .group-id-link:hover {
-  color: #0056b3;
-  background-color: rgba(0, 123, 255, 0.1);
+  color: #4347FF;
   text-decoration: underline;
-  transform: translateY(-1px);
 }
 
 .group-id-link:active {
@@ -3356,7 +3354,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .zoom-info {
   background: #f8f9fa;
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 5px;
   font-size: 12px;
   font-weight: 600;
   color: #495057;
