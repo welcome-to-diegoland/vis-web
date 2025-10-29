@@ -3258,7 +3258,7 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
                 `<img src="https://www.travers.com.mx/media/catalog/product/agility/img/${itemGroup['WA_Gallery_01']}" 
                      alt="Gallery 1" class="group-thumbnail"
                      onerror="this.style.display='none';">
-                 <div class="item-group-delete-btn" title="Quitar imagen del Item Group">🗑️</div>` : 
+                 <div class="item-group-delete-btn" title="Quitar imagen del Item Group"><i class="fa-solid fa-trash"></i></div>` : 
                 '<div class="no-image">📷</div>'
               }
               ${itemGroup && itemGroup['WA_VIS_Comment'] && itemGroup['WA_VIS_Comment'].trim() ? 
@@ -3273,6 +3273,8 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
               <div class="group-meta">
                 <span class="group-brand">${itemGroup ? (itemGroup['Marca'] || 'Sin marca') : ''}</span>
                 <span class="group-page">${itemGroup ? (itemGroup['Página de Catálogo'] || itemGroup['Catalog Page'] || 'Sin página') : ''}</span>
+                <span class="group-cms">${itemGroup ? (itemGroup['CMS'] || 'Sin CMS') : ''}</span>
+                <span class="group-items">${itemCodes.length} items</span>
                 <span class="group-id">
                   ${itemGroup ? (
                     itemGroup['Id'] || itemGroup['ID'] ? 
@@ -3280,8 +3282,6 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
                       : 'Sin ID'
                   ) : ''}
                 </span>
-                <span class="group-cms">${itemGroup ? (itemGroup['CMS'] || 'Sin CMS') : ''}</span>
-                <span class="group-items">${itemCodes.length} items</span>
               </div>
             </div>
           </div>
@@ -3471,7 +3471,7 @@ function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, 
            alt="${imageName}" class="image-thumbnail" 
            onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
       <div class="image-controls">
-        <button class="btn-remove" title="Quitar imagen">🗑️</button>
+        <button class="btn-remove" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>
       </div>
       ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}"${statusAttribute} onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios">💬</div>` : ''}
       ${multipleImagesIndicator}
@@ -5978,7 +5978,7 @@ function updateItemGroupHeaderImage(imageName) {
       <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
            alt="Gallery 1" class="group-thumbnail"
            onerror="this.style.display='none';">
-      <div class="item-group-delete-btn" title="Quitar imagen del Item Group">🗑️</div>
+      <div class="item-group-delete-btn" title="Quitar imagen del Item Group"><i class="fa-solid fa-trash"></i></div>
       ${hasComment ? `<div class="comment-indicator group-comment" data-comment="${(currentItemGroup['WA_VIS_Comment'] || '').replace(/"/g, '&quot;')}"${statusAttribute}>💬</div>` : ''}
     `;
     

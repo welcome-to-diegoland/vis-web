@@ -3512,6 +3512,7 @@ button[id="btn-cargar-categoria"]:disabled {
   padding: 6px;
   font-weight: 600;
   background: #f8f9fa38 !important;
+  color: #3539cb !important;
   position: sticky !important;
   left: 0 !important;
   z-index: 51 !important;
@@ -3562,7 +3563,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .item-importance[data-value="R"] {
   background: #d4edda;
   color: #155724;
-  border: 1px solid #a6cbae;
+  border: 1px solid #c3e6cb;
 }
 
 /* Rojo/Warning para cualquier otro valor */
@@ -3581,7 +3582,8 @@ button[id="btn-cargar-categoria"]:disabled {
 
 .item-brand {
   background: #f3e5f5;
-  border: 1px solid #666;
+  color: #7b1fa2;
+  border: 1px solid #e1bee7;
 }
 
 .item-title {
@@ -3656,7 +3658,7 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .btn-remove {
-  background: #3539cb;
+  background: rgba(0,0,0,0.7);
   border: none;
   border-radius: 3px;
   padding: 2px 4px;
@@ -3690,7 +3692,7 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .btn-remove:hover {
-  background: #2829a5;
+  background: #dc3545;
 }
 
 .image-name {
@@ -3795,8 +3797,8 @@ button[id="btn-cargar-categoria"]:disabled {
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
-  background: #ebedf0 !important;  /* Color gris específico del Item Code */
-  color: #3d3d3d !important;
+  background: #4a5568 !important;  /* Color gris específico del Item Code */
+  color: white !important;
   border-bottom: 1px solid #ddd !important;
   height: 30px !important;
   display: flex !important;
@@ -4073,12 +4075,17 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .btn-remove {
+  background: rgba(0, 0, 0, 0.7);
   border: none;
   border-radius: 3px;
   padding: 2px 4px;
   font-size: 10px;
   cursor: pointer;
   color: white;
+}
+
+.btn-remove:hover {
+  background: rgba(220, 53, 69, 0.8);
 }
 
 .image-name {
@@ -4177,12 +4184,13 @@ button[id="btn-cargar-categoria"]:disabled {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-weight: 500 !important; /* Menos bold */
+  font-weight: 700 !important; /* Menos bold */
   font-size: 12px !important;
   border-right: 1px solid #e9ecef !important; /* Borde más sutil */
   height: 100% !important;
   background: white !important; /* Fondo blanco limpio */
-  color: #6c757d !important; /* Texto gris */
+  /* color: #6c757d !important; */ /* Texto gris */
+  letter-spacing: -0.08em;
 }
 
 /* Headers específicos - Solo item-code mantiene diferencia */
@@ -4259,7 +4267,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Wrapper para cada sección */
 .section-wrapper {
-  border-right: 2px solid #dee2e6;
+  /* border-right: 2px solid #dee2e6; */
   display: flex;
   flex-direction: column;
   position: relative;  /* CLAVE para sticky de headers */
@@ -4448,7 +4456,10 @@ button[id="btn-cargar-categoria"]:disabled {
   min-height: calc(var(--image-size, 80px) + 50px);
 }
 
-
+/* Hover effects */
+.table-cell:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+}
 
 /* ===== FIN ESTRUCTURA DE TABLA REAL ===== */
 
@@ -5722,7 +5733,7 @@ button[id="btn-cargar-categoria"]:disabled {
   position: absolute;
   bottom: 4px;
   right: 4px;
-  background: #3539cb;
+  background: rgba(0, 0, 0, 0.7);
   color: white;
   border: none;
   border-radius: 3px;
@@ -5740,7 +5751,7 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .item-group-delete-btn:hover {
-  background: #2829a5;
+  background: rgba(220, 53, 69, 0.8);
 }
 
 /* Modal de vista previa de imagen */
