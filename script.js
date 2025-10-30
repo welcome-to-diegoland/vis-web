@@ -12039,26 +12039,9 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
   };
   
   if (type === 'image' && imageName) {
-    // Comentario de imagen - buscar o crear asset
-    let asset = currentAssetComments.find(asset => asset.Name === imageName);
+    // Comentario de imagen - buscar asset usando la función mejorada
     console.log('🔍 Buscando asset para imagen:', imageName);
-    console.log('📋 Asset encontrado en currentAssetComments:', asset);
-    
-    if (!asset) {
-      // Buscar en currentWorkingData si no está en currentAssetComments
-      asset = currentWorkingData.find(item => 
-        item['Object Type'] === 'Image' && item.Name === imageName
-      );
-      console.log('📋 Asset encontrado en currentWorkingData:', asset);
-    }
-    
-    if (!asset) {
-      // Buscar en allLibraryData si no está en ninguno de los anteriores
-      asset = allLibraryData.find(item => 
-        item['Object Type'] === 'Image' && item.Name === imageName
-      );
-      console.log('📋 Asset encontrado en allLibraryData:', asset);
-    }
+    let asset = findImageAssetByName(imageName);
     
     if (asset && asset.ID) {
       record.id = asset.ID;
@@ -12076,7 +12059,7 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
       const newImageAsset = {
         Name: imageName,
         'Object Type': 'Image',
-        'WA_VIS_Comment': updatedComments,
+        'WA_VIS_Comment': completeCommentHistory,
         ID: newImageId,
         Id: newImageId
       };
