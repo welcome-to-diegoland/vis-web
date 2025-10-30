@@ -4973,7 +4973,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Asegurar que todo el texto del header sea gris oscuro, EXCEPTO status badges */
 .comment-modal .modal-header * {
-  color: #333333 !important;
+  color: #ffffff !important;
 }
 
 /* Excepción: Los status badges deben mantener su color blanco */
