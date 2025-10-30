@@ -96,7 +96,12 @@ const GOOGLE_SHEETS_CONFIG = {
 // Sistema de cola para auto-guardado (evitar rate limiting)
 let autoSaveQueue = [];
 let isProcessingAutoSave = false;
-const AUTO_SAVE_DELAY = 1000; // 1 segundo entre envíos
+const AUTO_SAVE_DELAY = 3000; // 3 segundos entre envíos para evitar 429
+const MAX_BATCH_SIZE = 3; // Máximo 3 requests en batch
+
+// Sistema de debouncing para auto-guardado
+let autoSaveTimeouts = new Map(); // Map para trackear timeouts por ID
+const DEBOUNCE_DELAY = 1500; // 1.5 segundos de debounce
 
 // Lista de atributos WA válidos
 const WA_ATTRIBUTES = [
@@ -157,18 +162,31 @@ async function processAutoSaveQueue() {
   
   isProcessingAutoSave = true;
   
+  // Procesar en batches más pequeños
   while (autoSaveQueue.length > 0) {
-    const saveRequest = autoSaveQueue.shift();
+    const batchSize = Math.min(MAX_BATCH_SIZE, autoSaveQueue.length);
+    const batch = [];
     
-    try {
-      await sendAutoSaveRequest(saveRequest);
-    } catch (error) {
-      console.error(`❌ Error en auto-guardado para ID: ${saveRequest.record.id}`, error);
+    for (let i = 0; i < batchSize; i++) {
+      batch.push(autoSaveQueue.shift());
     }
     
-    // Delay entre envíos para evitar rate limiting
+    try {
+      // Procesar batch secuencialmente con delay entre cada request
+      for (let j = 0; j < batch.length; j++) {
+        await sendAutoSaveRequest(batch[j]);
+        
+        // Delay entre requests del mismo batch
+        if (j < batch.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error en batch de auto-guardado:`, error);
+    }
+    
+    // Delay más largo entre batches para evitar rate limiting
     if (autoSaveQueue.length > 0) {
-      console.log(`⏱️ Esperando ${AUTO_SAVE_DELAY}ms antes del siguiente envío...`);
       await new Promise(resolve => setTimeout(resolve, AUTO_SAVE_DELAY));
     }
   }
@@ -177,19 +195,32 @@ async function processAutoSaveQueue() {
 }
 
 function addToAutoSaveQueue(record, user, date) {
-  const saveRequest = {
-    record: record,
-    user: user,
-    date: date,
-    type: 'comment_autosave'
-  };
+  const recordId = record.id || record.itemId || 'unknown';
   
-  autoSaveQueue.push(saveRequest);
-  
-  // Iniciar procesamiento si no está activo
-  if (!isProcessingAutoSave) {
-    processAutoSaveQueue();
+  // Limpiar timeout anterior si existe (debouncing)
+  if (autoSaveTimeouts.has(recordId)) {
+    clearTimeout(autoSaveTimeouts.get(recordId));
   }
+  
+  // Crear nuevo timeout con debounce
+  const timeoutId = setTimeout(() => {
+    const saveRequest = {
+      record: record,
+      user: user,
+      date: date,
+      type: 'comment_autosave'
+    };
+    
+    autoSaveQueue.push(saveRequest);
+    autoSaveTimeouts.delete(recordId);
+    
+    // Iniciar procesamiento si no está activo
+    if (!isProcessingAutoSave) {
+      processAutoSaveQueue();
+    }
+  }, DEBOUNCE_DELAY);
+  
+  autoSaveTimeouts.set(recordId, timeoutId);
 }
 
 async function sendAutoSaveRequest(saveRequest) {
@@ -219,8 +250,6 @@ async function sendAutoSaveRequest(saveRequest) {
 // ===== FUNCIÓN UNIFICADA DE GUARDADO - Usa la URL que funciona =====
 async function saveToVisSandra(records, operationType = 'manual') {
   try {
-    console.log(`📊 UNIFIED SAVE: Guardando ${records.length} registros de tipo '${operationType}' en data-update`);
-    
     // Obtener usuario actual para tracking, pero SIEMPRE usar "Sandra" para el Apps Script
     const currentUser = getCurrentUser();
     if (!currentUser) {
@@ -252,15 +281,6 @@ async function saveToVisSandra(records, operationType = 'manual') {
       type: operationType // 'manual', 'comment', 'assignment'
     };
     
-    console.log(`🔗 Enviando a: ${GOOGLE_APPS_SCRIPT_URL}`);
-    console.log(`📦 Datos a enviar (FORZANDO usuario a "${forcedUser}" para data-update):`, {
-      total_records: enrichedRecords.length,
-      sample_record: enrichedRecords[0],
-      operation_type: operationType,
-      forced_user: forcedUser,
-      real_user: formattedUserName
-    });
-    
     // Usar la URL que funciona (GOOGLE_APPS_SCRIPT_URL) sin parámetros
     const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
       method: 'POST',
@@ -271,7 +291,6 @@ async function saveToVisSandra(records, operationType = 'manual') {
       body: JSON.stringify(payload)
     });
     
-    console.log(`✅ UNIFIED SAVE: ${records.length} registros enviados a data-update`);
     return true;
     
   } catch (error) {
@@ -709,10 +728,8 @@ function navigateToItemGroup(itemGroupId) {
     allLibraryData: allLibraryData?.length || 0,
     currentWorkingData: currentWorkingData?.length || 0
   };
-  console.log(`📊 DATASETS DISPONIBLES:`, datasets);
   
-  // PASO 2: Buscar Item Group con logging específico
-  console.log(`🔍 BUSCANDO Item Group ID: ${itemGroupId} (tipo: ${typeof itemGroupId})`);
+  // PASO 2: Buscar Item Group
   
   // PRIMERO: Buscar en originalTreeData (datos de category con NamePath)
   let itemGroup = null;
@@ -724,10 +741,7 @@ function navigateToItemGroup(itemGroupId) {
     });
     if (itemGroup) {
       foundIn = 'originalTreeData';
-      console.log(`✅ ENCONTRADO en originalTreeData`);
     }
-  } else {
-    console.log(`⚠️ originalTreeData está vacío o no disponible`);
   }
   
   // FALLBACK: Buscar en allLibraryData
@@ -737,7 +751,6 @@ function navigateToItemGroup(itemGroupId) {
     });
     if (itemGroup) {
       foundIn = 'allLibraryData';
-      console.log(`✅ ENCONTRADO en allLibraryData`);
     }
   }
   
@@ -748,98 +761,55 @@ function navigateToItemGroup(itemGroupId) {
     });
     if (itemGroup) {
       foundIn = 'currentWorkingData';
-      console.log(`✅ ENCONTRADO en currentWorkingData`);
     }
   }
   
   // PASO 3: Verificar resultado de búsqueda
   if (!itemGroup) {
     console.error(`❌ ITEM GROUP NO ENCONTRADO: ID ${itemGroupId}`);
-    
-    // Mostrar IDs disponibles para diagnóstico
-    const availableIds = (originalTreeData || [])
-      .filter(item => item['Object Type'] === 'Item Group')
-      .map(g => ({ Id: g.Id, Name: g.Name }))
-      .slice(0, 10);
-    console.log(`📋 PRIMEROS 10 IDs DISPONIBLES:`, availableIds);
-    
     alert('Item Group no encontrado');
     return;
   }
   
-  console.log(`🎯 ITEM GROUP ENCONTRADO en ${foundIn}:`);
-  console.log(`   - ID: ${itemGroup.Id}`);
-  console.log(`   - Name: ${itemGroup.Name}`);
-  console.log(`   - NamePath: ${itemGroup.NamePath || 'MISSING!'}`);
-  console.log(`   - Object Type: ${itemGroup['Object Type']}`);
-  
   // PASO 4: Verificar NamePath o construirlo
-  console.log(`🎯 ITEM GROUP ENCONTRADO en ${foundIn}:`);
-  console.log(`   - ID: ${itemGroup.Id}`);
-  console.log(`   - Name: ${itemGroup.Name}`);
-  console.log(`   - NamePath: ${itemGroup.NamePath || 'MISSING!'}`);
-  console.log(`   - IdPath: ${itemGroup.IdPath || 'MISSING!'}`);
-  console.log(`   - Object Type: ${itemGroup['Object Type']}`);
-  
-  // Si no tiene NamePath, intentar usar IdPath o construir una ruta básica
   let navigationPath = itemGroup.NamePath;
   
   if (!navigationPath || navigationPath.trim() === '') {
     // Intentar usar IdPath como alternativa
     if (itemGroup.IdPath && itemGroup.IdPath.trim() !== '') {
       navigationPath = itemGroup.IdPath;
-      console.log('🔄 USANDO IdPath como alternativa:', navigationPath);
     } else {
       // Como último recurso, usar solo el nombre del Item Group
       navigationPath = itemGroup.Name;
-      console.log('🔄 USANDO Name como alternativa:', navigationPath);
-    }
-  }
-  if (!navigationPath || navigationPath.trim() === '') {
-    // Intentar usar IdPath como alternativa
-    if (itemGroup.IdPath && itemGroup.IdPath.trim() !== '') {
-      navigationPath = itemGroup.IdPath;
-      console.log(` USANDO IdPath como alternativa: ${navigationPath}`);
-    } else {
-      // Como último recurso, usar solo el nombre del Item Group
-      navigationPath = itemGroup.Name;
-      console.log(` USANDO Name como alternativa: ${navigationPath}`);
     }
   }
   
   if (!navigationPath || navigationPath.trim() === '') {
     console.error(`❌ NO SE PUEDE CONSTRUIR RUTA DE NAVEGACIÓN`);
-    console.log(`🔍 PROPIEDADES DISPONIBLES:`, Object.keys(itemGroup));
     alert('Error: No se puede determinar la ruta de navegación para este Item Group');
     return;
   }
   
   // PASO 5: Preparar navegación
-  console.log(`🚀 INICIANDO NAVEGACIÓN A: ${navigationPath}`);
   
   // Guardar estado antes de navegar
   saveInventoryViewState();
   
   // Desactivar vista limpia si está activa
   if (isCleanViewActive) {
-    console.log('🔄 Desactivando vista limpia...');
     toggleCleanView();
   }
   
   // PASO 6: Expandir árbol y seleccionar
-  console.log(`🌳 EXPANDIENDO ÁRBOL hasta: ${navigationPath}`);
   expandTreeToPath(navigationPath, true);
     
     // 4. Seleccionar el Item Group en el árbol después de expandir
     setTimeout(() => {
-      console.log('🎯 Iniciando selección en el árbol...');
       const treeContainer = document.getElementById('tree');
       if (treeContainer) {
-        console.log('✅ TreeContainer encontrado');
         
         // Quitar selección previa
         const previousSelected = treeContainer.querySelectorAll('.category-tree-label.selected');
-        console.log(`🔄 Removiendo ${previousSelected.length} selecciones previas`);
         previousSelected.forEach(el => {
           el.classList.remove('selected');
         });
@@ -847,36 +817,22 @@ function navigateToItemGroup(itemGroupId) {
         // Seleccionar el nuevo Item Group - usar un método más robusto para evitar problemas con comillas
         let targetElement = null;
         const allLabels = treeContainer.querySelectorAll('.category-tree-label[data-path]');
-        console.log(`🔍 BUSCANDO entre ${allLabels.length} labels en el árbol`);
         
-        // Debug: mostrar algunos paths disponibles para diagnóstico
-        if (allLabels.length > 0) {
-          const samplePaths = Array.from(allLabels).slice(0, 5).map(l => l.getAttribute('data-path'));
-          console.log(`📋 PRIMEROS 5 PATHS disponibles:`, samplePaths);
-        } else {
-          console.error(`❌ NO HAY LABELS EN EL ÁRBOL - verificar renderizado del árbol`);
-        }
         for (const label of allLabels) {
           if (label.getAttribute('data-path') === navigationPath) {
             targetElement = label;
-            console.log('🎯 ¡Element target encontrado!');
             break;
           }
         }
         if (targetElement) {
           targetElement.classList.add('selected');
-          console.log(`✅ ITEM GROUP SELECCIONADO EN ÁRBOL`);
           
           // 5. Cargar el Item Group en el Box 4
-          console.log(` CARGANDO IMÁGENES para: ${itemGroup.NamePath}`);
           loadImageGridInBox4(navigationPath); // Usar el path original completo
-          console.log(`🎉 NAVEGACIÓN COMPLETADA EXITOSAMENTE`);
           
           // 6. Hacer scroll al Item Group seleccionado
           targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-          console.error(`❌ NO SE ENCONTRÓ ELEMENTO EN ÁRBOL para: ${navigationPath}`);
-          console.log(`🔍 INTENTANDO BÚSQUEDA ALTERNATIVA POR NOMBRE: ${itemGroup.Name}`);
           
           // Búsqueda alternativa por el text content (Name) del Item Group
           for (const label of allLabels) {
@@ -886,22 +842,10 @@ function navigateToItemGroup(itemGroupId) {
               targetElement.classList.add('selected');
               loadImageGridInBox4(label.getAttribute('data-path')); // Usar el path del elemento encontrado
               targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              console.log(`🎉 NAVEGACIÓN COMPLETADA POR NOMBRE`);
               break;
             }
           }
-          
-          if (!targetElement) {
-            console.log(`🔍 PRIMEROS 10 PATHS DISPONIBLES en árbol:`);
-            const availablePaths = Array.from(allLabels).map(label => label.getAttribute('data-path')).slice(0, 10);
-            console.log(availablePaths);
-            console.log(`🔍 PRIMEROS 10 NOMBRES DISPONIBLES en árbol:`);
-            const availableNames = Array.from(allLabels).map(label => label.textContent.trim()).slice(0, 10);
-            console.log(availableNames);
-          }
         }
-      } else {
-        console.error('❌ TreeContainer no encontrado');
       }
     }, 2000); // Dar más tiempo para que el árbol se restaure y expanda
 }
@@ -1126,8 +1070,6 @@ function handleLogin() {
       group: VALID_USERS[username].group
     };
     
-    console.log(`✅ Login exitoso: ${username} (${currentUser.group})`);
-    
     // Si los datos no están listos, reemplazar botón con texto de carga
     if (!dataLoaded) {
       loginBtn.style.display = 'none';
@@ -1144,7 +1086,6 @@ function handleLogin() {
 
 function checkAppAccess() {
   if (dataLoaded && userAuthenticated) {
-    console.log('🚀 Acceso concedido - Iniciando aplicación...');
     hideLoginOverlay();
     initializeMainApplication();
   }
@@ -1217,8 +1158,6 @@ function updateLoadingStatus(message, showSpinner = true) {
 }
 
 function initializeMainApplication() {
-  console.log('🔧 Inicializando aplicación principal...');
-  
   // Actualizar información del usuario en el header
   updateUserInfoInHeader();
   
@@ -1241,7 +1180,6 @@ function initializeMainApplication() {
   
   // IMPORTANTE: Renderizar el árbol automáticamente si ya hay datos
   if (currentWorkingData && currentWorkingData.length > 0) {
-    console.log('🌳 Renderizando árbol automáticamente con datos existentes...');
     renderAssetLibraryTree(currentWorkingData, document.getElementById('tree'));
   }
   
@@ -1250,8 +1188,6 @@ function initializeMainApplication() {
   if (clearSavedBtn) {
     clearSavedBtn.addEventListener('click', clearSavedItemGroups);
   }
-  
-  console.log('✅ Aplicación inicializada completamente');
 }
 
 function updateUserInfoInHeader() {
@@ -1273,41 +1209,13 @@ function updateUserInfoInHeader() {
 
 // Función de diagnóstico inicial
 function runInitialDiagnostics() {
-  console.log('🔍 DIAGNÓSTICO INICIAL');
-  console.log('====================');
+  // Verificación básica silenciosa - solo errores críticos
+  const criticalElements = ['box3-content', 'tree'];
+  const missingElements = criticalElements.filter(id => !document.getElementById(id));
   
-  // 1. Verificar configuración de Google Sheets
-  console.log('📋 Configuración de Google Sheets:');
-  console.log('   • PROXY_URL:', GOOGLE_SHEETS_CONFIG.PROXY_URL);
-  console.log('   • DATA_PROXY_URL:', GOOGLE_SHEETS_CONFIG.DATA_PROXY_URL);
-  console.log('   • CATEGORY_SHEET ID:', GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.SPREADSHEET_ID);
-  console.log('   • DATA_SHEET ID:', GOOGLE_SHEETS_CONFIG.DATA_SHEET.SPREADSHEET_ID);
-  
-  // 2. Verificar elementos DOM críticos
-  const criticalElements = [
-    'box3-content',
-    'tree'
-  ];
-  
-  console.log('🎯 Verificación de elementos DOM críticos:');
-  criticalElements.forEach(id => {
-    const element = document.getElementById(id);
-    console.log(`   • ${id}: ${element ? '✅ Encontrado' : '❌ No encontrado'}`);
-  });
-  
-  // 3. Verificar estado inicial de variables
-  console.log('📊 Estado inicial de variables:');
-  console.log('   • currentWorkingData:', currentWorkingData.length, 'elementos');
-  console.log('   • currentAssetGroups:', currentAssetGroups.length, 'elementos');
-  console.log('   • itemGroupDataCache:', itemGroupDataCache.size, 'elementos en caché');
-  
-  // 4. Verificar conectividad básica
-  console.log('🌐 Verificando conectividad...');
-  fetch('https://www.google.com', { mode: 'no-cors' })
-    .then(() => console.log('   • Conectividad a internet: ✅ OK'))
-    .catch(() => console.log('   • Conectividad a internet: ❌ Problema'));
-    
-  console.log('====================');
+  if (missingElements.length > 0) {
+    console.error('❌ Elementos DOM críticos no encontrados:', missingElements);
+  }
 }
 
 // Función para configurar drag and drop del divisor vertical
@@ -4217,15 +4125,7 @@ function handleImageCommentClick(event, imageName) {
 
 // Función para parsear comentarios del formato Excel
 function parseCommentsFromExcel(commentString) {
-  console.log('🔍 parseCommentsFromExcel recibió:', {
-    commentString,
-    type: typeof commentString,
-    length: commentString ? commentString.length : 0,
-    preview: commentString ? commentString.substring(0, 200) : 'VACÍO'
-  });
-  
   if (!commentString || !commentString.trim()) {
-    console.log('❌ parseCommentsFromExcel: comentario vacío o nulo');
     return [];
   }
   
@@ -4278,7 +4178,6 @@ function parseCommentsFromExcel(commentString) {
 // Función para extraer comentarios de imágenes desde datos procesados (Object Type = Image)
 function extractImageCommentsFromProcessedData() {
   if (!currentWorkingData || !Array.isArray(currentWorkingData)) {
-    console.log('🔍 No hay currentWorkingData disponible para extraer comentarios de imágenes');
     return;
   }
 
@@ -5912,28 +5811,13 @@ function updateAnalystDesignerCellsDirectly() {
       matchingData = originalInventoryData.find(row => 
         row.commentType === 'item' && (row.itemName === itemName || String(row.itemId) === String(itemId))
       );
-      if (debugCount <= 3) {
-        console.log(`🔍 Buscando item "${itemName}" (ID: ${itemId}):`, matchingData ? 'ENCONTRADO' : 'NO ENCONTRADO');
-        if (matchingData) {
-          console.log(`   Datos encontrados:`, {
-            analista: matchingData.analista,
-            diseñador: matchingData.diseñador
-          });
-        }
-      }
     }
     
     if (matchingData && matchingData.analista) {
       const currentValue = cell.textContent.trim();
-      if (debugCount <= 3) {
-        console.log(`🔍 Comparando analista: "${currentValue}" vs "${matchingData.analista}"`);
-      }
       if (currentValue !== matchingData.analista) {
         cell.textContent = matchingData.analista;
-        console.log(`✅ Analista actualizado: "${currentValue}" → "${matchingData.analista}" para ${itemName || imageName}`);
         updatedCount++;
-      } else if (debugCount <= 3) {
-        console.log(`⚠️ Analista ya está actualizado: "${currentValue}"`);
       }
     }
   });
@@ -5963,13 +5847,10 @@ function updateAnalystDesignerCellsDirectly() {
       const currentValue = cell.textContent.trim();
       if (currentValue !== matchingData.diseñador) {
         cell.textContent = matchingData.diseñador;
-        console.log(`✅ Diseñador actualizado: "${currentValue}" → "${matchingData.diseñador}" para ${itemName || imageName}`);
         updatedCount++;
       }
     }
   });
-  
-  console.log(`🎯 === FIN updateAnalystDesignerCellsDirectly - ${updatedCount} celdas actualizadas ===`);
   
   // Limpiar la bandera de tracking
   if (window.lastCommentedItemId) {
@@ -12193,7 +12074,6 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
   if (type === 'image' && imageName) {
     // Para imágenes, obtener comentarios actualizados (ya incluyen el nuevo)
     completeCommentHistory = getImageComments(imageName) || '';
-    console.log('📜 Historial completo de comentarios (ya actualizado):', completeCommentHistory);
   } else {
     // Para Item Groups/Codes, buscar en los datos usando el contexto
     if (context) {
@@ -12206,7 +12086,6 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
         if (parts.length >= 2) {
           // Es un Item Code - buscar por nombre en la parte [1]
           const itemCodeName = parts[1];
-          console.log('🔍 Contexto de Item Code detectado, buscando por nombre:', itemCodeName);
           
           // Buscar en allLibraryData por nombre
           searchItem = allLibraryData.find(item => item.Name === itemCodeName || item['Item Code'] === itemCodeName);
