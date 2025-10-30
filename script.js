@@ -234,10 +234,14 @@ async function saveToVisSandra(records, operationType = 'manual') {
     // FORZAR a usar "data-update" para que SIEMPRE vaya a data-update
     const forcedUser = "data-update";
     
+    // Obtener información del usuario formateada
+    const currentUserInfo = getCurrentUserInfo();
+    const formattedUserName = currentUserInfo?.name || currentUser;
+    
     // Agregar el usuario real a cada registro para tracking
     const enrichedRecords = records.map(record => ({
       ...record,
-      realUser: currentUser, // Usuario real para tracking
+      realUser: formattedUserName, // Usuario real formateado para tracking
       timestamp: record.timestamp || record.date || getLocalDateTime()
     }));
     
@@ -254,7 +258,7 @@ async function saveToVisSandra(records, operationType = 'manual') {
       sample_record: enrichedRecords[0],
       operation_type: operationType,
       forced_user: forcedUser,
-      real_user: currentUser
+      real_user: formattedUserName
     });
     
     // Usar la URL que funciona (GOOGLE_APPS_SCRIPT_URL) sin parámetros
@@ -10518,6 +10522,8 @@ window.applyDesignerAssignments = async function() {
   let commentIndex = 0;
   const batchRecords = [];
   const currentUser = getCurrentUser();
+  const currentUserInfo = getCurrentUserInfo();
+  const formattedUserName = currentUserInfo?.name || currentUser;
   const currentDate = new Date().toLocaleString('es-ES', { 
     timeZone: 'America/Costa_Rica',
     year: 'numeric',
@@ -10549,7 +10555,7 @@ window.applyDesignerAssignments = async function() {
       row.diseñador = designer;
       
       // Preparar registro para batch (sin enviar individualmente)
-      const record = prepareAssignmentRecord(row, currentUser, currentDate);
+      const record = prepareAssignmentRecord(row, formattedUserName, currentDate);
       if (record) {
         batchRecords.push(record);
       }
@@ -10767,6 +10773,8 @@ function addAssignmentComment(row) {
   // Auto-guardar el comentario usando el commentType correcto
   const currentDate = getLocalDateTime();
   const currentUser = getCurrentUser();
+  const currentUserInfo = getCurrentUserInfo();
+  const formattedUserName = currentUserInfo?.name || currentUser;
   
   if (row.commentType === 'item') {
     // Para Item Codes e Item Groups, crear payload directamente con ID conocido
@@ -10778,7 +10786,7 @@ function addAssignmentComment(row) {
       attribute: 'WA_VIS_Comment',
       value: updatedComments, // Usar los comentarios combinados
       date: currentDate,
-      user: currentUser
+      user: formattedUserName
     };
     
     console.log('📋 Registro completo a enviar:', record);
@@ -10791,7 +10799,7 @@ function addAssignmentComment(row) {
     console.log('   - User:', record.user);
     
     // Usar el sistema de cola para evitar rate limiting
-    addToAutoSaveQueue(record, currentUser, currentDate);
+    addToAutoSaveQueue(record, formattedUserName, currentDate);
     
   } else if (row.commentType === 'image') {
     // Para imágenes, usar el método original con el nombre de imagen
@@ -11822,6 +11830,8 @@ async function saveToGoogleSheets() {
 function autoSaveComment(newComment, type, imageName = null, context = null) {
   const currentDate = getLocalDateTime();
   const currentUser = getCurrentUser();
+  const currentUserInfo = getCurrentUserInfo();
+  const formattedUserName = currentUserInfo?.name || currentUser;
   
   // Obtener comentarios actualizados (que ya incluyen el nuevo comentario)
   let completeCommentHistory = '';
@@ -11902,7 +11912,7 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
     attribute: 'WA_VIS_Comment',
     value: completeCommentHistory,
     date: currentDate,
-    user: currentUser
+    user: formattedUserName
   };
   
   if (type === 'image' && imageName) {
@@ -12019,13 +12029,13 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
   // Enviar a Google Sheets
   const payload = {
     records: [record],
-    user: currentUser,
+    user: formattedUserName,
     date: currentDate,
     type: 'comment_autosave'
   };
   
   // Usar el sistema de cola para evitar rate limiting
-  addToAutoSaveQueue(record, currentUser, currentDate);
+  addToAutoSaveQueue(record, formattedUserName, currentDate);
 }
 
 // Función para mostrar notificación discreta de auto-guardado
