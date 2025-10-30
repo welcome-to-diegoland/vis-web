@@ -381,12 +381,15 @@ function prepareAssignmentRecord(row, currentUser, currentDate) {
   // Obtener el último tipo de comentario usado
   const lastCommentType = getLastCommentType(existingComments);
   
+  // Obtener el nombre formateado del diseñador
+  const formattedDesignerName = getFormattedUserName(row.diseñador);
+  
   // Crear el nuevo comentario de asignación usando el formato original
   const assignmentComment = {
-    usuario: row.diseñador,
+    usuario: formattedDesignerName,
     fechaHora: getLocalDateTime(),
     tipoComentario: lastCommentType, // Usar el último tipo en lugar de 'General'
-    textoComentario: `Se asignó comentario a ${row.diseñador}`, // Texto original
+    textoComentario: `Se asignó comentario a ${formattedDesignerName}`, // Texto con nombre formateado
     status: 'Diseño'
   };
   
@@ -552,6 +555,14 @@ function getCurrentUserInfo() {
   }
   console.log('🔄 Usando usuario por defecto: Usuario');
   return USERS.usuario;
+}
+
+// ===== FUNCIÓN PARA OBTENER NOMBRE FORMATEADO DE CUALQUIER USUARIO =====
+function getFormattedUserName(username) {
+  if (!username) return 'Usuario';
+  
+  const userInfo = USERS[username.toLowerCase()];
+  return userInfo?.name || username;
 }
 
 // ===== FUNCIÓN PARA ENCONTRAR ITEM CODE QUE CONTIENE UNA IMAGEN =====
@@ -1248,9 +1259,13 @@ function updateUserInfoInHeader() {
   const userGroupElement = document.getElementById('currentUserGroup');
   
   if (currentUser && userNameElement && userGroupElement) {
-    userNameElement.textContent = currentUser.username;
+    // Usar el nombre formateado en lugar del username en minúsculas
+    const userInfo = getCurrentUserInfo();
+    const formattedName = userInfo?.name || currentUser.username;
+    
+    userNameElement.textContent = formattedName;
     userGroupElement.textContent = `(${currentUser.group})`;
-    console.log(`👤 Usuario actualizado en header: ${currentUser.username} (${currentUser.group})`);
+    console.log(`👤 Usuario actualizado en header: ${formattedName} (${currentUser.group})`);
   }
 }
 
@@ -3405,7 +3420,7 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
               </div>
               <div class="group-meta">
                 <span class="group-brand">${itemGroup ? (itemGroup['Marca'] || 'Sin marca') : ''}</span>
-                <span class="group-page">${itemGroup ? (itemGroup['Página de Catálogo'] || itemGroup['Catalog Page'] || 'Sin página') : ''}</span>
+                <span class="group-page">${itemGroup ? (itemGroup['Página de Catálogo'] || itemGroup['Catalog Page'] || '-') : ''}</span>
                 <span class="group-cms">${itemGroup ? (itemGroup['CMS'] || 'Sin CMS') : ''}</span>
                 <span class="group-items">${itemCodes.length} items</span>
                 <span class="group-id">
@@ -10841,12 +10856,15 @@ function addAssignmentComment(row) {
   const lastCommentType = getLastCommentType(existingComments);
   console.log('📝 Último tipo de comentario encontrado:', lastCommentType);
   
+  // Obtener el nombre formateado del diseñador
+  const formattedDesignerName = getFormattedUserName(row.diseñador);
+  
   // Crear el nuevo comentario de asignación
   const assignmentComment = {
-    usuario: row.diseñador,
+    usuario: formattedDesignerName,
     fechaHora: getLocalDateTime(),
     tipoComentario: lastCommentType, // Usar el último tipo en lugar de 'General'
-    textoComentario: `Se asignó comentario a ${row.diseñador}`, // Cambiar texto y quitar comillas
+    textoComentario: `Se asignó comentario a ${formattedDesignerName}`, // Texto con nombre formateado
     status: 'Diseño'
   };
   
@@ -12228,6 +12246,8 @@ function collectVisibleData() {
   const records = [];
   const currentDate = getLocalDateTime();
   const currentUser = getCurrentUser();
+  const currentUserInfo = getCurrentUserInfo();
+  const formattedUserName = currentUserInfo?.name || currentUser;
   
   console.log('=== INICIANDO RECOPILACIÓN DE DATOS VISIBLES ===');
   
@@ -12269,7 +12289,7 @@ function collectVisibleData() {
             attribute: attribute,
             value: value,
             date: currentDate,
-            user: currentUser
+            user: formattedUserName
           });
         }
       }
@@ -12330,7 +12350,7 @@ function collectVisibleData() {
               attribute: attribute,
               value: value,
               date: currentDate,
-              user: currentUser
+              user: formattedUserName
             });
           }
         }
