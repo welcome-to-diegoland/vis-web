@@ -3315,7 +3315,7 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
                      alt="Gallery 1" class="group-thumbnail"
                      onerror="this.style.display='none';">
                  <div class="item-group-delete-btn" title="Quitar imagen del Item Group"><i class="fa-solid fa-trash"></i></div>` : 
-                '<div class="no-image">📷</div>'
+                '<div class="no-image"><img src="assets/no-img-purple.svg" alt="No image" style="width: 100%; height: 100%; object-fit: contain;"></div>'
               }
               ${itemGroup && itemGroup['WA_VIS_Comment'] && itemGroup['WA_VIS_Comment'].trim() ? 
                 `<div class="comment-indicator group-comment" data-comment="${itemGroup['WA_VIS_Comment']}" data-status="${getCurrentStatus(itemGroup['WA_VIS_Comment'])}">💬</div>` : 

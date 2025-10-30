@@ -3509,7 +3509,7 @@ button[id="btn-cargar-categoria"]:disabled {
   width: 140px;
   padding: 6px;
   font-weight: 600;
-  background: #f8f9fa38 !important;
+  background: #f8f9fa !important;
   position: sticky !important;
   left: 0 !important;
   z-index: 51 !important;
