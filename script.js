@@ -4572,6 +4572,12 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
   // Mostrar modal con animación
   setTimeout(() => {
     modal.classList.add('show');
+    
+    // Enfocar automáticamente el campo de texto para comentarios
+    const commentTextInput = modal.querySelector('#commentTextInput');
+    if (commentTextInput) {
+      commentTextInput.focus();
+    }
   }, 10);
 }
 
@@ -4608,6 +4614,21 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     
     return commentType && commentText;
   }
+  
+  // Event listener para Cmd+Enter / Ctrl+Enter en el textarea
+  commentTextInput.addEventListener('keydown', function(e) {
+    // Detectar Cmd+Enter (Mac) o Ctrl+Enter (Windows/Linux)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault(); // Prevenir el salto de línea
+      
+      // Simular click en el botón de enviar
+      if (validateForm()) {
+        addCommentBtn.click();
+      } else {
+        alert('Por favor, selecciona un tipo de comentario y escribe un mensaje.');
+      }
+    }
+  });
   
   // Event listener para el botón de agregar comentario
   addCommentBtn.addEventListener('click', function() {
