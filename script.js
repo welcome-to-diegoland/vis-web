@@ -554,6 +554,55 @@ function getCurrentUserInfo() {
   return USERS.usuario;
 }
 
+// ===== FUNCIÓN PARA ENCONTRAR ITEM CODE QUE CONTIENE UNA IMAGEN =====
+function findItemCodeContainingImage(imageName) {
+  if (!imageName || !currentWorkingData) return null;
+  
+  console.log(`🔍 Buscando Item Code que contiene la imagen: "${imageName}"`);
+  
+  // Columnas típicas de imágenes en Item Codes
+  const imageColumns = ['Foto 1', 'Foto 2', 'Foto 3', 'Foto 4', 'Foto 5', 'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05'];
+  
+  // Buscar en Item Codes
+  const itemCodeWithImage = currentWorkingData.find(item => {
+    if (item['Object Type'] !== 'Item Code') return false;
+    
+    return imageColumns.some(col => item[col] === imageName);
+  });
+  
+  if (itemCodeWithImage) {
+    console.log(`✅ Imagen encontrada en Item Code: ${itemCodeWithImage.Name || itemCodeWithImage.ID} (ID: ${itemCodeWithImage.ID || itemCodeWithImage.Id})`);
+    return itemCodeWithImage;
+  }
+  
+  console.log(`❌ No se encontró Item Code que contenga la imagen: ${imageName}`);
+  return null;
+}
+
+// ===== FUNCIÓN PARA GENERAR IDs CONSISTENTES PARA IMÁGENES =====
+function generateConsistentImageId(imageName) {
+  if (!imageName || typeof imageName !== 'string') {
+    return Date.now(); // Fallback para casos raros
+  }
+  
+  // Crear un hash simple pero consistente basado en el nombre de la imagen
+  let hash = 0;
+  for (let i = 0; i < imageName.length; i++) {
+    const char = imageName.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convertir a 32-bit integer
+  }
+  
+  // Hacer el hash positivo y agregarlo a un número base para que sea más legible
+  // Usar un prefijo específico para identificar que es una imagen
+  const baseImageId = 9000000000; // Base para IDs de imágenes
+  const positiveHash = Math.abs(hash);
+  const finalId = baseImageId + positiveHash;
+  
+  console.log(`🔢 ID consistente generado para imagen "${imageName}": ${finalId}`);
+  return finalId;
+}
+
 // ===== SISTEMA GENERAL DE GESTIÓN DE MODALES =====
 // Función general para cerrar todos los modales abiertos
 function closeAllModals() {
@@ -4247,24 +4296,51 @@ function extractImageCommentsFromProcessedData() {
 function findImageAssetByName(imageName) {
   if (!imageName) return null;
   
-  // Buscar primero en currentWorkingData
+  console.log(`🔍 Buscando asset de imagen: "${imageName}"`);
+  
+  // PASO 1: Buscar primero en currentWorkingData
   let asset = currentWorkingData ? currentWorkingData.find(item => 
     item['Object Type'] === 'Image' && item.Name === imageName
   ) : null;
   
-  // Si no se encuentra, buscar en allLibraryData
+  if (asset) {
+    console.log(`✅ Imagen encontrada en currentWorkingData con ID: ${asset.ID || asset.Id}`);
+    return asset;
+  }
+  
+  // PASO 2: Buscar en allLibraryData
   if (!asset && allLibraryData) {
     asset = allLibraryData.find(item => 
       item['Object Type'] === 'Image' && item.Name === imageName
     );
+    if (asset) {
+      console.log(`✅ Imagen encontrada en allLibraryData con ID: ${asset.ID || asset.Id}`);
+      return asset;
+    }
   }
   
-  // Si no se encuentra, buscar en currentAssetComments
+  // PASO 3: Buscar en datos globales del caché si existe
+  if (!asset && window.allItemGroupsData) {
+    asset = window.allItemGroupsData.find(item => 
+      item['Object Type'] === 'Image' && item.Name === imageName
+    );
+    if (asset) {
+      console.log(`✅ Imagen encontrada en allItemGroupsData con ID: ${asset.ID || asset.Id}`);
+      return asset;
+    }
+  }
+  
+  // PASO 4: Buscar en currentAssetComments como último recurso
   if (!asset && currentAssetComments) {
     asset = currentAssetComments.find(asset => asset.Name === imageName);
+    if (asset) {
+      console.log(`✅ Imagen encontrada en currentAssetComments con ID: ${asset.ID || asset.Id}`);
+      return asset;
+    }
   }
   
-  return asset;
+  console.log(`❌ Imagen "${imageName}" NO encontrada en ninguna fuente de datos`);
+  return null;
 }
 
 // Función helper para encontrar un objeto Image por ID en los datos procesados
@@ -4890,6 +4966,19 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
   
   if (type === 'image' && imageName) {
     // Es un comentario de imagen - buscar en datos procesados (Object Type = 'Image')
+    console.log(`🔍 Buscando imagen "${imageName}" en datos existentes...`);
+    
+    // DEBUG: Verificar si hay objetos tipo Image en los datos
+    const imageObjects = currentWorkingData ? currentWorkingData.filter(item => item['Object Type'] === 'Image') : [];
+    console.log(`📊 Total de objetos tipo "Image" en currentWorkingData: ${imageObjects.length}`);
+    if (imageObjects.length > 0) {
+      console.log(`📋 Primeros 3 objetos Image:`, imageObjects.slice(0, 3).map(img => ({
+        Name: img.Name,
+        ID: img.ID || img.Id,
+        ObjectType: img['Object Type']
+      })));
+    }
+    
     let assetData = findImageAssetByName(imageName);
     
     if (assetData) {
@@ -4919,22 +5008,56 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       }
       
     } else {
-      // No existe, crear nuevo registro de tipo Image
-      const newImageAsset = {
-        Name: imageName,
-        'Object Type': 'Image',
-        'WA_VIS_Comment': newCommentString,
-        ID: Date.now(),
-        Id: Date.now()
-      };
+      // No existe como objeto Image independiente en la base de datos
+      console.log(`⚠️ La imagen "${imageName}" no existe como registro tipo "Image" en la base de datos`);
+      
+      // ESTRATEGIA ALTERNATIVA: Buscar el Item Code que contiene esta imagen
+      const itemCodeWithImage = findItemCodeContainingImage(imageName);
+      
+      if (itemCodeWithImage) {
+        console.log(`💡 SOLUCIÓN: Usar ID del Item Code que contiene la imagen`);
+        console.log(`🔗 Item Code encontrado: ${itemCodeWithImage.Name} (ID: ${itemCodeWithImage.ID || itemCodeWithImage.Id})`);
+        
+        // Crear el asset temporal usando el ID del Item Code + sufijo para identificar la imagen específica
+        const baseId = itemCodeWithImage.ID || itemCodeWithImage.Id;
+        const imageSpecificId = `${baseId}_img_${imageName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        
+        const newImageAsset = {
+          Name: imageName,
+          'Object Type': 'Image',
+          'WA_VIS_Comment': newCommentString,
+          ID: imageSpecificId,
+          Id: imageSpecificId,
+          _parentItemCode: baseId,
+          _isFromItemCode: true
+        };
+        
+        assetData = newImageAsset;
+        
+      } else {
+        console.log(`🔧 FALLBACK: Crear registro temporal con ID consistente`);
+        
+        // Crear nuevo registro de tipo Image con ID consistente SOLO como último recurso
+        const consistentId = generateConsistentImageId(imageName);
+        const newImageAsset = {
+          Name: imageName,
+          'Object Type': 'Image',
+          'WA_VIS_Comment': newCommentString,
+          ID: consistentId,
+          Id: consistentId,
+          _isTemporary: true // Marcar como temporal
+        };
+        
+        assetData = newImageAsset;
+      }
       
       // Agregar a todas las fuentes de datos
-      currentWorkingData.push(newImageAsset);
+      currentWorkingData.push(assetData);
       if (allLibraryData) {
-        allLibraryData.push(newImageAsset);
+        allLibraryData.push(assetData);
       }
       if (currentAssetComments) {
-        currentAssetComments.push(newImageAsset);
+        currentAssetComments.push(assetData);
       }
       
       assetData = newImageAsset;
@@ -11942,12 +12065,12 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
       record.objectType = 'Image';
       console.log('✅ Asset válido con ID:', asset.ID);
     } else {
-      // Crear un nuevo registro de imagen con ID generado
-      const newImageId = Date.now();
+      // Crear un nuevo registro de imagen con ID consistente
+      const newImageId = generateConsistentImageId(imageName);
       record.id = newImageId;
       record.objectType = 'Image';
       
-      console.log('� Creando nuevo registro de imagen con ID:', newImageId);
+      console.log('🔢 Creando nuevo registro de imagen con ID consistente:', newImageId);
       
       // Agregar a currentAssetComments para futuras referencias
       const newImageAsset = {
