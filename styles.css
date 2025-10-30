@@ -6763,9 +6763,10 @@ button[id="btn-cargar-categoria"]:disabled {
 #box3-content .stats-table-container h4 {
   font-size: 16px !important;
   font-weight: 600 !important;
-  color: #495057 !important;
+  color: #3539CC !important;
   text-align: center !important;
   margin: 0 0 15px 0 !important;
+  letter-spacing: -0.012em;
 }
 
 .stats-table {

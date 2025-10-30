@@ -219,8 +219,6 @@ async function sendAutoSaveRequest(saveRequest) {
 // ===== FUNCIÓN UNIFICADA DE GUARDADO - Usa la URL que funciona =====
 async function saveToVisSandra(records, operationType = 'manual') {
   try {
-    console.log(`📊 UNIFIED SAVE: Guardando ${records.length} registros de tipo '${operationType}' en data-update`);
-    
     // Obtener usuario actual para tracking, pero SIEMPRE usar "Sandra" para el Apps Script
     const currentUser = getCurrentUser();
     if (!currentUser) {
@@ -5240,6 +5238,13 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
     }
     
     if (itemCodeData) {
+      // DEBUGGING ADICIONAL: Verificar desde dónde viene el Item Code
+      console.log('🔍 === DEBUGGING ORIGEN DEL ITEM CODE ===');
+      console.log('   Fuente del elemento:', itemCodeData._source || 'unknown');
+      console.log('   ID del elemento:', itemCodeData.Id);
+      console.log('   Nombre del elemento:', itemCodeData.Name);
+      console.log('   Object Type:', itemCodeData['Object Type']);
+      
       // Verificar en ambas fuentes de datos para comparar
       const inCurrentWorking = currentWorkingData.find(item => 
         item['Object Type'] === 'Item Code' && 
@@ -5476,6 +5481,7 @@ function updateTablesAfterComment() {
     console.log('🔍 Filtros activos detectados:', activeDropdownFilters);
     saveInventoryViewState();
   } else {
+    console.log('🧹 Sin filtros activos, guardando solo posición de scroll');
     // Guardar posición de scroll de la tabla de inventario específicamente
     const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
     let scrollTop = 0;
@@ -5484,6 +5490,7 @@ function updateTablesAfterComment() {
     if (inventoryWrapper) {
       scrollTop = inventoryWrapper.scrollTop;
       scrollLeft = inventoryWrapper.scrollLeft;
+      console.log('📍 Scroll actual guardado:', scrollTop, scrollLeft);
     }
     
     // Preservar estado anterior pero actualizar scroll
@@ -5534,6 +5541,7 @@ function updateTablesAfterComment() {
       console.log('✅ TABLA NORMAL - Regenerando completamente');
       
       // FORZAR LIMPIEZA COMPLETA DE FILTROS ANTES DE REGENERAR
+      console.log('🧹 FORZANDO limpieza completa de todos los filtros...');
       
       // Establecer bandera para evitar restauración de filtros
       window.skipFilterRestore = true;
@@ -5557,6 +5565,7 @@ function updateTablesAfterComment() {
       if (inventoryWrapper) {
         currentScrollTop = inventoryWrapper.scrollTop;
         currentScrollLeft = inventoryWrapper.scrollLeft;
+        console.log('📍 Preservando scroll actual:', currentScrollTop, currentScrollLeft);
       }
       
       // Limpiar COMPLETAMENTE el estado de filtros PERO preservar scroll
@@ -5575,15 +5584,18 @@ function updateTablesAfterComment() {
       }
       
       // IMPORTANTE: NO tocar allLibraryData - es necesario para guardar comentarios
+      console.log(`📊 Manteniendo allLibraryData intacto: ${allLibraryData?.length || 0} elementos`);
       
       // Regenerar la tabla de inventario SIN filtros
       const box4Content = document.getElementById('box4-content');
       if (box4Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+        console.log('🔄 Regenerando tabla MOSTRANDO TODOS LOS DATOS...');
         // Usar generateImageInventoryTableFromCache pero modificar para mostrar todos los datos
         box4Content.innerHTML = generateImageInventoryTableFromAllData();
         
         // Restaurar scroll después de regenerar la tabla
         setTimeout(() => {
+          console.log('✅ Tabla regenerada, restaurando scroll...');
           setupInventoryClickListeners();
           
           // Restaurar scroll preservado
@@ -5591,9 +5603,11 @@ function updateTablesAfterComment() {
           if (inventoryWrapper && inventoryViewState) {
             if (inventoryViewState.scrollPosition > 0) {
               inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
+              console.log('📍 Scroll vertical restaurado:', inventoryViewState.scrollPosition);
             }
             if (inventoryViewState.scrollPositionX > 0) {
               inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
+              console.log('📍 Scroll horizontal restaurado:', inventoryViewState.scrollPositionX);
             }
           }
           
@@ -5633,7 +5647,21 @@ function updateFilteredInventoryTableAfterComment() {
   const box4Content = document.getElementById('box4-content');
   if (box4Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
     // Regenerar tabla de inventario completamente en el DOM real para que originalInventoryData se actualice
+    console.log('🔄 Regenerando tabla completa para actualizar originalInventoryData...');
     box4Content.innerHTML = generateImageInventoryTable();
+    console.log('✅ originalInventoryData regenerado con', originalInventoryData.length, 'elementos');
+    
+    // MOSTRAR DATOS ACTUALIZADOS PARA DEBUG
+    const sampleItem = originalInventoryData.find(item => item.nombre === '87-100-122');
+    if (sampleItem) {
+      console.log('🔍 DATOS ACTUALIZADOS - Item 87-100-122:', {
+        analista: sampleItem.analista,
+        diseñador: sampleItem.diseñador,
+        ultimoComentarioAnalista: sampleItem.ultimoComentarioAnalista,
+        ultimoComentarioDisenador: sampleItem.ultimoComentarioDisenador,
+        ultimoStatus: sampleItem.ultimoStatus
+      });
+    }
     
     // CRÍTICO: Aplicar filtros inmediatamente con datos actualizados
     const currentFilters = inventoryViewState?.activeFilters;
@@ -6469,6 +6497,14 @@ function filterGridByBrand(selectedBrand) {
     console.log('❌ No se encontró el grid actual de Box 4');
     return;
   }
+  
+  // DEBUG: Inspeccionar la estructura del grid
+  console.log('🔍 DEBUG: Estructura del grid:');
+  console.log('   Grid container:', currentGrid);
+  console.log('   Todas las secciones:', currentGrid.querySelectorAll('.section-wrapper'));
+  console.log('   Item code wrapper:', currentGrid.querySelector('.item-code-wrapper'));
+  console.log('   Item code cells:', currentGrid.querySelectorAll('.item-code-cell'));
+  console.log('   Todas las filas:', currentGrid.querySelectorAll('.table-row'));
   
   // Intentar con diferentes selectores
   const itemCodeCells = currentGrid.querySelectorAll('.item-code-cell');
@@ -9711,6 +9747,7 @@ function generateImageInventoryTableFromCache() {
     const inventoryHTML = generateImageInventoryTable(transformedArray);
     
     console.log('✅ Tabla de inventario generada exitosamente desde caché transformado');
+    console.log('📊 allLibraryData configurado con', allLibraryData.length, 'elementos para clicks');
     
     // Restaurar currentWorkingData original DESPUÉS de generar la tabla (pero mantener allLibraryData)
     currentWorkingData = originalCurrentWorkingData;
@@ -11428,6 +11465,21 @@ function updateInventoryTableDirectly(filteredData) {
   console.log('🔄 === INICIO updateInventoryTableDirectly ===');
   console.log('📊 Datos recibidos:', filteredData.length, 'elementos');
   
+  // Mostrar algunos ejemplos de los datos para verificar que están actualizados
+  if (filteredData.length > 0) {
+    console.log('📋 Primer elemento de datos:', {
+      id: filteredData[0].id,
+      nombre: filteredData[0].name,
+      analista: filteredData[0].analista,
+      diseñador: filteredData[0].diseñador,
+      ultimoStatus: filteredData[0].ultimoStatus,
+      ultimoTipo: filteredData[0].ultimoTipo,
+      primeraFechaAnalista: filteredData[0].primeraFechaAnalista,
+      ultimaFechaAnalista: filteredData[0].ultimaFechaAnalista,
+      ultimaFechaDisenador: filteredData[0].ultimaFechaDisenador
+    });
+  }
+  
   // Función para obtener el ID del asset basado en el nombre de la imagen
   function getAssetId(imageName) {
     if (!currentAssetComments || !imageName || imageName.trim() === '') {
@@ -11479,6 +11531,23 @@ function updateInventoryTableDirectly(filteredData) {
   
   // Regenerar filas usando la misma lógica que la tabla original
   filteredData.forEach((rowData, index) => {
+    // Log detallado para cada fila (solo las primeras 3 para no saturar)
+    if (index < 3) {
+      console.log(`📋 Fila ${index + 1} datos:`, {
+        nombre: rowData.name,
+        id: rowData.id,
+        analista: rowData.analista,
+        primeraFechaAnalista: rowData.primeraFechaAnalista,
+        ultimaFechaAnalista: rowData.ultimaFechaAnalista,
+        ultimoComentarioAnalista: rowData.ultimoComentarioAnalista,
+        diseñador: rowData.diseñador,
+        ultimaFechaDisenador: rowData.ultimaFechaDisenador,
+        ultimoComentarioDisenador: rowData.ultimoComentarioDisenador,
+        ultimoStatus: rowData.ultimoStatus,
+        ultimoTipo: rowData.ultimoTipo
+      });
+    }
+    
     const row = document.createElement('tr');
     row.className = 'inventory-row';
     row.setAttribute('data-original-row', rowData.originalRowIndex || index);
@@ -11491,6 +11560,17 @@ function updateInventoryTableDirectly(filteredData) {
 
     // DEBUG: calcular el Item Group ID que se usará
     const itemGroupIdForClick = rowData.itemGroupId || getItemGroupIdFromData(rowData) || '';
+    
+    // DEBUG: Solo para las primeras 3 filas, mostrar información detallada
+    if (index < 3) {
+      console.log(`🔍 DEBUG fila ${index}:`, {
+        objectType: getObjectTypeValue(rowData),
+        itemGroupId: `"${rowData.itemGroupId}"`,
+        'Item Groups': `"${rowData['Item Groups']}"`,
+        itemGroupIdCalculado: `"${itemGroupIdForClick}"`,
+        itemGroupIdVacio: !rowData.itemGroupId
+      });
+    }
 
     row.innerHTML = `
       <td class="inventory-cell">${index + 1}</td>

@@ -18,54 +18,31 @@
 
 function doPost(e) {
   try {
-    let data;
-    
-    // Intentar parsear datos del cuerpo JSON primero
-    if (e.postData && e.postData.contents) {
-      try {
-        data = JSON.parse(e.postData.contents);
-      } catch (jsonError) {
-        console.log('No se pudo parsear como JSON, intentando como parámetros de formulario');
-      }
-    }
-    
-    // Si no hay datos JSON, intentar obtener de parámetros de formulario
-    if (!data && e.parameter && e.parameter.postData) {
-      try {
-        data = JSON.parse(e.parameter.postData);
-      } catch (paramError) {
-        console.log('Error parsing parameter data:', paramError);
-      }
-    }
-    
-    // Si aún no hay datos, intentar directamente los parámetros
-    if (!data && e.parameter) {
-      // Buscar datos en cualquier parámetro que contenga JSON
-      for (const [key, value] of Object.entries(e.parameter)) {
-        try {
-          const parsedValue = JSON.parse(value);
-          if (parsedValue.user && parsedValue.records) {
-            data = parsedValue;
-            break;
-          }
-        } catch (parseError) {
-          // Continuar buscando
-        }
-      }
-    }
-    
-    if (!data) {
-      throw new Error('No se pudieron obtener datos válidos de la petición');
-    }
-    
+    // Parsear los datos recibidos
+    const data = JSON.parse(e.postData.contents);
     const { user, records } = data;
     
-    if (!user || !records) {
-      throw new Error('Faltan datos requeridos: user o records');
-    }
+    // Mapeo de usuarios a nombres de sheets
+    const userSheetMap = {
+      'Sandra': 'vis-sandra',
+      'Victor': 'vis-victor', 
+      'Ximena': 'vis-ximena',
+      'Carlos': 'vis-carlos',
+      'Kalem': 'vis-kalem',
+      'Veronica': 'vis-veronica',
+      'Rossana': 'vis-rossana',
+      'Carla': 'vis-carla',
+      'Gabriela': 'vis-gabriela',
+      'Thanya': 'vis-thanya',
+      'Grecia': 'vis-grecia',
+      'Cinthya': 'vis-cinthya'
+    };
     
-    // SIEMPRE guardar en data-update independientemente del usuario
-    const sheetName = 'data-update';
+    // Obtener el nombre de la sheet
+    const sheetName = userSheetMap[user];
+    if (!sheetName) {
+      throw new Error(`Usuario no encontrado: ${user}`);
+    }
     
     // Abrir el spreadsheet
     const spreadsheetId = '1uD6eUpDiDheO8aplzwzOz-d8fr4D8eoc8tcqJj04p4o';
@@ -107,7 +84,7 @@ function doPost(e) {
     return ContentService
       .createTextOutput(JSON.stringify({
         success: true,
-        message: `Se guardaron ${rowsToInsert.length} registros en data-update`,
+        message: `Se guardaron ${rowsToInsert.length} registros en ${sheetName}`,
         recordsInserted: rowsToInsert.length
       }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -143,14 +120,73 @@ function testFunction() {
     ]
   };
   
-  // Simular la llamada POST
+  // Simular la llamada POST ejecutando doPost directamente
   const e = {
     postData: {
       contents: JSON.stringify(testData)
     }
   };
   
-  // Ejecutar la función
+  // Ejecutar la función doPost
   const result = doPost(e);
   console.log('Resultado de prueba:', result.getContent());
+  
+  // También devolver el resultado para verlo en el log
+  return result.getContent();
+}
+
+function testDirectInsert() {
+  try {
+    Logger.log('=== INICIANDO TEST ===');
+    
+    // Abrir el spreadsheet directamente
+    const spreadsheetId = '1uD6eUpDiDheO8aplzwzOz-d8fr4D8eoc8tcqJj04p4o';
+    Logger.log('Abriendo spreadsheet:', spreadsheetId);
+    
+    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    Logger.log('Spreadsheet abierto correctamente');
+    
+    let sheet = spreadsheet.getSheetByName('vis-sandra');
+    Logger.log('Sheet vis-sandra encontrada:', sheet ? 'SÍ' : 'NO');
+    
+    // Limpiar la sheet existente o crearla
+    if (sheet) {
+      sheet.clear();
+      Logger.log('Sheet limpiada');
+    } else {
+      sheet = spreadsheet.insertSheet('vis-sandra');
+      Logger.log('Sheet creada');
+    }
+    
+    // Agregar headers primero
+    const headers = ['Id', 'Object Type', 'Attribute', 'Value', 'Date', 'User'];
+    sheet.getRange(1, 1, 1, 6).setValues([headers]);
+    Logger.log('Headers insertados:', headers);
+    
+    // Insertar datos de prueba en la fila 2
+    const testRow = [
+      'TEST001',
+      'Item Group', 
+      'WA_Cover_Image_01',
+      'test-image.jpg',
+      '2025-10-15 15:30:00',
+      'Sandra'
+    ];
+    
+    sheet.getRange(2, 1, 1, 6).setValues([testRow]);
+    Logger.log('Datos insertados:', testRow);
+    
+    // Verificar que se insertaron
+    const verificacion = sheet.getRange(1, 1, 2, 6).getValues();
+    Logger.log('Verificación - Fila 1:', verificacion[0]);
+    Logger.log('Verificación - Fila 2:', verificacion[1]);
+    
+    Logger.log('=== TEST COMPLETADO ===');
+    return 'SUCCESS: Headers y datos insertados correctamente';
+    
+  } catch (error) {
+    Logger.log('ERROR:', error.toString());
+    Logger.log('Stack:', error.stack);
+    return 'ERROR: ' + error.toString();
+  }
 }

@@ -1,5 +1,5 @@
 // =================================================================
-// GOOGLE APPS SCRIPT - VIS WEB DATA SAVER
+// GOOGLE APPS SCRIPT - VIS WEB DATA SAVER (UNIFIED VERSION)
 // =================================================================
 // Este código debe copiarse en script.google.com
 // 
@@ -7,7 +7,7 @@
 // 1. Ve a script.google.com
 // 2. Crea un nuevo proyecto
 // 3. Reemplaza el código por defecto con TODO este código
-// 4. Guarda el proyecto con nombre "VIS Web Data Saver"
+// 4. Guarda el proyecto con nombre "VIS Web Data Saver - Unified"
 // 5. Ve a Implementar > Nueva implementación
 // 6. Tipo: Aplicación web
 // 7. Ejecutar como: Yo
@@ -137,7 +137,7 @@ function testFunction() {
         objectType: 'Item Group',
         attribute: 'WA_Cover_Image_01',
         value: 'test-image.jpg',
-        date: '2025-10-15 15:30:00',
+        date: '2025-10-29 15:30:00',
         user: 'Sandra'
       }
     ]
