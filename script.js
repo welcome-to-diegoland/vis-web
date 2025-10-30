@@ -4975,6 +4975,9 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
   console.log('🏷️ Tipo:', type);
   console.log('🖼️ Imagen:', imageName);
   
+  // Marcar que acabamos de agregar un comentario para forzar actualización de tabla
+  window.justAddedComment = true;
+  
   // Crear el string del nuevo comentario en formato Excel
   const newCommentString = `${newComment.usuario}¦${newComment.fechaHora}¦${newComment.tipoComentario}¦${newComment.textoComentario}¦${newComment.status}`;
   console.log('📋 String de comentario formateado:', newCommentString);
@@ -5469,6 +5472,10 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       console.log('💾 Comentario guardado en Item Code:', itemCodeData.Name);
       console.log('💾 Comentario completo guardado:', newCompleteComments);
       
+      // Trackear el último item comentado para debugging
+      window.lastCommentedItemId = itemCodeData.Id || itemCodeData.ID;
+      console.log('🎯 Trackear último item comentado ID:', window.lastCommentedItemId);
+      
     } else {
       console.error('❌ No se pudo encontrar el Item Code para guardar el comentario:', context);
       return;
@@ -5742,29 +5749,75 @@ function updateTablesAfterComment() {
       // Regenerar la tabla de inventario SIN filtros
       const box4Content = document.getElementById('box4-content');
       if (box4Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
-        // Usar generateImageInventoryTableFromCache pero modificar para mostrar todos los datos
-        box4Content.innerHTML = generateImageInventoryTableFromAllData();
-        
-        // Restaurar scroll después de regenerar la tabla
-        setTimeout(() => {
-          setupInventoryClickListeners();
+        // FORZAR REFRESH COMPLETO si acabamos de agregar comentario
+        if (window.justAddedComment) {
+          console.log('🔄 FORZANDO refresh completo del DOM para actualizar Analista/Diseñador');
           
-          // Restaurar scroll preservado
-          const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
-          if (inventoryWrapper && inventoryViewState) {
-            if (inventoryViewState.scrollPosition > 0) {
-              inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
-            }
-            if (inventoryViewState.scrollPositionX > 0) {
-              inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
-            }
-          }
+          // Limpiar completamente el contenido primero
+          box4Content.innerHTML = '';
           
-          // Limpiar la bandera después de un tiempo
+          // Pequeño delay para asegurar el DOM se limpie
           setTimeout(() => {
-            window.skipFilterRestore = false;
-          }, 1000);
-        }, 200);
+            // Usar generateImageInventoryTableFromCache pero modificar para mostrar todos los datos
+            box4Content.innerHTML = generateImageInventoryTableFromAllData();
+            
+            // Forzar reconfiguration de listeners
+            setTimeout(() => {
+              setupInventoryClickListeners();
+              console.log('🔄 Click listeners reconfigurados después de refresh forzado');
+              
+              // ACTUALIZACIÓN DIRECTA DE CELDAS DE ANALISTA/DISEÑADOR
+              updateAnalystDesignerCellsDirectly();
+              
+              // Limpiar la bandera después del refresh forzado
+              window.justAddedComment = false;
+              console.log('🧹 Bandera justAddedComment limpiada después de refresh forzado');
+            }, 100);
+          }, 50);
+        } else {
+          // Uso normal
+          box4Content.innerHTML = generateImageInventoryTableFromAllData();
+        }
+        
+        // Restaurar scroll después de regenerar la tabla (solo para caso normal)
+        if (!window.justAddedComment) {
+          setTimeout(() => {
+            setupInventoryClickListeners();
+            
+            // Restaurar scroll preservado
+            const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
+            if (inventoryWrapper && inventoryViewState) {
+              if (inventoryViewState.scrollPosition > 0) {
+                inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
+              }
+              if (inventoryViewState.scrollPositionX > 0) {
+                inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
+              }
+            }
+            
+            // Limpiar la bandera después de un tiempo
+            setTimeout(() => {
+              window.skipFilterRestore = false;
+            }, 1000);
+          }, 200);
+        } else {
+          // Para refresh forzado, restaurar scroll más tarde
+          setTimeout(() => {
+            const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
+            if (inventoryWrapper && inventoryViewState) {
+              if (inventoryViewState.scrollPosition > 0) {
+                inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
+              }
+              if (inventoryViewState.scrollPositionX > 0) {
+                inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
+              }
+            }
+            
+            setTimeout(() => {
+              window.skipFilterRestore = false;
+            }, 1000);
+          }, 300);
+        }
         
         console.log('✅ Tabla de inventario normal actualizada');
       }
@@ -5779,6 +5832,149 @@ function updateTablesAfterComment() {
   }, 300);
   
   console.log('✅ === FIN updateTablesAfterComment ===');
+}
+
+// Función para actualizar directamente las celdas de Analista y Diseñador en el DOM
+function updateAnalystDesignerCellsDirectly() {
+  console.log('🎯 === INICIO updateAnalystDesignerCellsDirectly ===');
+  
+  if (!originalInventoryData || originalInventoryData.length === 0) {
+    console.log('❌ No hay originalInventoryData para actualizar');
+    return;
+  }
+  
+  // Buscar todas las celdas de analista y diseñador en el DOM
+  const analystCells = document.querySelectorAll('[data-comment-type="analista-clean"]');
+  const designerCells = document.querySelectorAll('[data-comment-type="diseñador-clean"]');
+  
+  console.log(`🔍 Encontradas ${analystCells.length} celdas de analista y ${designerCells.length} celdas de diseñador`);
+  
+  // DEBUG: Mostrar algunos ejemplos de originalInventoryData
+  console.log('🔍 Primeros 3 elementos de originalInventoryData:');
+  originalInventoryData.slice(0, 3).forEach((item, index) => {
+    console.log(`   ${index + 1}:`, {
+      commentType: item.commentType,
+      itemName: item.itemName,
+      itemId: item.itemId,
+      imageName: item.imageName,
+      analista: item.analista,
+      diseñador: item.diseñador
+    });
+  });
+  
+  // DEBUG: Buscar específicamente el item que acabamos de comentar
+  if (window.lastCommentedItemId) {
+    console.log(`🎯 Buscando específicamente el item comentado ID: ${window.lastCommentedItemId}`);
+    const targetCells = document.querySelectorAll(`[data-item-id="${window.lastCommentedItemId}"]`);
+    console.log(`🎯 Encontradas ${targetCells.length} celdas para el item comentado`);
+    
+    targetCells.forEach((cell, index) => {
+      const commentType = cell.getAttribute('data-comment-type');
+      if (commentType === 'analista-clean' || commentType === 'diseñador-clean') {
+        console.log(`🎯 Celda ${index + 1} (${commentType}): "${cell.textContent.trim()}"`);
+      }
+    });
+  }
+
+  let updatedCount = 0;
+  let debugCount = 0;
+  
+  // Actualizar celdas de analista
+  analystCells.forEach(cell => {
+    const itemName = cell.getAttribute('data-item-name');
+    const itemId = cell.getAttribute('data-item-id');
+    const imageName = cell.getAttribute('data-image-name');
+    
+    // Debug solo para las primeras 3 celdas
+    if (debugCount < 3) {
+      console.log(`🔍 DEBUG celda ${debugCount + 1}:`, {
+        itemName,
+        itemId,
+        imageName,
+        currentText: cell.textContent.trim()
+      });
+      debugCount++;
+    }
+    
+    // Buscar el dato correspondiente en originalInventoryData
+    let matchingData = null;
+    
+    if (imageName && imageName !== '-') {
+      // Es una imagen
+      matchingData = originalInventoryData.find(row => 
+        row.commentType === 'image' && row.imageName === imageName
+      );
+      if (debugCount <= 3) {
+        console.log(`🔍 Buscando imagen "${imageName}":`, matchingData ? 'ENCONTRADO' : 'NO ENCONTRADO');
+      }
+    } else if (itemName && itemId) {
+      // Es un item code
+      matchingData = originalInventoryData.find(row => 
+        row.commentType === 'item' && (row.itemName === itemName || String(row.itemId) === String(itemId))
+      );
+      if (debugCount <= 3) {
+        console.log(`🔍 Buscando item "${itemName}" (ID: ${itemId}):`, matchingData ? 'ENCONTRADO' : 'NO ENCONTRADO');
+        if (matchingData) {
+          console.log(`   Datos encontrados:`, {
+            analista: matchingData.analista,
+            diseñador: matchingData.diseñador
+          });
+        }
+      }
+    }
+    
+    if (matchingData && matchingData.analista) {
+      const currentValue = cell.textContent.trim();
+      if (debugCount <= 3) {
+        console.log(`🔍 Comparando analista: "${currentValue}" vs "${matchingData.analista}"`);
+      }
+      if (currentValue !== matchingData.analista) {
+        cell.textContent = matchingData.analista;
+        console.log(`✅ Analista actualizado: "${currentValue}" → "${matchingData.analista}" para ${itemName || imageName}`);
+        updatedCount++;
+      } else if (debugCount <= 3) {
+        console.log(`⚠️ Analista ya está actualizado: "${currentValue}"`);
+      }
+    }
+  });
+  
+  // Actualizar celdas de diseñador
+  designerCells.forEach(cell => {
+    const itemName = cell.getAttribute('data-item-name');
+    const itemId = cell.getAttribute('data-item-id');
+    const imageName = cell.getAttribute('data-image-name');
+    
+    // Buscar el dato correspondiente en originalInventoryData
+    let matchingData = null;
+    
+    if (imageName && imageName !== '-') {
+      // Es una imagen
+      matchingData = originalInventoryData.find(row => 
+        row.commentType === 'image' && row.imageName === imageName
+      );
+    } else if (itemName && itemId) {
+      // Es un item code
+      matchingData = originalInventoryData.find(row => 
+        row.commentType === 'item' && (row.itemName === itemName || String(row.itemId) === String(itemId))
+      );
+    }
+    
+    if (matchingData && matchingData.diseñador) {
+      const currentValue = cell.textContent.trim();
+      if (currentValue !== matchingData.diseñador) {
+        cell.textContent = matchingData.diseñador;
+        console.log(`✅ Diseñador actualizado: "${currentValue}" → "${matchingData.diseñador}" para ${itemName || imageName}`);
+        updatedCount++;
+      }
+    }
+  });
+  
+  console.log(`🎯 === FIN updateAnalystDesignerCellsDirectly - ${updatedCount} celdas actualizadas ===`);
+  
+  // Limpiar la bandera de tracking
+  if (window.lastCommentedItemId) {
+    delete window.lastCommentedItemId;
+  }
 }
 
 // Función específica para actualizar tabla filtrada después de comentario
@@ -9267,7 +9463,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false) {
         const primerAnalista = analistas[0];
         const ultimoAnalista = analistas[analistas.length - 1];
         
-        result.analista = primerAnalista.usuario;
+        result.analista = ultimoAnalista.usuario; // CORREGIDO: Usar el último analista (más reciente)
         result.primeraFechaAnalista = primerAnalista.fecha;
         result.ultimaFechaAnalista = ultimoAnalista.fecha;
         result.ultimoComentarioAnalista = ultimoAnalista.comentario;
@@ -9293,6 +9489,12 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false) {
     } catch (error) {
       console.warn('Error parseando comentario:', commentText, error);
     }
+
+    console.log('🔍 parseComment resultado:', {
+      analista: result.analista,
+      diseñador: result.diseñador,
+      ultimoStatus: result.ultimoStatus
+    });
 
     return result;
   }
@@ -9593,7 +9795,14 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false) {
              (!matchingTableRow || !matchingTableRow.diseñador || matchingTableRow.diseñador.trim() === '');
     });
     
-    if (hasRecentAssignments) {
+    // CORREGIR: Después de agregar comentarios, siempre actualizar datos para reflejar cambios de Analista/Diseñador
+    const isAfterCommentUpdate = window.justAddedComment === true;
+    
+    console.log('🔍 DEBUGGING: hasRecentAssignments =', hasRecentAssignments);
+    console.log('🔍 DEBUGGING: isAfterCommentUpdate =', isAfterCommentUpdate);
+    console.log('🔍 DEBUGGING: window.justAddedComment =', window.justAddedComment);
+    
+    if (hasRecentAssignments && !isAfterCommentUpdate) {
       console.log('🔒 PRESERVANDO originalInventoryData - contiene asignaciones recientes no reflejadas en tableRowsData');
       // Solo actualizar comentarios en originalInventoryData sin perder asignaciones
       originalInventoryData.forEach(originalRow => {
@@ -9679,9 +9888,13 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false) {
         }
       }
     } else {
-      // Seguro actualizar originalInventoryData cuando no hay asignaciones pendientes
+      console.log('✅ FORZANDO actualización de originalInventoryData después de agregar comentario');
+      // Después de comentarios, siempre actualizar para reflejar cambios de Analista/Diseñador
       originalInventoryData = [...tableRowsData];
-      console.log('🔄 Actualizando originalInventoryData con', tableRowsData.length, 'elementos (sin asignaciones pendientes)');
+      console.log('🔄 originalInventoryData actualizado con nuevos datos de Analista/Diseñador');
+      
+      // Limpiar la bandera
+      window.justAddedComment = false;
     }
   }
   
