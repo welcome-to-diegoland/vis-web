@@ -7116,6 +7116,11 @@ function handleBulkImageRemoval(event, imageCell) {
   const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
   const sourceItemCode = imageCell.getAttribute('data-item-code');
   
+  // Obtener SOLO los Item Codes que están visibles según filtros
+  const visibleItemCodes = getVisibleItemCodes();
+  const visibleItemCodeNames = visibleItemCodes.map(item => item.Name || item['Item Code']);
+  console.log('Item Codes visibles por filtro:', visibleItemCodeNames.length);
+  
   // Buscar TODAS las imágenes con el mismo nombre en TODO el Item Group
   const allImageCells = document.querySelectorAll('.image-cell .image-thumbnail');
   const imagesToRemove = [];
@@ -7124,6 +7129,12 @@ function handleBulkImageRemoval(event, imageCell) {
     if (img.alt === imageName && !img.src.includes('data:image/svg+xml')) {
       const cell = img.closest('.image-cell');
       const itemCode = cell.getAttribute('data-item-code');
+      
+      // FILTRAR: Solo procesar si el Item Code está visible
+      if (!visibleItemCodeNames.includes(itemCode)) {
+        return; // Saltar este Item Code porque está oculto por filtro
+      }
+      
       const section = cell.getAttribute('data-section');
       const rowIndex = parseInt(cell.getAttribute('data-row-index'));
       const colIndex = parseInt(cell.getAttribute('data-col-index'));
@@ -7139,7 +7150,8 @@ function handleBulkImageRemoval(event, imageCell) {
     }
   });
   
-  console.log('Imágenes encontradas para eliminar:', imagesToRemove.length);
+  console.log('Imágenes totales encontradas:', allImageCells.length);
+  console.log('Imágenes encontradas para eliminar (filtradas):', imagesToRemove.length);
   
   // Procesar cada imagen encontrada
   imagesToRemove.forEach(imageInfo => {
@@ -7195,16 +7207,29 @@ function handleColumnBulkAssignment(event, headerSection) {
   console.log('Columna (0-based):', columnNumber);
   console.log('Imagen de trabajo:', workingImage);
   
+  // Obtener SOLO los Item Codes que están visibles según filtros
+  const visibleItemCodes = getVisibleItemCodes();
+  const visibleItemCodeNames = visibleItemCodes.map(item => item.Name || item['Item Code']);
+  console.log('Item Codes visibles por filtro:', visibleItemCodeNames.length);
+  
   // Obtener todas las celdas de esta columna específica
-  const columnCells = document.querySelectorAll(`[data-section="${section}"][data-col-index="${columnNumber}"].image-cell`);
-  console.log('Celdas encontradas en la columna:', columnCells.length);
+  const allColumnCells = document.querySelectorAll(`[data-section="${section}"][data-col-index="${columnNumber}"].image-cell`);
+  
+  // Filtrar solo las celdas que pertenecen a Item Codes visibles
+  const visibleColumnCells = Array.from(allColumnCells).filter(cell => {
+    const itemCode = cell.getAttribute('data-item-code');
+    return visibleItemCodeNames.includes(itemCode);
+  });
+  
+  console.log('Celdas totales en la columna:', allColumnCells.length);
+  console.log('Celdas visibles en la columna (filtradas):', visibleColumnCells.length);
   
   if (workingImage) {
-    // CASO 1: Hay imagen de trabajo - asignar a toda la columna
-    handleBulkAssignToColumn(columnCells, section, columnNumber);
+    // CASO 1: Hay imagen de trabajo - asignar a toda la columna (solo visibles)
+    handleBulkAssignToColumn(visibleColumnCells, section, columnNumber);
   } else {
-    // CASO 2: No hay imagen de trabajo - eliminar toda la columna
-    handleBulkRemoveFromColumn(columnCells, section, columnNumber);
+    // CASO 2: No hay imagen de trabajo - eliminar toda la columna (solo visibles)
+    handleBulkRemoveFromColumn(visibleColumnCells, section, columnNumber);
   }
 }
 
@@ -8093,12 +8118,27 @@ function setupScrollSynchronization() {
 function handleGalCleanup() {
   console.log('=== INICIANDO LIMPIEZA INTELIGENTE GAL ===');
   
+  // Obtener SOLO los Item Codes que están visibles según filtros
+  const visibleItemCodes = getVisibleItemCodes();
+  const visibleItemCodeNames = visibleItemCodes.map(item => item.Name || item['Item Code']);
+  console.log('Item Codes visibles por filtro:', visibleItemCodeNames.length);
+  
   // Obtener todas las celdas de la sección GAL que tienen imágenes
-  const galCells = document.querySelectorAll('[data-section="gallery"].image-cell');
+  const allGalCells = document.querySelectorAll('[data-section="gallery"].image-cell');
+  
+  // Filtrar solo las celdas que pertenecen a Item Codes visibles
+  const visibleGalCells = Array.from(allGalCells).filter(cell => {
+    const itemCode = cell.getAttribute('data-item-code');
+    return visibleItemCodeNames.includes(itemCode);
+  });
+  
+  console.log('Celdas GAL totales:', allGalCells.length);
+  console.log('Celdas GAL visibles (filtradas):', visibleGalCells.length);
+  
   const imagesToRemove = [];
   let totalImages = 0;
   
-  galCells.forEach(cell => {
+  visibleGalCells.forEach(cell => {
     const imageThumbnail = cell.querySelector('.image-thumbnail');
     
     // Solo procesar celdas que tienen imagen real (no placeholder)
@@ -13124,18 +13164,63 @@ function undoAllChanges() {
       return;
     }
     
-    console.log('🔄 Deshaciendo todos los cambios del Item Group...');
+    console.log('🔄 Deshaciendo cambios del Item Group...');
     
-    // Restaurar las variables globales con el estado original
-    currentItemCodes = JSON.parse(JSON.stringify(originalItemGroupState.currentItemCodes));
+    // Obtener SOLO los Item Codes que están visibles según filtros
+    const visibleItemCodes = getVisibleItemCodes();
+    const visibleItemCodeNames = visibleItemCodes.map(item => item.Name || item['Item Code']);
+    console.log('Item Codes visibles por filtro:', visibleItemCodeNames.length);
+    
+    if (visibleItemCodeNames.length === 0) {
+      console.log('⚠️ No hay Item Codes visibles para deshacer');
+      return;
+    }
+    
+    // Restaurar solo los Item Codes visibles en currentItemCodes
+    const originalItemCodes = originalItemGroupState.currentItemCodes;
+    currentItemCodes = currentItemCodes.map(currentItem => {
+      const itemName = currentItem.Name || currentItem['Item Code'];
+      
+      // Si este Item Code está visible, restaurar desde el estado original
+      if (visibleItemCodeNames.includes(itemName)) {
+        const originalItem = originalItemCodes.find(orig => 
+          (orig.Name || orig['Item Code']) === itemName
+        );
+        return originalItem ? JSON.parse(JSON.stringify(originalItem)) : currentItem;
+      }
+      
+      // Si no está visible, mantener el estado actual
+      return currentItem;
+    });
+    
+    // Restaurar solo los Item Codes visibles en currentWorkingData  
+    const originalWorkingData = originalItemGroupState.currentWorkingData;
+    currentWorkingData = currentWorkingData.map(currentItem => {
+      if (currentItem['Object Type'] === 'Item Code') {
+        const itemName = currentItem.Name || currentItem['Item Code'];
+        
+        // Si este Item Code está visible, restaurar desde el estado original
+        if (visibleItemCodeNames.includes(itemName)) {
+          const originalItem = originalWorkingData.find(orig => 
+            orig['Object Type'] === 'Item Code' && 
+            (orig.Name || orig['Item Code']) === itemName
+          );
+          return originalItem ? JSON.parse(JSON.stringify(originalItem)) : currentItem;
+        }
+      }
+      
+      // Para otros tipos de objetos o Item Codes no visibles, mantener estado actual
+      return currentItem;
+    });
+    
+    // Restaurar otras variables globales (estas no se filtran por Item Code)
     currentImageColumns = JSON.parse(JSON.stringify(originalItemGroupState.currentImageColumns));
     currentItemGroup = JSON.parse(JSON.stringify(originalItemGroupState.currentItemGroup));
-    currentWorkingData = JSON.parse(JSON.stringify(originalItemGroupState.currentWorkingData));
     
-    // Regenerar la grilla con el estado original
+    // Regenerar la grilla con el estado restaurado
     regenerateImageGrid();
     
-    console.log('✅ Item Group restaurado al estado original');
+    console.log(`✅ ${visibleItemCodeNames.length} Item Codes visibles restaurados al estado original`);
     
   } catch (error) {
     console.error('❌ Error deshaciendo cambios:', error);
