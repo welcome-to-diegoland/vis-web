@@ -7116,13 +7116,6 @@ function handleBulkImageRemoval(event, imageCell) {
   const imageName = imageThumbnail.getAttribute('data-filename') || imageThumbnail.alt;
   const sourceItemCode = imageCell.getAttribute('data-item-code');
   
-  // Confirmación del usuario
-  const confirmMessage = `¿Quieres quitar la imagen '${imageName}' de todos los Item Codes del Item Group?`;
-  if (!confirm(confirmMessage)) {
-    console.log('Eliminación masiva cancelada por el usuario');
-    return;
-  }
-  
   // Buscar TODAS las imágenes con el mismo nombre en TODO el Item Group
   const allImageCells = document.querySelectorAll('.image-cell .image-thumbnail');
   const imagesToRemove = [];
@@ -7365,7 +7358,7 @@ function removeImageFromGrid(rowIndex, colIndex, section, shouldCompact = true) 
   cell.innerHTML = `
     <div class="empty-image-cell">
       <div class="drop-zone" title="Arrastrar imagen aquí">
-        <span class="add-icon">+</span>
+        <span class="add-icon"></span>
       </div>
     </div>
   `;
@@ -7418,7 +7411,7 @@ function compactImagesInSection(itemCode, section, removedColIndex) {
       cell.innerHTML = `
         <div class="empty-image-cell">
           <div class="drop-zone" title="Arrastrar imagen aquí">
-            <span class="add-icon">+</span>
+            <span class="add-icon"></span>
           </div>
         </div>
       `;
@@ -7548,7 +7541,7 @@ function shiftImagesRight(fromRow, fromCol, section) {
         sourceCell.innerHTML = `
           <div class="empty-image-cell">
             <div class="drop-zone" title="Arrastrar imagen aquí">
-              <span class="add-icon">+</span>
+              <span class="add-icon"></span>
             </div>
           </div>
         `;
@@ -7581,7 +7574,7 @@ function shiftImagesLeft(fromRow, fromCol, section) {
         nextCell.innerHTML = `
           <div class="empty-image-cell">
             <div class="drop-zone" title="Arrastrar imagen aquí">
-              <span class="add-icon">+</span>
+              <span class="add-icon"></span>
             </div>
           </div>
         `;
@@ -8136,7 +8129,7 @@ function handleGalCleanup() {
   });
   
   if (imagesToRemove.length === 0) {
-    alert('¡Perfecto! GAL está limpio, no hay imágenes fuera de lugar.');
+    console.log('GAL está limpio, no hay imágenes fuera de lugar.');
     return;
   }
   
