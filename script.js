@@ -12231,20 +12231,12 @@ async function saveToGoogleSheets() {
       const success = await saveToVisSandra(visibleData, 'manual');
       
       if (success) {
+        
         console.log(`✅ ${visibleData.length} registros guardados exitosamente en vis-sandra`);
         
-        // Limpiar estados originales después del guardado exitoso
-        console.log('🧹 Limpiando estados originales después del guardado exitoso...');
-        // Limpiar originalItemGroupState si existe
-        if (typeof originalItemGroupState !== 'undefined') {
-          originalItemGroupState = null;
-        }
-        console.log('✅ Estados originales limpiados');
       } else {
         throw new Error('Error en el guardado unificado');
-      }
-      
-    } catch (error) {
+      }    } catch (error) {
       console.error('❌ Error en saveToGoogleSheets:', error);
       alert(`❌ Error al guardar: ${error.message}`);
     } finally {
@@ -12531,6 +12523,68 @@ function getVisibleItemCodes() {
   return visibleItemCodes;
 }
 
+// Función para detectar secciones vacías y crear registros <EMPTY>
+function createEmptyRecords(itemData, currentDate, formattedUserName) {
+  const emptyRecords = [];
+  const itemId = itemData['Id'];
+  const objectType = itemData['Object Type'] || 'Item Code';
+  
+  // Definir las secciones y sus atributos
+  const sections = {
+    cover: ['WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05'],
+    gallery: ['WA_Gallery_01', 'WA_Gallery_02', 'WA_Gallery_03', 'WA_Gallery_04', 'WA_Gallery_05', 'WA_Gallery_06', 'WA_Gallery_07', 'WA_Gallery_08', 'WA_Gallery_09', 'WA_Gallery_10', 'WA_Gallery_11', 'WA_Gallery_12', 'WA_Gallery_13', 'WA_Gallery_14', 'WA_Gallery_15', 'WA_Gallery_16', 'WA_Gallery_17', 'WA_Gallery_18', 'WA_Gallery_19', 'WA_Gallery_20'],
+    rest: ['WA_Rest_01', 'WA_Rest_02', 'WA_Rest_03', 'WA_Rest_04', 'WA_Rest_05', 'WA_Rest_06', 'WA_Rest_07', 'WA_Rest_08', 'WA_Rest_09', 'WA_Rest_10']
+  };
+  
+  // Para Item Groups, solo verificar Gallery
+  if (objectType === 'Item Group') {
+    const sectionToCheck = { gallery: sections.gallery };
+    
+    Object.entries(sectionToCheck).forEach(([sectionName, attributes]) => {
+      const hasAnyImage = attributes.some(attr => {
+        const value = itemData[attr];
+        return value && value.toString().trim() !== '' && value !== '-' && 
+               !value.includes('logo_img_blank') && !value.includes('prod_img_blank');
+      });
+      
+      if (!hasAnyImage) {
+        console.log(`🗂️ Item Group ${itemData['Name'] || itemId}: Sección ${sectionName} completamente vacía, creando registro <EMPTY>`);
+        emptyRecords.push({
+          id: itemId,
+          objectType: objectType,
+          attribute: attributes[0], // WA_Gallery_01
+          value: '<EMPTY>',
+          date: currentDate,
+          user: formattedUserName
+        });
+      }
+    });
+  } else {
+    // Para Item Codes, verificar todas las secciones
+    Object.entries(sections).forEach(([sectionName, attributes]) => {
+      const hasAnyImage = attributes.some(attr => {
+        const value = itemData[attr];
+        return value && value.toString().trim() !== '' && value !== '-' && 
+               !value.includes('logo_img_blank') && !value.includes('prod_img_blank');
+      });
+      
+      if (!hasAnyImage) {
+        console.log(`📋 Item Code ${itemData['Name'] || itemId}: Sección ${sectionName} completamente vacía, creando registro <EMPTY>`);
+        emptyRecords.push({
+          id: itemId,
+          objectType: objectType,
+          attribute: attributes[0], // WA_Cover_Image_01, WA_Gallery_01, o WA_Rest_01
+          value: '<EMPTY>',
+          date: currentDate,
+          user: formattedUserName
+        });
+      }
+    });
+  }
+  
+  return emptyRecords;
+}
+
 function collectVisibleData() {
   const records = [];
   const currentDate = getLocalDateTime();
@@ -12547,6 +12601,22 @@ function collectVisibleData() {
     
     console.log(`\n🏷️ Procesando Item Group: ${itemGroupName} (ID: ${itemGroupId})`);
     
+    // IMPORTANTE: Combinar datos originales del Item Group con modificaciones de currentWorkingData
+    const updatesFromWorkingData = currentWorkingData.find(item => 
+      item['Id'] == itemGroupId || item['ID'] == itemGroupId
+    );
+    
+    // Crear objeto combinado: datos originales + modificaciones
+    const updatedItemGroup = { ...currentItemGroup };
+    if (updatesFromWorkingData) {
+      // Aplicar solo las modificaciones que existen en currentWorkingData
+      Object.keys(updatesFromWorkingData).forEach(key => {
+        if (updatesFromWorkingData[key] !== undefined) {
+          updatedItemGroup[key] = updatesFromWorkingData[key];
+        }
+      });
+    }
+    
     let groupRecordCount = 0;
     
     // Recopilar campos WA del Item Group (EXCLUYENDO comentarios que se auto-guardan)
@@ -12556,8 +12626,8 @@ function collectVisibleData() {
         return;
       }
       
-      if (currentItemGroup[attribute] !== undefined && currentItemGroup[attribute] !== null) {
-        const value = currentItemGroup[attribute].toString().trim();
+      if (updatedItemGroup[attribute] !== undefined && updatedItemGroup[attribute] !== null) {
+        const value = updatedItemGroup[attribute].toString().trim();
         if (value && 
             value !== '' && 
             value !== '-' && 
@@ -12585,6 +12655,14 @@ function collectVisibleData() {
     });
     
     console.log(`✅ Item Group ${itemGroupName}: ${groupRecordCount} registros recopilados`);
+    
+    // Verificar secciones vacías del Item Group y crear registros <EMPTY>
+    const emptyGroupRecords = createEmptyRecords(updatedItemGroup, currentDate, formattedUserName);
+    records.push(...emptyGroupRecords);
+    
+    if (emptyGroupRecords.length > 0) {
+      console.log(`🗂️ Item Group ${itemGroupName}: ${emptyGroupRecords.length} registros <EMPTY> agregados`);
+    }
   }
   
   // PASO 2: Recopilar datos de Item Codes visibles (solo los que no están ocultos por filtros)
@@ -12610,6 +12688,22 @@ function collectVisibleData() {
     if (itemId) {
       let itemRecordCount = 0;
       
+      // IMPORTANTE: Combinar datos originales con modificaciones de currentWorkingData
+      const updatesFromWorkingData = currentWorkingData.find(item => 
+        item['Id'] == itemId || item['ID'] == itemId
+      );
+      
+      // Crear objeto combinado: datos originales + modificaciones
+      const updatedItemData = { ...itemData };
+      if (updatesFromWorkingData) {
+        // Aplicar solo las modificaciones que existen en currentWorkingData
+        Object.keys(updatesFromWorkingData).forEach(key => {
+          if (updatesFromWorkingData[key] !== undefined) {
+            updatedItemData[key] = updatesFromWorkingData[key];
+          }
+        });
+      }
+      
       // Recopilar TODOS los campos WA que tengan cualquier valor (EXCLUYENDO comentarios que se auto-guardan)
       WA_ATTRIBUTES.forEach(attribute => {
         // Saltar WA_VIS_Comment porque se auto-guarda cuando se crean comentarios
@@ -12617,8 +12711,8 @@ function collectVisibleData() {
           return;
         }
         
-        if (itemData[attribute] !== undefined && itemData[attribute] !== null) {
-          const value = itemData[attribute].toString().trim();
+        if (updatedItemData[attribute] !== undefined && updatedItemData[attribute] !== null) {
+          const value = updatedItemData[attribute].toString().trim();
           if (value && 
               value !== '' && 
               value !== '-' && 
@@ -12646,6 +12740,14 @@ function collectVisibleData() {
       });
       
       console.log(`✅ ${itemCodeName}: ${itemRecordCount} registros recopilados`);
+      
+      // Verificar secciones vacías del Item Code y crear registros <EMPTY>
+      const emptyItemRecords = createEmptyRecords(updatedItemData, currentDate, formattedUserName);
+      records.push(...emptyItemRecords);
+      
+      if (emptyItemRecords.length > 0) {
+        console.log(`📋 Item Code ${itemCodeName}: ${emptyItemRecords.length} registros <EMPTY> agregados`);
+      }
     }
   });
   
