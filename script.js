@@ -590,14 +590,41 @@ function findItemCodeContainingImage(imageName) {
   
   console.log(`🔍 Buscando Item Code que contiene la imagen: "${imageName}"`);
   
-  // Columnas típicas de imágenes en Item Codes
-  const imageColumns = ['Foto 1', 'Foto 2', 'Foto 3', 'Foto 4', 'Foto 5', 'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05'];
+  // Usar TODOS los atributos WA posibles para buscar la imagen
+  const allImageColumns = [
+    'Foto 1', 'Foto 2', 'Foto 3', 'Foto 4', 'Foto 5',
+    ...WA_ATTRIBUTES.filter(attr => attr.includes('Image') || attr.includes('Gallery') || attr.includes('Rest') || attr.includes('Cover'))
+  ];
+  
+  console.log(`🔍 Buscando en ${allImageColumns.length} columnas de imagen posibles`);
+  
+  // DEBUG: Buscar Item Codes que tengan un nombre similar al de la imagen
+  const imageBaseName = imageName.replace(/\.(jpg|jpeg|png|gif|webp)$/i, ''); // Remover extensión
+  console.log(`🔍 DEBUG: Nombre base de imagen (sin extensión): "${imageBaseName}"`);
+  
+  const potentialItemCodes = currentWorkingData.filter(item => 
+    item['Object Type'] === 'Item Code' && 
+    (item.Name === imageBaseName || item.Name === imageName)
+  );
+  
+  console.log(`🔍 DEBUG: Item Codes con nombre similar encontrados: ${potentialItemCodes.length}`);
+  potentialItemCodes.forEach(item => {
+    console.log(`   - ${item.Name} (ID: ${item.ID || item.Id})`);
+    // Mostrar algunas columnas WA para debug
+    const imageValues = allImageColumns.filter(col => item[col] && item[col].trim() !== '').slice(0, 5);
+    console.log(`     Imágenes en columnas WA: ${imageValues.map(col => `${col}="${item[col]}"`).join(', ')}`);
+  });
   
   // Buscar en Item Codes
   const itemCodeWithImage = currentWorkingData.find(item => {
     if (item['Object Type'] !== 'Item Code') return false;
     
-    return imageColumns.some(col => item[col] === imageName);
+    return allImageColumns.some(col => {
+      const value = item[col];
+      return value === imageName || value === imageBaseName || 
+             (value && value.includes(imageBaseName)) || 
+             (value && value.includes(imageName));
+    });
   });
   
   if (itemCodeWithImage) {
@@ -5052,8 +5079,6 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       if (currentAssetComments) {
         currentAssetComments.push(assetData);
       }
-      
-      assetData = newImageAsset;
     }
     
     console.log('Comentario puesto:', newComment, 'para:', imageName);
