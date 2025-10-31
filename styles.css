@@ -2252,11 +2252,11 @@ html, body {
   transform: translateY(-1px);
 }
 
-.gallery-image-item.selected {
+/* .gallery-image-item.selected {
   border-color: #10b981;
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
   background: #f0fdf4;
-}
+} */
 
 .gallery-image-container {
   position: relative;
@@ -2296,10 +2296,10 @@ html, body {
   font-weight: 500;
 }
 
-.gallery-image-item.selected .gallery-image-name {
+/* .gallery-image-item.selected .gallery-image-name {
   background: #ecfdf5;
   color: #065f46;
-}
+} */
 
 /* Responsive para el grid de galerías */
 @media (max-width: 400px) {
