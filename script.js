@@ -8641,11 +8641,7 @@ function initializeGallerySystem() {
   const galleryGrid = document.createElement('div');
   galleryGrid.className = 'gallery-grid';
   galleryGrid.id = 'galleryGrid';
-  galleryGrid.innerHTML = `
-    <div class="gallery-placeholder">
-      Sistema de galerías iniciado. Cargue datos para ver galerías disponibles.
-    </div>
-  `;
+  galleryGrid.innerHTML = ``;
   galleryList.appendChild(galleryGrid);
 
   // Si ya hay datos de galerías cargados, poblar el dropdown
@@ -9163,7 +9159,7 @@ function loadImageAsWorkingImage(imageName) {
 function clearGalleryGrid() {
   const galleryGrid = document.getElementById('galleryGrid');
   if (galleryGrid) {
-    galleryGrid.innerHTML = '<div class="gallery-placeholder">Selecciona una galería para ver las imágenes</div>';
+    galleryGrid.innerHTML = '';
   }
 }
 

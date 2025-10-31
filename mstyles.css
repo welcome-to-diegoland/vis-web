@@ -3722,9 +3722,24 @@ button[id="btn-cargar-categoria"]:disabled {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: #fdfdfd4f; /* Fondo casi blanco */
+  background: #fdfdfd; /* Fondo casi blanco */
 }
 
+.drop-zone:hover {
+  background: #f8f9fa;
+}
+
+.add-icon {
+  color: #e9ecef; /* Ícono muy claro */
+  font-size: 14px; /* Tamaño más pequeño */
+  font-weight: 300; /* Muy ligero */
+  opacity: 0.7; /* Más transparente */
+}
+
+.drop-zone:hover .add-icon {
+  color: #6c757d; /* Hover más sutil */
+  opacity: 0;
+}
 
 /* Estilos para columnas colapsables */
 .collapsible-header {
@@ -4005,25 +4020,9 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Gallery mantiene el color blanco por defecto */
 
-
-.image-cell[data-section="cov"]:hover {
-  background-color: rgb(255 159 0 / 23%); 
+.image-cell:hover {
+  background-color: #f8f9fa;
 }
-
-.image-cell[data-section="rest"]:hover {
-  background-color: rgb(53 57 203 / 17%); 
-}
-
-.image-cell[data-section="gallery"]:hover {
-  background-color: #e9ecef59; 
-}
-
-
-
-
-
-
-
 
 /* Contenedores de imágenes */
 .image-thumbnail-container {
@@ -4104,7 +4103,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .drop-zone {
   width: 80%;
   height: 80%;
-  border: 1px solid #f1f3f4; /* LÃ­nea casi invisible */
+  border: 1px dashed #f1f3f4; /* Línea casi invisible */
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -4113,6 +4112,18 @@ button[id="btn-cargar-categoria"]:disabled {
   transition: all 0.3s ease;
 }
 
+.drop-zone:hover {
+  border-color: #e9ecef; /* Hover apenas visible */
+  background-color: rgba(248, 249, 250, 0.5);
+}
+
+.add-icon {
+  font-size: 12px; /* Más pequeño */
+  color: #e9ecef; /* Muy claro */
+  font-weight: 300;
+  color: #adb5bd; /* Más claro */
+  opacity: 0.7; /* Más transparente */
+}
 
 /* ===== NUEVA ESTRUCTURA UNIFICADA ===== */
 
@@ -4359,8 +4370,8 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Sección REST - Fondo suave coordinado con header verde lima */
 .rest-wrapper {
-  width: calc(var(--image-size, 80px) + 100px);
-  min-width: calc(var(--image-size, 80px) + 100px);
+  width: calc(var(--image-size, 80px) + 10px);
+  min-width: calc(var(--image-size, 80px) + 10px);
   flex-shrink: 0;
   background-color: rgba(176, 201, 18, 0.12) !important; /* Verde lima muy suave del header B0C912 */
   /* border-left: 2px solid #B0C912 !important; */ /* Línea delimitadora verde lima exacta */
@@ -4398,6 +4409,10 @@ button[id="btn-cargar-categoria"]:disabled {
   min-height: calc(var(--image-size, 80px) + 50px);
 }
 
+
+.table-row:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+}
 
 /* Celdas de la tabla */
 .table-cell {
