@@ -5920,6 +5920,15 @@ button[id="btn-cargar-categoria"]:disabled {
   overflow-x: auto;
   overflow-y: auto;
   background: white;
+  position: relative;
+}
+
+/* Agregar espacio al final para que la última fila se vea completamente */
+.inventory-table-wrapper::after {
+  content: "";
+  display: block;
+  height: 80px; /* Altura suficiente para empujar el scroll y mostrar la última fila */
+  width: 100%;
 }
 
 .image-inventory-table {
@@ -7243,7 +7252,7 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* ===== ANCHOS DEFINITIVOS DE COLUMNAS DE INVENTARIO (AL FINAL PARA MÁXIMA PRIORIDAD) ===== */
 /* Anchos específicos para celdas de datos - MÁXIMA ESPECIFICIDAD */
-.image-inventory-table .inventory-cell:nth-child(1) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
+.image-inventory-table .inventory-cell:nth-child(1) { width: 45px !important; min-width: 45px !important; max-width: 45px !important; }
 .image-inventory-table .inventory-cell:nth-child(2) { width: 55px !important; min-width: 55px !important; max-width: 55px !important; }
 .image-inventory-table .inventory-cell:nth-child(3) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 .image-inventory-table .inventory-cell:nth-child(4) { width: 65px !important; min-width: 65px !important; max-width: 65px !important; }
@@ -7262,7 +7271,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .image-inventory-table .inventory-cell:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 
 /* También aplicar a las celdas td directamente */
-table.image-inventory-table td:nth-child(1) { width: 35px !important; min-width: 35px !important; max-width: 35px !important; }
+table.image-inventory-table td:nth-child(1) { width: 45px !important; min-width: 45px !important; max-width: 45px !important; }
 table.image-inventory-table td:nth-child(2) { width: 55px !important; min-width: 55px !important; max-width: 55px !important; }
 table.image-inventory-table td:nth-child(3) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 table.image-inventory-table td:nth-child(4) { width: 65px !important; min-width: 65px !important; max-width: 65px !important; }
