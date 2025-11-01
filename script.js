@@ -1580,7 +1580,8 @@ function expandSingleConcatenatedRow(concatenatedRow) {
       'Id': id,
       'IdPath': id,
       'NamePath': '',
-      'Name': objectType || id
+      'Name': objectType || id,
+      'data_concatenated': dataConcatenated  // PRESERVAR EL CAMPO data_concatenated (aunque esté vacío)
     }];
   }
   
@@ -1602,7 +1603,8 @@ function expandSingleConcatenatedRow(concatenatedRow) {
       'NamePath': '',
       'Name': objectType,
       'Attribute': 'Image',
-      'value': objectType
+      'value': objectType,
+      'data_concatenated': dataConcatenated  // PRESERVAR EL CAMPO data_concatenated
     }];
   }
   
@@ -1626,7 +1628,8 @@ function expandSingleConcatenatedRow(concatenatedRow) {
     'Título': parsedData.Título || '',
     'Página de Catálogo': parsedData['Página de Catálogo'] || '',
     'WA Importancia': parsedData['WA Importancia'] || '',
-    'WA_VIS_Comment': parsedData['WA_VIS_Comment'] || ''
+    'WA_VIS_Comment': parsedData['WA_VIS_Comment'] || '',
+    'data_concatenated': dataConcatenated  // PRESERVAR EL CAMPO data_concatenated
   };
   
   if (objectType === 'Item Group' || objectType === 'Item Code') {
@@ -3533,6 +3536,7 @@ function generateSectionTable(unifiedRows, imageProperty, columnCount, sectionNa
 // Función auxiliar para generar celda de imagen
 function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, allImagesInRow = []) {
   const hasComments = hasImageComments(imageName);
+  const hasStarComment = hasImageStarComment(imageName);
   
   // Obtener el status actual de la imagen si tiene comentarios
   let statusAttribute = '';
@@ -3566,6 +3570,7 @@ function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, 
         <button class="btn-remove" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>
       </div>
       ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}"${statusAttribute} onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios">💬</div>` : ''}
+      ${hasStarComment ? `<div class="star-comment-indicator" title="Imagen de comentario"><i class="fa-solid fa-star"></i></div>` : ''}
       ${multipleImagesIndicator}
       <div class="image-name">${imageName}</div>
     </div>
@@ -4431,6 +4436,35 @@ function hasImageComments(imageName) {
     
     if (localImageObject) {
       return true;
+    }
+  }
+  
+  return false;
+}
+
+// Función para verificar si una imagen tiene img_comment = 1
+function hasImageStarComment(imageName) {
+  if (!imageName) return false;
+  
+  // Buscar en window.allItemGroupsData (datos globales del caché)
+  if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+    const imageObject = window.allItemGroupsData.find(item => {
+      return item['Object Type'] === 'Image' && item.Name === imageName;
+    });
+    
+    if (imageObject && imageObject['data_concatenated']) {
+      // Parsear el data_concatenated para buscar img_comment¬1
+      const dataConcatenated = imageObject['data_concatenated'];
+      
+      // Los atributos están separados por § y cada par atributo-valor por ¬
+      const attributes = dataConcatenated.split('§');
+      
+      for (const attribute of attributes) {
+        const [key, value] = attribute.split('¬');
+        if (key === 'img_comment' && value === '1') {
+          return true;
+        }
+      }
     }
   }
   
