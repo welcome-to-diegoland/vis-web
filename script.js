@@ -8904,7 +8904,7 @@ function performImageSearch() {
     }
   });
   
-  console.log('✨ Resultados finales después de deduplicación:', uniqueResults.length, 'imágenes únicas');
+  console.log('✨ Resultados finales despues de deduplicación:', uniqueResults.length, 'imágenes únicas');
   console.log('🔍 Búsqueda completada - Assets + Library con deduplicación');
   
   // Mostrar resultados
