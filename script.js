@@ -76,7 +76,7 @@ const GOOGLE_SHEETS_CONFIG = {
   CATEGORY_SHEET: {
     SPREADSHEET_ID: '1TU51Xxx50DX5dc_aM9X2xguGBYV_Lsaswztv7WOmoyw',
     SHEET_NAME: 'category',
-    COLUMNS: ['NamePath', 'Name', 'IdPath', 'Id', 'ObjectTypeName', 'Item Group', 'CMS', 'Vis_color', 'filtro_color']
+    COLUMNS: ['NamePath', 'Name', 'IdPath', 'Id', 'ObjectTypeName', 'Item Group', 'CMS', 'Vis_color', 'filtro_color','filtro_comment']
   },
   
   // FASE 2: Carga bajo demanda - Datos detallados en formato base de datos (DOCUMENTO 2)
@@ -2558,8 +2558,8 @@ function setupTreeEventListeners(treeDiv, treeList) {
       const box4 = document.getElementById('box4');
       
       // Remover todas las clases previas del árbol y del grid
-      treeDiv.classList.remove('approval-view-active', 'approval-filtered-active');
-      if (box4) box4.classList.remove('approval-view-active', 'approval-filtered-active');
+      treeDiv.classList.remove('approval-view-active', 'approval-filtered-active', 'comments-filtered-active');
+      if (box4) box4.classList.remove('approval-view-active', 'approval-filtered-active', 'comments-filtered-active');
       
       removeApprovalColors(treeList);
       removeApprovalColorsFromGrid();
@@ -2584,6 +2584,13 @@ function setupTreeEventListeners(treeDiv, treeList) {
           if (box4) box4.classList.add('approval-view-active', 'approval-filtered-active');
           applyFilterAndColors(treeList);
           applyApprovalColorsToGrid();
+          break;
+          
+        case 'comments-filtered':
+          // Vista comentarios filtrada: solo filtro por filtro_comment
+          treeDiv.classList.add('comments-filtered-active');
+          if (box4) box4.classList.add('comments-filtered-active');
+          applyCommentsFilter(treeList);
           break;
       }
     };
@@ -2711,6 +2718,7 @@ function initializeTreeControls(treeDiv) {
         <option value="normal">Normal</option>
         <option value="approval-full">Aprobación Completa</option>
         <option value="approval-filtered">Aprobación Filtrada</option>
+        <option value="comments-filtered">Imágenes Comentarios</option>
       </select>
       <button class="btn btn-secondary" id="btn-cargar-categoria" disabled>Cargar</button>
     </div>
@@ -8576,6 +8584,114 @@ function applyFilterAndColors(treeContainer) {
   
   // Iniciar el procesamiento
   requestAnimationFrame(processFilterChunk);
+}
+
+// Función para aplicar filtro de comentarios (solo filtro, sin colores)
+function applyCommentsFilter(treeContainer) {
+  if (!treeContainer || !currentWorkingData) return;
+  
+  console.log('Aplicando filtro de comentarios...');
+  console.log('Total datos disponibles:', currentWorkingData.length);
+  
+  // Mostrar algunos ejemplos de datos
+  console.log('Ejemplos de datos:');
+  currentWorkingData.slice(0, 3).forEach(item => {
+    console.log(`- ${item.NamePath}: filtro_comment=${item['filtro_comment']}`);
+  });
+  
+  // Crear Map para acceso rápido a los datos
+  const dataMap = new Map();
+  console.log('Creando dataMap...');
+  currentWorkingData.forEach((item, index) => {
+    if (item.NamePath) {
+      dataMap.set(item.NamePath, item);
+      // Debug para los primeros 10 elementos
+      if (index < 10) {
+        console.log(`DataMap[${index}]: "${item.NamePath}" -> filtro_comment=${item['filtro_comment']}`);
+      }
+    }
+  });
+  
+  console.log('DataMap creado con', dataMap.size, 'entradas');
+  
+  // Usar el mismo selector que applyFilterAndColors
+  const allElements = treeContainer.querySelectorAll('.category-tree-li-content[data-path]');
+  console.log('Total elementos encontrados:', allElements.length);
+  
+  // Debug: mostrar los primeros 10 paths de elementos DOM
+  console.log('Primeros 10 paths de elementos DOM:');
+  for (let i = 0; i < Math.min(10, allElements.length); i++) {
+    const elementPath = allElements[i].getAttribute('data-path');
+    console.log(`  DOM[${i}]: "${elementPath}"`);
+  }
+  
+  let currentIndex = 0;
+  const chunkSize = 50;
+  let hiddenCount = 0;
+  let shownCount = 0;
+  
+  function processCommentsFilterChunk() {
+    const endIndex = Math.min(currentIndex + chunkSize, allElements.length);
+    
+    for (let i = currentIndex; i < endIndex; i++) {
+      const element = allElements[i];
+      const elementPath = element.getAttribute('data-path');
+      const dataItem = dataMap.get(elementPath);
+      
+      if (dataItem) {
+        // Convertir a número para asegurar comparación correcta
+        const filtroCommentRaw = dataItem['filtro_comment'];
+        const filtroComment = filtroCommentRaw === "" || filtroCommentRaw === null || filtroCommentRaw === undefined ? 0 : parseInt(filtroCommentRaw);
+        
+        // Debug detallado solo para los primeros 10 elementos
+        if (i < 10) {
+          console.log(`Elemento: ${elementPath}`);
+          console.log(`  - filtro_comment raw: "${filtroCommentRaw}" (tipo: ${typeof filtroCommentRaw})`);
+          console.log(`  - filtro_comment parsed: ${filtroComment} (tipo: ${typeof filtroComment})`);
+        }
+        
+        // Aplicar filtro basado en filtro_comment
+        // 0 = visible, 1 = oculto
+        if (filtroComment === 1) {
+          // Ocultar elemento
+          const liElement = element.closest('.category-tree-li');
+          if (liElement) {
+            liElement.style.display = 'none';
+          }
+          hiddenCount++;
+          if (i < 10) console.log(`  - ACCIÓN: Ocultar (filtro_comment === 1)`);
+        } else {
+          // Mostrar elemento (filtro_comment === 0 o cualquier otro valor)
+          const liElement = element.closest('.category-tree-li');
+          if (liElement) {
+            liElement.style.display = '';
+          }
+          shownCount++;
+          if (i < 10) console.log(`  - ACCIÓN: Mostrar (filtro_comment === 0)`);
+        }
+      } else {
+        // Si no hay datos, mostrar el elemento (comportamiento por defecto)
+        const liElement = element.closest('.category-tree-li');
+        if (liElement) {
+          liElement.style.display = '';
+        }
+        shownCount++;
+        if (i < 10) console.log(`Elemento sin datos: ${elementPath} - MOSTRAR`);
+      }
+    }
+    
+    currentIndex = endIndex;
+    
+    // Si hay más elementos, continuar en el siguiente frame
+    if (currentIndex < allElements.length) {
+      requestAnimationFrame(processCommentsFilterChunk);
+    } else {
+      console.log(`Filtro de comentarios aplicado: ${shownCount} elementos mostrados, ${hiddenCount} elementos ocultos`);
+    }
+  }
+  
+  // Iniciar el procesamiento
+  requestAnimationFrame(processCommentsFilterChunk);
 }
 
 // Inicializar contenido de ejemplo al cargar la página
