@@ -11756,56 +11756,43 @@ function generateAnalystStatsTable() {
     `;
   });
   
-  // Calcular totales sin incluir vacíos para analistas
-  totalGeneral = analysts.reduce((sum, analyst) => {
-    return sum + originalInventoryData.filter(row => row.analista === analyst).length;
-  }, 0);
+  // CALCULAR TOTALES BASÁNDOSE EN TODO EL INVENTARIO (como en diseño)
+  // Sumar elementos asignados a diseñadores + elementos vacíos de diseñador
+  const allItems = originalInventoryData;
   
-  totalRevision = analysts.reduce((sum, analyst) => {
-    const items = originalInventoryData.filter(row => row.analista === analyst);
-    return sum + items.filter(row => {
-      if (!row.ultimoStatus) return false;
-      const status = row.ultimoStatus.toLowerCase();
-      return status.includes('revision') || status.includes('revisión') || status.includes('review');
-    }).length;
-  }, 0);
+  // Recalcular totales usando TODO el inventario (igual que diseño)
+  totalGeneral = allItems.length;
   
-  totalDiseño = analysts.reduce((sum, analyst) => {
-    const items = originalInventoryData.filter(row => row.analista === analyst);
-    return sum + items.filter(row => {
-      if (!row.ultimoStatus) return false;
-      const status = row.ultimoStatus.toLowerCase();
-      return status.includes('diseño') || status.includes('diseno') || status.includes('design');
-    }).length;
-  }, 0);
+  totalRevision = allItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return status.includes('revision') || status.includes('revisión') || status.includes('review');
+  }).length;
   
-  totalCancelado = analysts.reduce((sum, analyst) => {
-    const items = originalInventoryData.filter(row => row.analista === analyst);
-    return sum + items.filter(row => {
-      if (!row.ultimoStatus) return false;
-      const status = row.ultimoStatus.toLowerCase();
-      return status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel');
-    }).length;
-  }, 0);
+  totalDiseño = allItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return status.includes('diseño') || status.includes('diseno') || status.includes('design');
+  }).length;
   
-  totalCompletado = analysts.reduce((sum, analyst) => {
-    const items = originalInventoryData.filter(row => row.analista === analyst);
-    return sum + items.filter(row => {
-      if (!row.ultimoStatus) return false;
-      const status = row.ultimoStatus.toLowerCase();
-      return status.includes('completado') || status.includes('completed') || status.includes('complete');
-    }).length;
-  }, 0);
+  totalCancelado = allItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel');
+  }).length;
   
-  totalActivos = analysts.reduce((sum, analyst) => {
-    const items = originalInventoryData.filter(row => row.analista === analyst);
-    return sum + items.filter(row => {
-      if (!row.ultimoStatus) return false;
-      const status = row.ultimoStatus.toLowerCase();
-      return (status.includes('revision') || status.includes('revisión') || status.includes('review')) ||
-             (status.includes('diseño') || status.includes('diseno') || status.includes('design'));
-    }).length;
-  }, 0);
+  totalCompletado = allItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return status.includes('completado') || status.includes('completed') || status.includes('complete');
+  }).length;
+  
+  totalActivos = allItems.filter(row => {
+    if (!row.ultimoStatus) return false;
+    const status = row.ultimoStatus.toLowerCase();
+    return (status.includes('revision') || status.includes('revisión') || status.includes('review')) ||
+           (status.includes('diseño') || status.includes('diseno') || status.includes('design'));
+  }).length;
   
   tableHTML += `
     <tr class="total-row">
