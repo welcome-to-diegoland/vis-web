@@ -5933,6 +5933,7 @@ function updateTablesAfterComment() {
   
   // 2. Actualizar tablas de resumen/estadísticas si existen
   setTimeout(() => {
+    console.log('🔄 === LLAMANDO updateStatsTablesOnDataChange ===');
     updateStatsTablesOnDataChange();
   }, 300);
   
@@ -6461,7 +6462,8 @@ function updateCommentCellsBySelector() {
 
 // Función para actualizar las tablas de estadísticas cuando cambian los datos
 function updateStatsTablesOnDataChange() {
-  console.log('📈 Actualizando tablas de estadísticas...');
+  console.log('📈 === INICIO updateStatsTablesOnDataChange ===');
+  console.log('🔍 Estado actual - isCleanViewActive:', isCleanViewActive);
   
   // Solo actualizar si estamos en vista de datos (no en visualizador)
   if (!isCleanViewActive) {
@@ -6469,25 +6471,99 @@ function updateStatsTablesOnDataChange() {
     return;
   }
   
-  // Buscar si hay tablas de estadísticas en el DOM
-  const statsContainer = document.querySelector('.stats-table-container');
-  if (statsContainer) {
-    console.log('📊 Regenerando tablas de estadísticas...');
+  // PASO 1: Actualizar originalInventoryData con los datos más recientes
+  console.log('🔄 Actualizando originalInventoryData con allLibraryData...');
+  if (allLibraryData && allLibraryData.length > 0) {
+    // INCLUIR TANTO ITEM CODES COMO IMAGES para estadísticas completas
+    const tableRowsData = allLibraryData
+      .filter(row => (row['Object Type'] === 'Item Code' || row['Object Type'] === 'Image') && row['WA_VIS_Comment'])
+      .map(row => {
+        const parsedComments = parseCommentsFromExcel(row['WA_VIS_Comment']);
+        
+        return {
+          id: row.ID,
+          itemCode: row['Item Code'] || row.Name,
+          objectType: row['Object Type'],
+          analista: getLatestAnalyst(parsedComments),
+          primeraFechaAnalista: getLatestAnalyst(parsedComments), // Usar la misma función por ahora
+          ultimoComentarioAnalista: getLatestAnalystComment(parsedComments),
+          diseñador: getLatestDesigner(parsedComments),
+          ultimaFechaDisenador: getLatestDesigner(parsedComments), // Usar la misma función por ahora
+          ultimoComentarioDisenador: getLatestDesignerComment(parsedComments),
+          ultimoStatus: parsedComments.length > 0 ? parsedComments[parsedComments.length - 1].status : '',
+          ultimoTipo: parsedComments.length > 0 ? parsedComments[parsedComments.length - 1].tipoComentario : ''
+        };
+      });
     
-    // Si estamos en vista de datos (clean view), regenerar las estadísticas
-    if (isCleanViewActive) {
-      // Regenerar completamente las tablas de estadísticas
-      const box3Content = document.getElementById('box3-content');
-      if (box3Content && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
-        // Regenerar el contenido de estadísticas
-        // Esto depende de cómo se generen las estadísticas en tu sistema
-        // Por ahora, simplemente forzamos una actualización
-        console.log('🔄 Forzando actualización de estadísticas en clean view');
-      }
+    // GUARDAR EN UNA VARIABLE SEPARADA PARA NO AFECTAR LA TABLA PRINCIPAL
+    window.statsInventoryData = tableRowsData;
+    console.log('✅ statsInventoryData actualizado con', tableRowsData.length, 'elementos (Item Codes + Images)');
+    console.log('🔍 Breakdown:', {
+      itemCodes: tableRowsData.filter(x => x.objectType === 'Item Code').length,
+      images: tableRowsData.filter(x => x.objectType === 'Image').length
+    });
+  }
+  
+  // PASO 2: Regenerar las tablas de estadísticas si existen
+  const box1 = document.getElementById('tree');
+  const box3 = document.getElementById('box3-content');
+  
+  // Regenerar tabla de diseñadores en box1 si existe
+  if (box1) {
+    console.log('📊 Generando tabla de diseñadores...');
+    try {
+      const newContent = generateDesignerStatsTable();
+      console.log('📊 Nuevo contenido generado length:', newContent.length);
+      box1.innerHTML = newContent;
+      console.log('✅ Tabla de diseñadores insertada en box1');
+    } catch (error) {
+      console.log('❌ Error generando tabla de diseñadores:', error);
     }
   }
   
-  console.log('✅ Tablas de estadísticas verificadas');
+  // Regenerar tabla de analistas en box3 si existe  
+  if (box3 && box3.querySelector('.stats-table-container')) {
+    console.log('� Regenerando tabla de analistas...');
+    box3.innerHTML = generateAnalystStatsTable();
+  }
+  
+  console.log('✅ Tablas de estadísticas actualizadas');
+  
+  // === FORZAR GENERACIÓN DE TABLAS SIN CONDICIONES ===
+  if (box3) {
+    console.log('🔥 FORZANDO generación de tabla de analistas...');
+    try {
+      const newContent = generateAnalystStatsTable();
+      console.log('📊 Contenido de analistas generado length:', newContent.length);
+      box3.innerHTML = newContent;
+      console.log('✅ Tabla de analistas FORZADA insertada en box3');
+    } catch (error) {
+      console.log('❌ Error FORZANDO tabla de analistas:', error);
+    }
+  }
+  
+  // === LOGS DE DEPURACIÓN AÑADIDOS ===
+  console.log('🔍 Verificando DOM elements después de actualización...');
+  console.log('📦 box1 encontrado:', !!document.getElementById('tree'));
+  console.log('📦 box3 encontrado:', !!document.getElementById('box3-content'));
+  console.log('📊 statsInventoryData length:', window.statsInventoryData ? window.statsInventoryData.length : 'undefined');
+  
+  const debugBox1 = document.getElementById('tree');
+  const debugBox3 = document.getElementById('box3-content');
+  
+  if (debugBox1) {
+    const hasStatsContainer = debugBox1.querySelector('.stats-table-container');
+    console.log('📊 box1 tiene .stats-table-container:', !!hasStatsContainer);
+    console.log('📊 box1 innerHTML actual length:', debugBox1.innerHTML.length);
+    console.log('📊 box1 innerHTML primeros 100 chars:', debugBox1.innerHTML.substring(0, 100));
+  }
+  
+  if (debugBox3) {
+    const hasStatsContainer = debugBox3.querySelector('.stats-table-container');
+    console.log('📊 box3 tiene .stats-table-container:', !!hasStatsContainer);
+    console.log('📊 box3 innerHTML actual length:', debugBox3.innerHTML.length);
+    console.log('📊 box3 innerHTML primeros 100 chars:', debugBox3.innerHTML.substring(0, 100));
+  }
 }
 function updateCommentBubbles(type, context, imageName = null) {
   console.log('🔄 updateCommentBubbles llamada con:', { type, context, imageName });
@@ -11781,8 +11857,11 @@ function generateDesignerStatsTable() {
   let totalCompletado = 0;
   
   designers.forEach(designer => {
+    // Usar statsInventoryData en lugar de originalInventoryData para incluir Items + Images
+    const dataSource = window.statsInventoryData || originalInventoryData || [];
+    
     // Filtrar por diseñador usando normalización para manejar acentos
-    const assignedItems = originalInventoryData.filter(row => 
+    const assignedItems = dataSource.filter(row => 
       normalizeDesignerName(row.diseñador) === normalizeDesignerName(designer) ||
       normalizeDesignerName(row.diseñador) === normalizeDesignerName(USERS[designer]?.name)
     );
@@ -11979,8 +12058,9 @@ function generateAnalystStatsTable() {
       });
       
     } else {
-      // Para otros analistas, usar la lógica normal con originalInventoryData
-      assignedItems = originalInventoryData.filter(row => 
+      // Para otros analistas, usar statsInventoryData en lugar de originalInventoryData
+      const dataSource = window.statsInventoryData || originalInventoryData || [];
+      assignedItems = dataSource.filter(row => 
         normalizeAnalystName(row.analista) === normalizeAnalystName(analyst) ||
         normalizeAnalystName(row.analista) === normalizeAnalystName(USERS[analyst]?.name)
       );
@@ -12540,40 +12620,6 @@ window.clearInventoryFilter = function() {
     console.log('✅ Estado sin filtros guardado:', inventoryViewState);
   }
 };
-
-function updateStatsTablesOnDataChange() {
-  // Verificar que originalInventoryData esté disponible
-  if (!originalInventoryData || originalInventoryData.length === 0) {
-    return;
-  }
-  
-  // Solo actualizar si estamos en vista de datos (no en visualizador)
-  if (!isCleanViewActive) {
-    return;
-  }
-  
-  // Actualizar las tablas de estadísticas cuando cambien los datos
-  const box1 = document.getElementById('tree');
-  const box3 = document.getElementById('box3-content');
-  
-  if (box1) {
-    box1.innerHTML = generateDesignerStatsTable();
-  }
-  
-  if (box3) {
-    box3.innerHTML = generateAnalystStatsTable();
-  }
-  
-  // Configurar event listeners
-  setTimeout(() => {
-    setupStatsTableListeners();
-    
-    // Restaurar filtros DESPUÉS de que las tablas y event listeners estén configurados
-    setTimeout(() => {
-      restoreStatsTableFilters();
-    }, 200);
-  }, 100);
-}
 
 function restoreStatsTableFilters() {
   try {
