@@ -1189,14 +1189,12 @@ function showLoadingText() {
     border: none;
     padding: 16px 24px;
     border-radius: 12px;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
     text-transform: lowercase;
-    text-align: center;
-    cursor: default;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    margin-bottom: -14px;
   `;
   
   // Crear solo el texto sin spinner
