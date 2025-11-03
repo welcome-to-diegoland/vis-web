@@ -10156,10 +10156,11 @@ function clearAllBoxes() {
       const inventoryHTML = generateImageInventoryTableFromCache();
       console.log('📊 Tabla de inventario generada desde caché, longitud HTML:', inventoryHTML.length);
       box4Content.innerHTML = inventoryHTML;
-      // Restaurar estado después de generar la tabla
+      // Restaurar estado después de generar la tabla con más tiempo
       setTimeout(() => {
+        console.log('🔄 Restaurando estado después de generar tabla desde caché...');
         restoreInventoryViewState();
-      }, 200);
+      }, 500); // Aumentar timing para asegurar renderizado completo
     } 
     // SEGUNDA OPCIÓN: Usar currentWorkingData solo como fallback (datos del árbol, sin comentarios)
     else if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
@@ -10167,10 +10168,11 @@ function clearAllBoxes() {
       const inventoryHTML = generateImageInventoryTable();
       console.log('📊 Tabla de inventario generada, longitud HTML:', inventoryHTML.length);
       box4Content.innerHTML = inventoryHTML;
-      // Restaurar estado después de generar la tabla
+      // Restaurar estado después de generar la tabla con más tiempo
       setTimeout(() => {
+        console.log('🔄 Restaurando estado después de generar tabla de fallback...');
         restoreInventoryViewState();
-      }, 200);
+      }, 500); // Aumentar timing para asegurar renderizado completo
     } else {
       box4Content.innerHTML = '<div class="empty-box-message">Box 4 - Cargar Excel o usar "Optimizar" para ver inventario de imágenes</div>';
     }
@@ -14131,16 +14133,20 @@ function restoreInventoryViewState() {
     if (savedState) {
       inventoryViewState = JSON.parse(savedState);
       
-      // Restaurar scroll positions
-      setTimeout(() => {
-        const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
-        if (inventoryWrapper && inventoryViewState.scrollPosition > 0) {
-          inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
-        }
-        if (inventoryWrapper && inventoryViewState.scrollPositionX > 0) {
-          inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
-        }
-      }, 100);
+      // Restaurar scroll positions SOLO si NO hay filtros activos
+      if (!inventoryViewState.activeFilters || Object.keys(inventoryViewState.activeFilters).length === 0) {
+        setTimeout(() => {
+          const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
+          if (inventoryWrapper && inventoryViewState.scrollPosition > 0) {
+            console.log('📍 Restaurando scroll vertical (sin filtros):', inventoryViewState.scrollPosition);
+            inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
+          }
+          if (inventoryWrapper && inventoryViewState.scrollPositionX > 0) {
+            console.log('📍 Restaurando scroll horizontal (sin filtros):', inventoryViewState.scrollPositionX);
+            inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
+          }
+        }, 100);
+      }
       
       // Restaurar filtros dropdown
       setTimeout(() => {
@@ -14201,6 +14207,54 @@ function restoreInventoryViewState() {
           console.log('❌ No hay filtros dropdown para restaurar');
         }
       }, 150);
+      
+      // Restaurar filtros de tabla de estadísticas (activeFilters)
+      setTimeout(() => {
+        if (inventoryViewState.activeFilters && Object.keys(inventoryViewState.activeFilters).length > 0) {
+          console.log('🔧 Restaurando filtros de tabla de estadísticas:', inventoryViewState.activeFilters);
+          
+          // Determinar qué tipo de filtro aplicar basado en activeFilters
+          const activeFilters = inventoryViewState.activeFilters;
+          
+          if (activeFilters.analista || activeFilters.analistaStatus) {
+            // Aplicar filtro de analista con o sin status
+            console.log('🎯 Aplicando filtro de analista restaurado:', {
+              userKey: activeFilters.analista,
+              status: activeFilters.analistaStatus || null,
+              type: 'analyst'
+            });
+            applyStatsTableFilter(activeFilters.analista, activeFilters.analistaStatus || null, 'analyst');
+          } else if (activeFilters.diseñador || activeFilters.diseñadorStatus) {
+            // Aplicar filtro de diseñador con o sin status
+            console.log('🎯 Aplicando filtro de diseñador restaurado:', {
+              userKey: activeFilters.diseñador,
+              status: activeFilters.diseñadorStatus || null,
+              type: 'designer'
+            });
+            applyStatsTableFilter(activeFilters.diseñador, activeFilters.diseñadorStatus || null, 'designer');
+          }
+          
+          // Restaurar selecciones visuales
+          setTimeout(() => {
+            restoreVisualFilterSelections();
+            
+            // Restaurar scroll positions DESPUÉS de aplicar filtros
+            setTimeout(() => {
+              const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
+              if (inventoryWrapper && inventoryViewState.scrollPosition > 0) {
+                console.log('📍 Restaurando scroll vertical:', inventoryViewState.scrollPosition);
+                inventoryWrapper.scrollTop = inventoryViewState.scrollPosition;
+              }
+              if (inventoryWrapper && inventoryViewState.scrollPositionX > 0) {
+                console.log('📍 Restaurando scroll horizontal:', inventoryViewState.scrollPositionX);
+                inventoryWrapper.scrollLeft = inventoryViewState.scrollPositionX;
+              }
+            }, 100);
+          }, 100);
+        } else {
+          console.log('ℹ️ No hay filtros de tabla activos para restaurar');
+        }
+      }, 200);
     }
   } catch (error) {
     console.error('Error restaurando estado:', error);
@@ -14320,9 +14374,97 @@ function applyStatsTableFilter(userKey, status, type) {
   console.log('🔍 Aplicando filtro de tabla de estadísticas:', { userKey, status, type });
   
   try {
-    // Obtener datos actuales para filtrar
-    const dataToFilter = originalInventoryData || [];
-    console.log('📊 Datos base para filtrar:', dataToFilter.length);
+    // En vista limpia, usar el sistema de commentedItemsData
+    if (isCleanViewActive && commentedItemsData && commentedItemsData.length > 0) {
+      console.log('📊 Aplicando filtro usando commentedItemsData...');
+      
+      // Configurar inventoryViewState con el filtro solicitado
+      if (!inventoryViewState) {
+        inventoryViewState = { activeFilters: {}, dropdownFilters: {} };
+      }
+      if (!inventoryViewState.activeFilters) {
+        inventoryViewState.activeFilters = {};
+      }
+      
+      // Limpiar filtros anteriores
+      inventoryViewState.activeFilters = {};
+      
+      // Configurar filtro actual
+      if (type === 'analyst') {
+        inventoryViewState.activeFilters.analista = userKey;
+        if (status) {
+          inventoryViewState.activeFilters.analistaStatus = status;
+        }
+      } else if (type === 'designer') {
+        inventoryViewState.activeFilters.diseñador = userKey;
+        if (status) {
+          inventoryViewState.activeFilters.diseñadorStatus = status;
+        }
+      }
+      
+      console.log('🔧 Filtros configurados:', inventoryViewState.activeFilters);
+      
+      // Aplicar filtros usando la función existente
+      const filteredData = applyFiltersToCommentedData(commentedItemsData, inventoryViewState);
+      console.log('✅ Datos filtrados:', filteredData.length, 'de', commentedItemsData.length);
+      
+      // Regenerar tabla con datos filtrados
+      const box4Content = document.getElementById('box4-content');
+      if (box4Content && filteredData.length > 0) {
+        const convertedData = filteredData.map(item => item.originalItem);
+        const newTableHTML = generateImageInventoryTable(convertedData, true);
+        box4Content.innerHTML = newTableHTML;
+        
+        console.log('✅ Tabla de inventario filtrada aplicada');
+        
+        // Reconfigurar event listeners después de regenerar
+        setTimeout(() => {
+          setupInventoryClickListeners();
+        }, 100);
+      } else if (box4Content) {
+        // Mostrar mensaje de "no hay datos"
+        box4Content.innerHTML = `
+          <div class="inventory-controls">
+            <div class="inventory-header">
+              <h3>Comentarios del Visualizador</h3>
+              <div class="button-group">
+                <button class="inventory-btn inventory-btn-primary" onclick="assignItemModal()">
+                  <i class="fas fa-user-plus"></i> Asignar
+                </button>
+                <button class="inventory-btn inventory-btn-secondary" onclick="filterModal()">
+                  <i class="fas fa-filter"></i> Filtros
+                </button>
+                <button class="inventory-btn inventory-btn-secondary" onclick="clearInventoryFilter()">
+                  <i class="fas fa-times"></i> Limpiar Filtros
+                </button>
+              </div>
+              <div class="inventory-stats">Comentarios visibles: <strong>0</strong></div>
+            </div>
+          </div>
+          <div class="inventory-table-wrapper">
+            <div class="no-data-message">No hay elementos con comentarios que coincidan con los filtros.</div>
+          </div>
+        `;
+      }
+      
+      // Marcar elemento activo visualmente
+      markStatsElementAsActive(userKey, status, type);
+      
+      return; // Salir aquí para vista limpia
+    }
+    
+    // Para vista normal, mantener lógica original
+    // Determinar qué datos usar según el contexto
+    let dataToFilter;
+    if (isCleanViewActive && commentedItemsData && commentedItemsData.length > 0) {
+      // En vista limpia, usar commentedItemsData
+      dataToFilter = commentedItemsData;
+      console.log('📊 Datos base para filtrar: commentedItemsData con', dataToFilter.length, 'items');
+    } else {
+      // En vista normal, usar originalInventoryData
+      dataToFilter = originalInventoryData || [];
+      console.log('📊 Datos base para filtrar: originalInventoryData con', dataToFilter.length, 'items');
+    }
     
     let filteredData = dataToFilter;
     
