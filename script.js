@@ -1161,6 +1161,12 @@ function hideLoginOverlay() {
   const overlay = document.getElementById('loginOverlay');
   const mainApp = document.getElementById('mainApp');
   
+  // Limpiar cualquier animación de loading que esté corriendo
+  const loadingText = document.getElementById('loadingTextReplace');
+  if (loadingText && loadingText.animationInterval) {
+    clearInterval(loadingText.animationInterval);
+  }
+  
   if (overlay) {
     overlay.style.display = 'none';
   }
@@ -1195,19 +1201,43 @@ function showLoadingText() {
     transition: all 0.2s ease;
     text-transform: lowercase;
     margin-bottom: -14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   `;
   
-  // Crear solo el texto sin spinner
-  const textSpan = document.createElement('span');
-  textSpan.textContent = 'cargando...';
+  // Crear el texto base que no se mueve
+  const baseText = document.createElement('span');
+  baseText.textContent = 'cargando';
   
-  // Agregar solo el texto al elemento (sin spinner)
-  loadingText.appendChild(textSpan);
+  // Crear un contenedor fijo para los puntos
+  const dotsContainer = document.createElement('span');
+  dotsContainer.style.cssText = `
+    display: inline-block;
+    width: 24px;
+    text-align: left;
+  `;
+  dotsContainer.textContent = ''; // Empezar sin puntos (0)
+  
+  // Agregar ambos elementos al contenedor
+  loadingText.appendChild(baseText);
+  loadingText.appendChild(dotsContainer);
   
   // Agregar el texto donde estaba el botón
   if (loginInputs) {
     loginInputs.appendChild(loadingText);
   }
+  
+  // Iniciar la animación de puntos (0, 1, 2, 3, 0, 1, 2, 3...)
+  let dotCount = 0;
+  const loadingInterval = setInterval(() => {
+    const dots = '.'.repeat(dotCount);
+    dotsContainer.textContent = dots;
+    dotCount = (dotCount + 1) % 4; // Cicla entre 0, 1, 2, 3
+  }, 500); // Cambia cada 500ms
+  
+  // Guardar el interval para poder limpiarlo después
+  loadingText.animationInterval = loadingInterval;
 }
 
 function updateLoadingStatus(message, showSpinner = true) {
