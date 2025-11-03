@@ -5805,6 +5805,40 @@ function updateTablesAfterComment() {
   window.isUpdatingCommentTables = true;
   console.log('🔒 BANDERA: isUpdatingCommentTables = true - deshabilitando restauración de filtros');
   
+  // PRESERVAR FILTROS ACTIVOS ANTES DE CUALQUIER MODIFICACIÓN
+  console.log('🔒 Preservando filtros activos antes de actualizar...');
+  let preservedFilters = null;
+  
+  // Verificar filtros activos en el DOM ANTES de regenerar
+  const selectedElements = document.querySelectorAll('.clickable-name.active, .clickable-stat.active');
+  console.log('🔍 Elementos con filtros activos encontrados:', selectedElements.length);
+  
+  if (selectedElements.length > 0) {
+    preservedFilters = {};
+    selectedElements.forEach(element => {
+      const user = element.dataset.user;
+      const status = element.dataset.status;
+      const type = element.dataset.type;
+      
+      console.log('💾 Preservando filtro:', { user, status, type, text: element.textContent });
+      
+      if (type === 'analyst') {
+        preservedFilters.analista = user;
+        if (status) preservedFilters.analistaStatus = status;
+      } else if (type === 'designer') {
+        preservedFilters.diseñador = user;
+        if (status) preservedFilters.diseñadorStatus = status;
+      }
+    });
+    
+    console.log('✅ Filtros preservados:', preservedFilters);
+    
+    // Guardar en inventoryViewState inmediatamente
+    if (!inventoryViewState) inventoryViewState = {};
+    inventoryViewState.activeFilters = preservedFilters;
+    console.log('💾 Filtros guardados en inventoryViewState.activeFilters');
+  }
+  
   // IMPORTANTE: LIMPIAR filtros temporales antes de guardar estado
   console.log('🧹 Limpiando filtros temporales antes de guardar estado...');
   
@@ -5829,15 +5863,48 @@ function updateTablesAfterComment() {
     activeDropdownFilters.tipo = tipoFilter.value;
   }
   
-  // Solo guardar estado si hay filtros reales activos
-  const hasRealFilters = Object.keys(activeDropdownFilters).length > 0;
+  // CORREGIDO: Verificar también filtros de tabla antes de resetear
+  // Verificar si hay filtros de tabla activos en el DOM
+  const activeTableFilters = {};
+  const currentSelectedElements = document.querySelectorAll('.clickable-name.active, .clickable-stat.active');
+  
+  if (currentSelectedElements.length > 0) {
+    currentSelectedElements.forEach(element => {
+      const user = element.dataset.user;
+      const status = element.dataset.status;
+      const type = element.dataset.type;
+      
+      if (type === 'analyst') {
+        activeTableFilters.analista = user;
+        if (status) activeTableFilters.analistaStatus = status;
+      } else if (type === 'designer') {
+        activeTableFilters.diseñador = user;
+        if (status) activeTableFilters.diseñadorStatus = status;
+      }
+    });
+  }
+  
+  // Solo guardar estado si hay filtros reales activos (dropdown O tabla)
+  const hasDropdownFilters = Object.keys(activeDropdownFilters).length > 0;
+  const hasActiveTableFilters = Object.keys(activeTableFilters).length > 0;
+  const hasAnyFilters = hasDropdownFilters || hasActiveTableFilters || preservedFilters;
   
   console.log('💾 Guardando estado antes de actualizar tabla...');
-  if (hasRealFilters) {
-    console.log('🔍 Filtros activos detectados:', activeDropdownFilters);
+  console.log('🔍 Filtros dropdown activos:', hasDropdownFilters ? activeDropdownFilters : 'ninguno');
+  console.log('🔍 Filtros tabla activos:', hasActiveTableFilters ? activeTableFilters : 'ninguno');
+  console.log('🔍 Filtros preservados:', preservedFilters ? preservedFilters : 'ninguno');
+  
+  if (hasAnyFilters) {
+    console.log('🔍 Filtros detectados, usando saveInventoryViewState completo');
+    // Si hay filtros preservados, asegurar que estén en inventoryViewState
+    if (preservedFilters) {
+      if (!inventoryViewState) inventoryViewState = {};
+      inventoryViewState.activeFilters = preservedFilters;
+      console.log('🔒 Aplicando filtros preservados a inventoryViewState:', preservedFilters);
+    }
     saveInventoryViewState();
   } else {
-    // Guardar posición de scroll de la tabla de inventario específicamente
+    // Solo actualizar scroll si no hay ningún tipo de filtro
     const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
     let scrollTop = 0;
     let scrollLeft = 0;
@@ -5851,9 +5918,11 @@ function updateTablesAfterComment() {
     if (!inventoryViewState) inventoryViewState = {};
     inventoryViewState.scrollPosition = scrollTop;
     inventoryViewState.scrollPositionX = scrollLeft;
-    inventoryViewState.dropdownFilters = {}; // Filtros vacíos
-    inventoryViewState.activeFilters = {};
+    // CORREGIDO: Solo resetear filtros si realmente no hay ninguno activo
+    inventoryViewState.dropdownFilters = {}; // Filtros dropdown vacíos
+    inventoryViewState.activeFilters = {}; // Filtros tabla vacíos
     inventoryViewState.selectedItems = [];
+    console.log('🧹 No hay filtros activos, reseteando estado');
   }
   
   // 1. Actualizar tabla de inventario si existe
@@ -5941,6 +6010,9 @@ function updateTablesAfterComment() {
   setTimeout(() => {
     window.isUpdatingCommentTables = false;
     console.log('🔓 BANDERA: isUpdatingCommentTables = false - restauración de filtros habilitada nuevamente');
+    
+    // RESTAURAR SELECCIONES VISUALES después de regenerar tablas
+    restoreVisualFilterSelections();
   }, 2000); // Aumentado a 2 segundos para asegurar que no haya conflictos
   
   console.log('✅ === FIN updateTablesAfterComment ===');
@@ -6126,20 +6198,95 @@ function regenerateFilteredTableAfterComment() {
   } else if (hasTableFilters) {
     // Reaplicar filtros de tabla específicos después de regenerar
     setTimeout(() => {
+      console.log('🔄 Reaplicando filtros de tabla:', currentFilters.table);
+      console.log('📊 originalInventoryData length:', originalInventoryData.length);
+      
+      if (originalInventoryData.length > 0) {
+        console.log('🔍 Muestra de originalInventoryData[0]:', {
+          analista: originalInventoryData[0].analista,
+          diseñador: originalInventoryData[0].diseñador,
+          status: originalInventoryData[0].status,
+          name: originalInventoryData[0].name,
+          keys: Object.keys(originalInventoryData[0])
+        });
+      }
+      
       if (currentFilters.table.analista) {
         // Filtrar por analista usando la lógica existente
         const analistaValue = currentFilters.table.analista;
-        const filteredData = originalInventoryData.filter(row => {
-          return row.analista && row.analista.toLowerCase() === analistaValue.toLowerCase();
+        const analistaStatus = currentFilters.table.analistaStatus;
+        
+        console.log('🔍 Buscando analista:', analistaValue, 'status:', analistaStatus);
+        
+        let debugCount = 0;
+        let filteredData = originalInventoryData.filter(row => {
+          // Normalizar ambos nombres para comparación insensible a mayúsculas
+          const rowAnalista = row.analista ? row.analista.toLowerCase().trim() : '';
+          const filterAnalista = analistaValue.toLowerCase().trim();
+          const hasAnalista = rowAnalista === filterAnalista;
+          
+          if (!hasAnalista && row.analista && debugCount < 5) {
+            // Log para debug de casos que no coinciden (solo los primeros 5)
+            console.log('❌ No coincide:', `"${row.analista}"`, 'vs', `"${analistaValue}"`);
+            debugCount++;
+          }
+          return hasAnalista;
         });
+        
+        console.log('🔍 Después de filtrar por analista:', filteredData.length);
+        
+        // Si también hay filtro de status, aplicarlo
+        if (analistaStatus) {
+          console.log('🔄 Aplicando también filtro de status:', analistaStatus);
+          const beforeStatusFilter = filteredData.length;
+          filteredData = filteredData.filter(row => {
+            if (analistaStatus === 'activos') {
+              return row.status && row.status !== '';
+            } else if (analistaStatus === 'vacios') {
+              return !row.status || row.status === '';
+            }
+            return true;
+          });
+          console.log('🔍 Después de filtrar por status:', filteredData.length, '(antes:', beforeStatusFilter, ')');
+        }
+        
+        console.log('✅ Datos filtrados para analista:', filteredData.length);
         updateInventoryTableDirectly(filteredData);
-      } else if (currentFilters.table.disenador) {
+        
+        // Restaurar clases visuales
+        setTimeout(() => {
+          restoreVisualFilterSelections();
+        }, 100);
+        
+      } else if (currentFilters.table.diseñador) {
         // Filtrar por diseñador usando la lógica existente
-        const disenadorValue = currentFilters.table.disenador;
-        const filteredData = originalInventoryData.filter(row => {
-          return row.disenador && row.disenador.toLowerCase() === disenadorValue.toLowerCase();
+        const disenadorValue = currentFilters.table.diseñador;
+        const disenadorStatus = currentFilters.table.diseñadorStatus;
+        
+        let filteredData = originalInventoryData.filter(row => {
+          return row.diseñador && row.diseñador.toLowerCase() === disenadorValue.toLowerCase();
         });
+        
+        // Si también hay filtro de status, aplicarlo
+        if (disenadorStatus) {
+          console.log('🔄 Aplicando también filtro de status diseñador:', disenadorStatus);
+          filteredData = filteredData.filter(row => {
+            if (disenadorStatus === 'activos') {
+              return row.status && row.status !== '';
+            } else if (disenadorStatus === 'vacios') {
+              return !row.status || row.status === '';
+            }
+            return true;
+          });
+        }
+        
+        console.log('✅ Datos filtrados para diseñador:', filteredData.length);
         updateInventoryTableDirectly(filteredData);
+        
+        // Restaurar clases visuales
+        setTimeout(() => {
+          restoreVisualFilterSelections();
+        }, 100);
       }
     }, 200);
   }
@@ -12319,9 +12466,15 @@ function setupStatsTableListeners() {
 }
 
 function clearStatsTableSelections() {
+  // CORREGIDO: No limpiar selecciones si se está actualizando después de comentarios
+  if (window.isUpdatingCommentTables) {
+    console.log('🚫 clearStatsTableSelections cancelado - se está actualizando después de comentarios');
+    return;
+  }
+  
   // Limpiar todas las selecciones anteriores
-  document.querySelectorAll('.clickable-name.selected, .clickable-stat.selected').forEach(element => {
-    element.classList.remove('selected');
+  document.querySelectorAll('.clickable-name.active, .clickable-stat.active').forEach(element => {
+    element.classList.remove('active');
   });
 }
 
@@ -12427,6 +12580,12 @@ function filterInventoryByUserAndStatus(user, status, type) {
 }
 
 function clearInventoryFilter() {
+  // CORREGIDO: No limpiar filtros si se está actualizando después de comentarios
+  if (window.isUpdatingCommentTables) {
+    console.log('🚫 clearInventoryFilter (función local) cancelado - se está actualizando después de comentarios');
+    return;
+  }
+  
   // Limpiar también los filtros del modal
   document.getElementById('filterAnalyst').value = '';
   document.getElementById('filterDesigner').value = '';
@@ -12593,6 +12752,12 @@ function updateInventoryTableDirectly(filteredData) {
 }
 
 window.clearInventoryFilter = function() {
+  // CORREGIDO: No limpiar filtros si se está actualizando después de comentarios
+  if (window.isUpdatingCommentTables) {
+    console.log('🚫 clearInventoryFilter cancelado - se está actualizando después de comentarios');
+    return;
+  }
+  
   // Limpiar selecciones de las tablas de stats
   clearStatsTableSelections();
   
@@ -12627,6 +12792,58 @@ window.clearInventoryFilter = function() {
     console.log('✅ Estado sin filtros guardado:', inventoryViewState);
   }
 };
+
+// Función para restaurar visualmente las selecciones de filtros después de regenerar tablas
+function restoreVisualFilterSelections() {
+  try {
+    if (!inventoryViewState || !inventoryViewState.activeFilters) {
+      console.log('📝 No hay filtros activos para restaurar visualmente');
+      return;
+    }
+    
+    const activeFilters = inventoryViewState.activeFilters;
+    console.log('🎨 Restaurando selecciones visuales para filtros:', activeFilters);
+    
+    // Restaurar selección de analista
+    if (activeFilters.analista) {
+      const analistaElements = document.querySelectorAll(`[data-user="${activeFilters.analista}"][data-type="analyst"]`);
+      analistaElements.forEach(element => {
+        element.classList.add('active');
+        console.log('✅ Restaurada selección visual de analista:', activeFilters.analista);
+      });
+    }
+    
+    // Restaurar selección de diseñador
+    if (activeFilters.diseñador) {
+      const disenadorElements = document.querySelectorAll(`[data-user="${activeFilters.diseñador}"][data-type="designer"]`);
+      disenadorElements.forEach(element => {
+        element.classList.add('active');
+        console.log('✅ Restaurada selección visual de diseñador:', activeFilters.diseñador);
+      });
+    }
+    
+    // Restaurar selección de status de analista
+    if (activeFilters.analistaStatus) {
+      const statusElements = document.querySelectorAll(`[data-user="${activeFilters.analista}"][data-status="${activeFilters.analistaStatus}"][data-type="analyst"]`);
+      statusElements.forEach(element => {
+        element.classList.add('active');
+        console.log('✅ Restaurada selección visual de status analista:', activeFilters.analistaStatus);
+      });
+    }
+    
+    // Restaurar selección de status de diseñador
+    if (activeFilters.diseñadorStatus) {
+      const statusElements = document.querySelectorAll(`[data-user="${activeFilters.diseñador}"][data-status="${activeFilters.diseñadorStatus}"][data-type="designer"]`);
+      statusElements.forEach(element => {
+        element.classList.add('active');
+        console.log('✅ Restaurada selección visual de status diseñador:', activeFilters.diseñadorStatus);
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error restaurando selecciones visuales:', error);
+  }
+}
 
 function restoreStatsTableFilters() {
   try {
@@ -13534,8 +13751,8 @@ function saveInventoryViewState() {
     // Guardar filtros de tablas de estadísticas
     let activeFilters = {};
     
-    // Buscar elementos seleccionados usando las clases
-    const selectedElements = document.querySelectorAll('.clickable-name.selected, .clickable-stat.selected');
+    // Buscar elementos seleccionados usando las clases correctas (.active)
+    const selectedElements = document.querySelectorAll('.clickable-name.active, .clickable-stat.active');
     console.log('🔍 Elementos seleccionados encontrados:', selectedElements.length);
     
     if (selectedElements.length > 0) {
