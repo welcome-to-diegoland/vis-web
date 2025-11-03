@@ -7195,9 +7195,44 @@ button[id="btn-cargar-categoria"]:disabled {
   font-weight: 700 !important;
 }
 
+
+
 .stats-table tbody tr:hover {
   background: #EEEEEE ;
   color: #ffffff !important;
+}
+
+/* Estilos para header de tablas de estadísticas */
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.stats-header h4 {
+  margin: 0;
+  color: #333;
+  font-weight: 600;
+}
+
+.clear-filters-btn {
+  padding: 4px 8px;
+  background-color: #ff6b6b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.clear-filters-btn:hover {
+  background-color: #ff5252;
+}
+
+.clear-filters-btn i {
+  margin-right: 4px;
 }
 
 /* Estilos específicos para celdas de estado según su contenido */

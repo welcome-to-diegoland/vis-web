@@ -6471,11 +6471,12 @@ function updateStatsTablesOnDataChange() {
     return;
   }
   
-  // PASO 1: Actualizar originalInventoryData con los datos más recientes
-  console.log('🔄 Actualizando originalInventoryData con allLibraryData...');
+  // PASO 1: Crear datos temporales para estadísticas SIN afectar originalInventoryData
+  console.log('🔄 Calculando estadísticas al vuelo desde allLibraryData...');
+  let statsData = [];
   if (allLibraryData && allLibraryData.length > 0) {
     // INCLUIR TANTO ITEM CODES COMO IMAGES para estadísticas completas
-    const tableRowsData = allLibraryData
+    statsData = allLibraryData
       .filter(row => (row['Object Type'] === 'Item Code' || row['Object Type'] === 'Image') && row['WA_VIS_Comment'])
       .map(row => {
         const parsedComments = parseCommentsFromExcel(row['WA_VIS_Comment']);
@@ -6495,12 +6496,10 @@ function updateStatsTablesOnDataChange() {
         };
       });
     
-    // GUARDAR EN UNA VARIABLE SEPARADA PARA NO AFECTAR LA TABLA PRINCIPAL
-    window.statsInventoryData = tableRowsData;
-    console.log('✅ statsInventoryData actualizado con', tableRowsData.length, 'elementos (Item Codes + Images)');
+    console.log('✅ Datos temporales para estadísticas:', statsData.length, 'elementos (Item Codes + Images)');
     console.log('🔍 Breakdown:', {
-      itemCodes: tableRowsData.filter(x => x.objectType === 'Item Code').length,
-      images: tableRowsData.filter(x => x.objectType === 'Image').length
+      itemCodes: statsData.filter(x => x.objectType === 'Item Code').length,
+      images: statsData.filter(x => x.objectType === 'Image').length
     });
   }
   
@@ -6512,7 +6511,7 @@ function updateStatsTablesOnDataChange() {
   if (box1) {
     console.log('📊 Generando tabla de diseñadores...');
     try {
-      const newContent = generateDesignerStatsTable();
+      const newContent = generateDesignerStatsTable(statsData);
       console.log('📊 Nuevo contenido generado length:', newContent.length);
       box1.innerHTML = newContent;
       console.log('✅ Tabla de diseñadores insertada en box1');
@@ -6524,7 +6523,7 @@ function updateStatsTablesOnDataChange() {
   // Regenerar tabla de analistas en box3 si existe  
   if (box3 && box3.querySelector('.stats-table-container')) {
     console.log('� Regenerando tabla de analistas...');
-    box3.innerHTML = generateAnalystStatsTable();
+    box3.innerHTML = generateAnalystStatsTable(statsData);
   }
   
   console.log('✅ Tablas de estadísticas actualizadas');
@@ -6533,7 +6532,7 @@ function updateStatsTablesOnDataChange() {
   if (box3) {
     console.log('🔥 FORZANDO generación de tabla de analistas...');
     try {
-      const newContent = generateAnalystStatsTable();
+      const newContent = generateAnalystStatsTable(statsData);
       console.log('📊 Contenido de analistas generado length:', newContent.length);
       box3.innerHTML = newContent;
       console.log('✅ Tabla de analistas FORZADA insertada en box3');
@@ -6564,6 +6563,9 @@ function updateStatsTablesOnDataChange() {
     console.log('📊 box3 innerHTML actual length:', debugBox3.innerHTML.length);
     console.log('📊 box3 innerHTML primeros 100 chars:', debugBox3.innerHTML.substring(0, 100));
   }
+  
+  // Configurar event listeners para filtros clickeables
+  setupStatsTableClickEvents();
 }
 function updateCommentBubbles(type, context, imageName = null) {
   console.log('🔄 updateCommentBubbles llamada con:', { type, context, imageName });
@@ -11827,12 +11829,14 @@ function normalizeDesignerName(name) {
   return normalized;
 }
 
-function generateDesignerStatsTable() {
+function generateDesignerStatsTable(statsData = null) {
   const designers = Object.keys(USERS).filter(user => USERS[user].group === 'Diseño').sort();
   
   let tableHTML = `
     <div class="stats-table-container">
-      <h4>Resumen Diseño</h4>
+      <div class="stats-header">
+        <h4>Resumen Diseño</h4>
+      </div>
       <table class="stats-table">
         <thead>
           <tr>
@@ -11857,8 +11861,8 @@ function generateDesignerStatsTable() {
   let totalCompletado = 0;
   
   designers.forEach(designer => {
-    // Usar statsInventoryData en lugar de originalInventoryData para incluir Items + Images
-    const dataSource = window.statsInventoryData || originalInventoryData || [];
+    // Usar statsData temporal o fallback a statsInventoryData/originalInventoryData
+    const dataSource = statsData || window.statsInventoryData || originalInventoryData || [];
     
     // Filtrar por diseñador usando normalización para manejar acentos
     const assignedItems = dataSource.filter(row => 
@@ -11923,7 +11927,8 @@ function generateDesignerStatsTable() {
   });
   
   // Agregar la fila "Vacío" para elementos sin diseñador
-  const emptyItems = originalInventoryData.filter(row => !row.diseñador || row.diseñador === '');
+  const dataSourceForEmpty = statsData || window.statsInventoryData || originalInventoryData || [];
+  const emptyItems = dataSourceForEmpty.filter(row => !row.diseñador || row.diseñador === '');
   const emptyTotal = emptyItems.length;
   
   const emptyRevision = emptyItems.filter(row => {
@@ -11996,7 +12001,7 @@ function generateDesignerStatsTable() {
   return tableHTML;
 }
 
-function generateAnalystStatsTable() {
+function generateAnalystStatsTable(statsData = null) {
   const analysts = Object.keys(USERS).filter(user => USERS[user].group === 'Analistas').sort();
   
   // Función para normalizar nombres de analistas (manejar acentos)
@@ -12011,7 +12016,9 @@ function generateAnalystStatsTable() {
   
   let tableHTML = `
     <div class="stats-table-container">
-      <h4>Resumen Analistas</h4>
+      <div class="stats-header">
+        <h4>Resumen Analistas</h4>
+      </div>
       <table class="stats-table">
         <thead>
           <tr>
@@ -12040,7 +12047,9 @@ function generateAnalystStatsTable() {
     
     // Lógica especial para Arturo: solo contar comentarios iniciados por él
     if (analyst === 'arturo' || USERS[analyst]?.name === 'Arturo') {
-      assignedItems = allLibraryData.filter(row => {
+      // Para Arturo, usar statsData temporal o fallback a allLibraryData
+      const arturoDataSource = statsData || allLibraryData;
+      assignedItems = arturoDataSource.filter(row => {
         // Para Arturo, solo contar si él inició el comentario (primer comentario en la conversación)
         if (!row['WA_VIS_Comment'] || row['WA_VIS_Comment'].trim() === '') {
           return false;
@@ -12058,8 +12067,8 @@ function generateAnalystStatsTable() {
       });
       
     } else {
-      // Para otros analistas, usar statsInventoryData en lugar de originalInventoryData
-      const dataSource = window.statsInventoryData || originalInventoryData || [];
+      // Para otros analistas, usar statsData temporal o fallback a statsInventoryData/originalInventoryData
+      const dataSource = statsData || window.statsInventoryData || originalInventoryData || [];
       assignedItems = dataSource.filter(row => 
         normalizeAnalystName(row.analista) === normalizeAnalystName(analyst) ||
         normalizeAnalystName(row.analista) === normalizeAnalystName(USERS[analyst]?.name)
@@ -12157,8 +12166,6 @@ function generateAnalystStatsTable() {
     totalCompletado += completado;
     totalActivos += activos;
     
-    totalActivos += activos;
-    
     tableHTML += `
       <tr>
         <td class="clickable-name" data-user="${analyst}" data-type="analyst">${USERS[analyst].name}</td>
@@ -12174,7 +12181,7 @@ function generateAnalystStatsTable() {
   
   // CALCULAR TOTALES BASÁNDOSE EN TODO EL INVENTARIO (como en diseño)
   // Sumar elementos asignados a diseñadores + elementos vacíos de diseñador
-  const allItems = originalInventoryData;
+  const allItems = statsData || window.statsInventoryData || originalInventoryData || [];
   
   // Recalcular totales usando TODO el inventario (igual que diseño)
   totalGeneral = allItems.length;
@@ -13735,3 +13742,230 @@ function undoAllChanges() {
     console.error('❌ Error deshaciendo cambios:', error);
   }
 }
+
+// ===== FUNCIONES PARA FILTROS CLICKEABLES EN TABLAS DE ESTADÍSTICAS =====
+
+function setupStatsTableClickEvents() {
+  console.log('🔧 Configurando event listeners para tablas de estadísticas...');
+  
+  // Limpiar event listeners existentes
+  document.removeEventListener('click', handleStatsTableClick);
+  document.addEventListener('click', handleStatsTableClick);
+}
+
+function handleStatsTableClick(event) {
+  const clickedElement = event.target;
+  
+  // Verificar si se clickeó un elemento clickeable de las tablas de estadísticas
+  if (clickedElement.classList.contains('clickable-name') || clickedElement.classList.contains('clickable-stat')) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    console.log('📊 Click en elemento de tabla de estadísticas:', clickedElement);
+    
+    const userKey = clickedElement.getAttribute('data-user');
+    const status = clickedElement.getAttribute('data-status');
+    const type = clickedElement.getAttribute('data-type'); // 'designer' o 'analyst'
+    
+    console.log('🎯 Filtro solicitado:', { userKey, status, type });
+    
+    // Verificar que estamos en vista de datos limpia
+    if (!isCleanViewActive) {
+      console.log('⚠️ Filtro solo disponible en vista de datos (Clean View)');
+      alert('Los filtros de resumen solo funcionan en la vista de datos. Por favor activa la vista de datos primero.');
+      return;
+    }
+    
+    // Aplicar el filtro
+    applyStatsTableFilter(userKey, status, type);
+  }
+}
+
+function applyStatsTableFilter(userKey, status, type) {
+  console.log('🔍 Aplicando filtro de tabla de estadísticas:', { userKey, status, type });
+  
+  try {
+    // Obtener datos actuales para filtrar
+    const dataToFilter = originalInventoryData || [];
+    console.log('📊 Datos base para filtrar:', dataToFilter.length);
+    
+    let filteredData = dataToFilter;
+    
+    // Aplicar filtro por usuario
+    if (userKey && userKey !== 'all' && userKey !== '') {
+      const userName = USERS[userKey]?.name || userKey;
+      console.log(`👤 Filtrando por ${type}: ${userName}`);
+      
+      if (type === 'designer') {
+        filteredData = filteredData.filter(row => {
+          const rowDesigner = normalizeDesignerName(row.diseñador);
+          const targetDesigner = normalizeDesignerName(userName);
+          return rowDesigner === targetDesigner;
+        });
+      } else if (type === 'analyst') {
+        if (userKey === 'arturo' || userName === 'Arturo') {
+          // Lógica especial para Arturo
+          filteredData = filteredData.filter(row => {
+            if (!row['WA_VIS_Comment'] || row['WA_VIS_Comment'].trim() === '') {
+              return false;
+            }
+            const comentarios = parseCommentsFromExcel(row['WA_VIS_Comment']);
+            if (comentarios.length === 0) return false;
+            const primerComentario = comentarios[0];
+            return primerComentario.usuario.toLowerCase() === 'arturo';
+          });
+        } else {
+          filteredData = filteredData.filter(row => {
+            const rowAnalyst = row.analista;
+            return rowAnalyst === userName;
+          });
+        }
+      }
+    } else if (userKey === '') {
+      // Filtrar por elementos "Vacío"
+      console.log(`🔍 Filtrando por elementos vacíos de ${type}`);
+      if (type === 'designer') {
+        filteredData = filteredData.filter(row => !row.diseñador || row.diseñador === '');
+      } else if (type === 'analyst') {
+        filteredData = filteredData.filter(row => !row.analista || row.analista === '');
+      }
+    }
+    
+    // Aplicar filtro por status
+    if (status && status !== '') {
+      console.log(`📊 Filtrando por status: ${status}`);
+      
+      if (status === 'activos') {
+        filteredData = filteredData.filter(row => {
+          if (!row.ultimoStatus) return false;
+          const statusLower = row.ultimoStatus.toLowerCase();
+          return (statusLower.includes('revision') || statusLower.includes('revisión') || statusLower.includes('review')) ||
+                 (statusLower.includes('diseño') || statusLower.includes('diseno') || statusLower.includes('design'));
+        });
+      } else {
+        const statusMap = {
+          'revisión': ['revision', 'revisión', 'review'],
+          'diseño': ['diseño', 'diseno', 'design'],
+          'completado': ['completado', 'completed', 'complete'],
+          'cancelado': ['cancelado', 'cancelled', 'cancel']
+        };
+        
+        const statusTerms = statusMap[status] || [status];
+        filteredData = filteredData.filter(row => {
+          if (!row.ultimoStatus) return false;
+          const statusLower = row.ultimoStatus.toLowerCase();
+          return statusTerms.some(term => statusLower.includes(term));
+        });
+      }
+    }
+    
+    console.log(`✅ Datos filtrados: ${filteredData.length} de ${dataToFilter.length}`);
+    
+    // Aplicar el filtro a la tabla principal
+    applyInventoryTableFilter(filteredData);
+    
+    // Marcar visualmente el elemento clickeado como activo
+    markStatsElementAsActive(userKey, status, type);
+    
+  } catch (error) {
+    console.error('❌ Error aplicando filtro de tabla de estadísticas:', error);
+  }
+}
+
+function applyInventoryTableFilter(filteredData) {
+  console.log('🔄 Aplicando filtro a tabla principal con', filteredData.length, 'elementos');
+  
+  // Actualizar originalInventoryData temporalmente para mostrar solo datos filtrados
+  const previousData = window.originalInventoryData;
+  window.originalInventoryData = filteredData;
+  
+  try {
+    if (filteredData.length === 0) {
+      // Solo reemplazar la tabla de inventario, NO todo el contenido de box4
+      const inventoryTable = document.querySelector('#inventory-table-container');
+      if (inventoryTable) {
+        inventoryTable.innerHTML = '<div class="empty-results"><h3>No se encontraron resultados para este filtro</h3><p>Intenta con otros criterios de búsqueda.</p><button onclick="clearStatsTableFilters()">Limpiar Filtros</button></div>';
+      } else {
+        // Fallback: buscar la tabla directamente
+        const table = document.querySelector('.inventory-table-clean');
+        if (table) {
+          table.innerHTML = '<tr><td colspan="100%" class="empty-results"><h3>No se encontraron resultados para este filtro</h3><p>Intenta con otros criterios de búsqueda.</p><button onclick="clearStatsTableFilters()">Limpiar Filtros</button></td></tr>';
+        }
+      }
+      return;
+    }
+    
+    // Usar la función existente regenerateInventoryTable
+    regenerateInventoryTable(filteredData);
+    
+    console.log('✅ Tabla de inventario filtrada aplicada');
+  } catch (error) {
+    console.error('❌ Error regenerando tabla filtrada:', error);
+    // Restaurar datos originales en caso de error
+    window.originalInventoryData = previousData;
+  }
+}
+
+function generateInventoryTableFromFilteredData(filteredData) {
+  // Esta función generará la tabla usando el mismo formato que generateImageInventoryTableFromCache
+  // pero solo con los datos filtrados
+  console.log('📊 Generando tabla filtrada con', filteredData.length, 'elementos');
+  
+  if (filteredData.length === 0) {
+    return '<div class="empty-results"><h3>No se encontraron resultados para este filtro</h3><p>Intenta con otros criterios de búsqueda.</p></div>';
+  }
+  
+  // Usar la función existente regenerateInventoryTable
+  regenerateInventoryTable(filteredData);
+  return ''; // regenerateInventoryTable maneja la actualización del DOM directamente
+}
+
+function markStatsElementAsActive(userKey, status, type) {
+  console.log('🎨 Marcando elemento activo:', { userKey, status, type });
+  
+  // Limpiar elementos activos anteriores
+  document.querySelectorAll('.clickable-name.active, .clickable-stat.active').forEach(el => {
+    el.classList.remove('active');
+  });
+  
+  // Marcar el elemento clickeado como activo
+  const selector = `.clickable-name[data-user="${userKey}"][data-type="${type}"], .clickable-stat[data-user="${userKey}"][data-status="${status}"][data-type="${type}"]`;
+  document.querySelectorAll(selector).forEach(el => {
+    el.classList.add('active');
+  });
+}
+
+function clearStatsTableFilters() {
+  console.log('🧹 Limpiando filtros de tablas de estadísticas');
+  
+  // Limpiar elementos activos
+  document.querySelectorAll('.clickable-name.active, .clickable-stat.active').forEach(el => {
+    el.classList.remove('active');
+  });
+  
+  // Limpiar elementos selected también (por si acaso)
+  document.querySelectorAll('.clickable-name.selected, .clickable-stat.selected').forEach(el => {
+    el.classList.remove('selected');
+  });
+  
+  // Restaurar originalInventoryData a su estado completo
+  if (window.allLibraryData) {
+    // Filtrar solo elementos con comentarios como lo hace updateStatsTablesOnDataChange
+    const statsData = window.allLibraryData.filter(row => 
+      (row['Object Type'] === 'Item Code' || row['Object Type'] === 'Image') && 
+      row['WA_VIS_Comment'] && 
+      row['WA_VIS_Comment'].trim() !== ''
+    );
+    window.originalInventoryData = statsData;
+  }
+  
+  // Regenerar tabla de inventario completa
+  if (isCleanViewActive) {
+    // Regenerar desde caché completo
+    generateImageInventoryTableFromCache(); // Esto restaurará la tabla completa
+    console.log('✅ Tabla de inventario restaurada completamente');
+  }
+}
+
+// Hacer la función global para que pueda ser llamada desde HTML
+window.clearStatsTableFilters = clearStatsTableFilters;
