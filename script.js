@@ -1300,30 +1300,293 @@ function setupLoginForm() {
   }
 }
 
+// Variables para control de reintentos
+let dataLoadingAttempts = 0;
+const MAX_LOADING_ATTEMPTS = 3;
+let isCurrentlyLoading = false;
+
 async function startDataLoading() {
-  console.log('📥 Iniciando carga de datos en background...');
+  // Prevenir múltiples cargas simultáneas
+  if (isCurrentlyLoading) {
+    console.log('⚠️ Carga ya en progreso, saltando intento duplicado');
+    return;
+  }
+  
+  dataLoadingAttempts++;
+  isCurrentlyLoading = true;
+  
+  console.log(`📥 Iniciando carga de datos en background... (Intento ${dataLoadingAttempts}/${MAX_LOADING_ATTEMPTS})`);
   
   try {
     // Cargar Google Sheets
     await loadFromGoogleSheets();
-    
-    // Cargar cache optimizado
-    await optimizeCache();
+
+    // Intentar cargar cache optimizado (importante pero no crítico)
+    console.log('🔄 Intentando optimizar caché...');
+    const cacheLoaded = await loadCacheData();
     
     dataLoaded = true;
+    dataLoadingAttempts = 0; // Reset contador en caso de éxito
     console.log('✅ Todos los datos cargados exitosamente');
     
+    // Mostrar advertencia si no hay caché pero sí hay datos
+    if (!cacheLoaded) {
+      showPerformanceWarning();
+    }
+
     // Verificar si puede acceder a la app
     checkAppAccess();
     
   } catch (error) {
-    console.error('❌ Error cargando datos:', error);
+    console.error(`❌ Error cargando datos (Intento ${dataLoadingAttempts}/${MAX_LOADING_ATTEMPTS}):`, error);
     
-    // Reintentar después de 3 segundos
-    setTimeout(() => {
-      startDataLoading();
-    }, 3000);
+    // Verificar si es un error de red/conectividad
+    const isNetworkError = error.message.includes('Failed to fetch') || 
+                          error.message.includes('NetworkError') ||
+                          error.message.includes('ERR_NETWORK');
+    
+    if (isNetworkError) {
+      console.warn('🌐 Error de conectividad detectado');
+    }
+    
+    // Solo reintentar si no hemos excedido el límite
+    if (dataLoadingAttempts < MAX_LOADING_ATTEMPTS) {
+      const retryDelay = dataLoadingAttempts * 2000; // Delay incremental: 2s, 4s, 6s
+      console.log(`🔄 Reintentando en ${retryDelay/1000} segundos...`);
+      
+      setTimeout(() => {
+        isCurrentlyLoading = false;
+        startDataLoading();
+      }, retryDelay);
+    } else {
+      // Máximo de reintentos alcanzado
+      console.error('❌ Máximo de reintentos alcanzado. Continuando con datos parciales...');
+      handleDataLoadingFailure();
+    }
   }
+  
+  isCurrentlyLoading = false;
+}
+
+function handleDataLoadingFailure() {
+  console.log('🚨 Manejando fallo de carga de datos...');
+  
+  // Verificar qué datos sí se cargaron
+  const hasCategory = originalTreeData && originalTreeData.length > 0;
+  const hasAssetGroups = currentAssetGroups && currentAssetGroups.length > 0;
+  const hasCache = itemGroupDataCache && itemGroupDataCache.size > 0;
+  
+  console.log('📊 Estado de datos disponibles:', {
+    category: hasCategory ? `${originalTreeData.length} elementos` : 'No disponible',
+    assetGroups: hasAssetGroups ? `${currentAssetGroups.length} elementos` : 'No disponible',
+    cache: hasCache ? `${itemGroupDataCache.size} Item Groups` : 'No disponible'
+  });
+  
+  if (hasCategory) {
+    console.log('✅ Datos de categorías disponibles - continuando con funcionalidad limitada');
+    
+    // Mostrar advertencia sobre rendimiento si no hay caché
+    if (!hasCache) {
+      console.warn('⚠️ Cache no disponible - la aplicación funcionará más lenta');
+      showPerformanceWarning();
+    }
+    
+    dataLoaded = true;
+    checkAppAccess();
+  } else {
+    console.error('❌ Datos críticos no disponibles');
+    // Mostrar mensaje de error al usuario
+    showConnectionErrorMessage();
+  }
+}
+
+function showPerformanceWarning() {
+  // Verificar si estamos en la página de login o en la app principal
+  const isLoginPage = document.getElementById('loginContainer') && 
+                     !document.getElementById('inventoryContainer');
+  
+  if (isLoginPage) {
+    // En página de login: mostrar banner menos intrusivo
+    showLoginPageWarning();
+  } else {
+    // En app principal: mostrar toast tradicional
+    showAppWarning();
+  }
+}
+
+function showLoginPageWarning() {
+  // Remover warning anterior si existe
+  const existing = document.getElementById('login-performance-warning');
+  if (existing) existing.remove();
+  
+  const warningDiv = document.createElement('div');
+  warningDiv.id = 'login-performance-warning';
+  warningDiv.style.cssText = `
+    margin: 15px 0;
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+    border-left: 4px solid #F57C00;
+    animation: slideIn 0.3s ease-out;
+  `;
+  warningDiv.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <i class="fa-solid fa-exclamation-triangle" style="font-size: 18px; color: #FFF3E0;"></i>
+      <div style="flex: 1;">
+        <div style="font-weight: bold; margin-bottom: 2px;">Sistema funcionando en modo básico</div>
+        <div style="font-size: 12px; opacity: 0.9;">
+          No se pudo cargar el caché de optimización. La aplicación funcionará más lenta de lo normal.
+        </div>
+      </div>
+      <button onclick="this.parentElement.parentElement.remove()" style="
+        background: rgba(255,255,255,0.2); 
+        border: none; 
+        color: white; 
+        width: 24px;
+        height: 24px;
+        border-radius: 12px;
+        font-size: 14px; 
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">×</button>
+    </div>
+  `;
+  
+  // Insertar en el loginContainer
+  const loginContainer = document.getElementById('loginContainer');
+  if (loginContainer) {
+    // Buscar un buen lugar para insertar (después del título pero antes del login)
+    const loginForm = loginContainer.querySelector('.login-card') || 
+                     loginContainer.querySelector('form') ||
+                     loginContainer.querySelector('input');
+    
+    if (loginForm && loginForm.parentNode) {
+      loginForm.parentNode.insertBefore(warningDiv, loginForm);
+    } else {
+      loginContainer.appendChild(warningDiv);
+    }
+  } else {
+    // Fallback: agregar al body
+    document.body.appendChild(warningDiv);
+  }
+  
+  // Auto-remover después de 15 segundos
+  setTimeout(() => {
+    if (document.getElementById('login-performance-warning')) {
+      document.getElementById('login-performance-warning').remove();
+    }
+  }, 15000);
+}
+
+function showAppWarning() {
+  // Remover warning anterior si existe
+  const existing = document.getElementById('app-performance-warning');
+  if (existing) existing.remove();
+  
+  const warningDiv = document.createElement('div');
+  warningDiv.id = 'app-performance-warning';
+  warningDiv.style.cssText = `
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    background: #FF9800;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  `;
+  warningDiv.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-exclamation-triangle"></i>
+      <div>
+        <strong>Caché no disponible</strong><br>
+        <small>La aplicación funcionará más lenta</small>
+      </div>
+      <button onclick="this.parentElement.parentElement.remove()" style="
+        background: none; 
+        border: none; 
+        color: white; 
+        font-size: 16px; 
+        cursor: pointer;
+        margin-left: 8px;
+      ">×</button>
+    </div>
+  `;
+  
+  document.body.appendChild(warningDiv);
+  
+  // Auto-remover después de 10 segundos
+  setTimeout(() => {
+    if (document.getElementById('app-performance-warning')) {
+      document.getElementById('app-performance-warning').remove();
+    }
+  }, 10000);
+}
+
+function showConnectionErrorMessage() {
+  const app = document.getElementById('app');
+  if (app) {
+    app.innerHTML = `
+      <div style="
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        height: 100vh; 
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #162546 0%, #1D1B28 100%);
+        color: white;
+      ">
+        <div style="text-align: center; max-width: 500px; padding: 20px;">
+          <h2 style="color: #e91e63; margin-bottom: 20px;">
+            🌐 Error de Conectividad
+          </h2>
+          <p style="margin-bottom: 20px; font-size: 16px; line-height: 1.5;">
+            No se pudo establecer conexión con los servicios de datos. 
+            Esto puede deberse a problemas temporales de red o configuración.
+          </p>
+          <button onclick="retryDataLoading()" style="
+            background: #4347FF; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            cursor: pointer;
+            margin-right: 10px;
+          ">
+            🔄 Reintentar
+          </button>
+          <button onclick="location.reload()" style="
+            background: #666; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            cursor: pointer;
+          ">
+            🔃 Recargar Página
+          </button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function retryDataLoading() {
+  dataLoadingAttempts = 0; // Reset contador
+  isCurrentlyLoading = false;
+  
+  // Restaurar interfaz de login
+  location.reload();
 }
 
 function handleLogin() {
@@ -1615,6 +1878,7 @@ function initHorizontalDrag(e, topBoxId, bottomBoxId) {
 async function loadFromGoogleSheets() {
   const loadButton = document.getElementById('loadExcelBtn');
   let originalText = '';
+  let categoryLoaded = false;
   
   try {
     // Mostrar estado de carga solo si el botón existe (compatibilidad)
@@ -1636,20 +1900,28 @@ async function loadFromGoogleSheets() {
       // El Apps Script maneja CORS correctamente
     }
 
-    // Cargar datos de la pestaña 'category' para el árbol
-    const categoryData = await loadGoogleSheetAsCSV(
-      GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.CSV_URL,
-      'category'
-    );
-    
-    if (!categoryData || categoryData.length === 0) {
-      throw new Error('No se pudieron cargar datos de la pestaña category');
+    // PASO 1: Cargar datos críticos de la pestaña 'category' para el árbol
+    try {
+      const categoryData = await loadGoogleSheetAsCSV(
+        GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.CSV_URL,
+        'category'
+      );
+      
+      if (!categoryData || categoryData.length === 0) {
+        throw new Error('No se pudieron cargar datos de la pestaña category');
+      }
+
+      // Procesar y filtrar datos para el árbol
+      processCategoryData(categoryData);
+      categoryLoaded = true;
+      console.log('✅ Datos críticos (category) cargados exitosamente');
+      
+    } catch (categoryError) {
+      console.error('❌ Error crítico cargando category:', categoryError);
+      throw categoryError; // Re-lanzar error crítico
     }
 
-    // Procesar y filtrar datos para el árbol
-    processCategoryData(categoryData);
-
-    // Cargar asset_groups usando el proxy de Apps Script (mismo que category)
+    // PASO 2: Cargar asset_groups (no crítico - puede fallar sin detener la app)
     try {
       console.log('🔄 Cargando asset_groups usando Apps Script proxy...');
       const assetGroupsData = await loadGoogleSheetAsCSV(null, 'asset_groups');
@@ -1674,16 +1946,21 @@ async function loadFromGoogleSheets() {
         currentAssetGroups = [];
       }
     } catch (assetGroupsError) {
-      console.warn('⚠️ No se pudo cargar asset_groups:', assetGroupsError.message);
-      console.warn('📋 Detalles del error:', assetGroupsError);
+      console.warn('⚠️ No se pudo cargar asset_groups (no crítico):', assetGroupsError.message);
+      console.warn('📋 Continuando sin galerías...');
       currentAssetGroups = [];
       
-      // Intentar cargar desde archivo local como fallback
-      console.log('🔄 Intentando método de fallback para asset_groups...');
+      // No lanzar error - asset_groups no es crítico para la funcionalidad básica
+    }
+    
+    // Si llegamos aquí y categoryLoaded es true, consideramos éxito general
+    if (categoryLoaded) {
+      console.log('✅ Carga de datos completada (con o sin componentes opcionales)');
     }
     
   } catch (error) {
-    console.error('❌ Error cargando desde Google Sheets:', error);
+    console.error('❌ Error crítico cargando desde Google Sheets:', error);
+    throw error; // Re-lanzar solo errores críticos
     
   } finally {
     // Restaurar botón solo si existe (compatibilidad)
@@ -8887,6 +9164,29 @@ async function loadAllItemGroupsToCache() {
 }
 
 // Función para optimizar caché con feedback visual
+// Función para cargar datos de caché de forma no crítica
+async function loadCacheData() {
+  try {
+    console.log('📦 Cargando caché de optimización...');
+    await optimizeCache();
+    
+    // Verificar si realmente se cargó algo en el caché
+    const hasCache = itemGroupDataCache && itemGroupDataCache.size > 0;
+    
+    if (hasCache) {
+      console.log(`✅ Caché cargado exitosamente: ${itemGroupDataCache.size} Item Groups`);
+      return true;
+    } else {
+      console.warn('⚠️ Caché no se pudo poblar adecuadamente');
+      return false;
+    }
+    
+  } catch (error) {
+    console.warn('⚠️ Error cargando caché (no crítico):', error.message);
+    return false;
+  }
+}
+
 async function optimizeCache() {
   const btn = document.getElementById('loadCacheBtn');
   let originalHTML = '';
@@ -8918,12 +9218,13 @@ async function optimizeCache() {
     }
     
   } catch (error) {
-    console.error('❌ Error optimizando caché:', error);
+    console.error('❌ Error optimizando caché (no crítico):', error);
+    console.log('📝 La aplicación puede continuar sin optimización de caché');
     
-    // Mostrar error solo si el botón existe
+    // Mostrar advertencia solo si el botón existe
     if (btn) {
-      btn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Error';
-      btn.className = 'btn btn-danger btn-compact';
+      btn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Sin Caché';
+      btn.className = 'btn btn-warning btn-compact';
       
       // Restaurar después de 3 segundos
       setTimeout(() => {
@@ -8933,8 +9234,8 @@ async function optimizeCache() {
       }, 3000);
     }
     
-    // Re-lanzar el error para que lo maneje startDataLoading()
-    throw error;
+    // NO re-lanzar el error - el caché es opcional, no crítico
+    console.log('✅ Continuando sin caché optimizado');
   }
 }
 
