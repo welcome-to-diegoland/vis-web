@@ -4213,15 +4213,33 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Headers clickeables para asignación masiva */
 .header-section {
-  cursor: pointer;
+  cursor: pointer !important;
   transition: all 0.2s ease;
   user-select: none;
+  /* Asegurar que el área clickeable sea robusta */
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 30px;
+  /* Mejor compatibilidad entre navegadores */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  /* Asegurar que capture eventos de click */
+  pointer-events: auto;
 }
 
 .header-section:hover {
-  opacity: 0.8;
+  opacity: 0.8 !important;
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+  background-color: rgba(0,123,255,0.1) !important;
+}
+
+.header-section:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+  background-color: rgba(0,123,255,0.2) !important;
 }
 
 .header-section:active {

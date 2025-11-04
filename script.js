@@ -2967,6 +2967,31 @@ function transformAttributeValueData(attributeValueData) {
     }
   });
   
+  // Buscar información adicional en los datos básicos del árbol para completar Name, NamePath, etc.
+  Object.keys(transformedItems).forEach(id => {
+    const basicData = allLibraryData.find(item => 
+      String(item.Id) === String(id)
+    );
+    
+    if (basicData) {
+      transformedItems[id].Name = basicData.Name || transformedItems[id].Name || '';
+      transformedItems[id].NamePath = basicData.NamePath || '';
+      transformedItems[id].IdPath = basicData.IdPath || '';
+      transformedItems[id].Vis_color = basicData.Vis_color || '';
+      transformedItems[id].filtro_color = basicData.filtro_color || '';
+    }
+    
+    // FALLBACK: Si Name sigue vacío, usar el ID como nombre
+    if (!transformedItems[id].Name || transformedItems[id].Name.trim() === '') {
+      // Para Item Codes, usar el ID que generalmente es el código del producto
+      if (transformedItems[id]['Object Type'] === 'Item Code') {
+        transformedItems[id].Name = transformedItems[id].Id || transformedItems[id].ID || 'Item Code';
+      } else if (transformedItems[id]['Object Type'] === 'Item Group') {
+        transformedItems[id].Name = `Item Group ${transformedItems[id].Id || transformedItems[id].ID}`;
+      }
+    }
+  });
+  
   // Convertir objeto a array
   const resultArray = Object.values(transformedItems);
   
@@ -3927,12 +3952,12 @@ function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
           <div class="section-table">
             ${unifiedRows.map((row, rowIndex) => `
               <div class="table-row" data-row-index="${rowIndex}">
-                <div class="table-cell item-code-cell" data-item-code="${row.itemCode.Name}" data-name-path="${row.itemCode.NamePath}">
+                <div class="table-cell item-code-cell" data-item-code="${row.itemCode.Name || row.itemCode['Item Code'] || row.itemCode.Id || row.itemCode.ID || 'Sin nombre'}" data-name-path="${row.itemCode.NamePath}">
                   ${row.itemCode['WA_VIS_Comment'] && row.itemCode['WA_VIS_Comment'].trim() ? 
                     `<div class="comment-indicator" data-comment="${row.itemCode['WA_VIS_Comment']}" data-status="${getCurrentStatus(row.itemCode['WA_VIS_Comment'])}">💬</div>` : 
                     ''
                   }
-                  <div class="item-code-main">${row.itemCode.Name}</div>
+                  <div class="item-code-main">${row.itemCode.Name || row.itemCode['Item Code'] || row.itemCode.Id || row.itemCode.ID || 'Sin nombre'}</div>
                   <div class="item-code-meta">
                     <span class="item-importance" data-value="${row.itemCode['WA Importancia'] || row.itemCode['Importancia'] || row.itemCode['Importance'] || ''}">${row.itemCode['WA Importancia'] || row.itemCode['Importancia'] || row.itemCode['Importance'] || ''}</span>
                     <span class="item-brand">${row.itemCode['Marca'] || row.itemCode['Brand'] || ''}</span>
@@ -4588,9 +4613,69 @@ function setupImageSystemEventListeners() {
 
   // Event listener adicional para headers clickeables (asignación masiva por columna)
   container.addEventListener('click', function(event) {
-    const headerSection = event.target.closest('.header-section');
+    // Múltiples formas de detectar el header section para mejor compatibilidad
+    let headerSection = event.target.closest('.header-section');
+    
+    // Fallback 1: Si el target es directamente un header-section
+    if (!headerSection && event.target.classList.contains('header-section')) {
+      headerSection = event.target;
+    }
+    
+    // Fallback 2: Buscar por selector más amplio
+    if (!headerSection) {
+      headerSection = event.target.closest('.section-header .header-section');
+    }
+    
+    // Fallback 3: Buscar en elementos padre
+    if (!headerSection) {
+      let element = event.target;
+      for (let i = 0; i < 5 && element; i++) {
+        if (element.classList && element.classList.contains('header-section')) {
+          headerSection = element;
+          break;
+        }
+        element = element.parentElement;
+      }
+    }
     
     if (headerSection) {
+      console.log('🎯 Header section detectado:', headerSection.textContent.trim());
+      handleColumnBulkAssignment(event, headerSection);
+    }
+  });
+  
+  // Event listener alternativo más específico para headers
+  container.addEventListener('click', function(event) {
+    // Detectar específicamente clics en headers de columnas
+    if (event.target.matches('.header-section') || 
+        event.target.closest('.header-section')) {
+      
+      const headerSection = event.target.matches('.header-section') ? 
+                           event.target : 
+                           event.target.closest('.header-section');
+      
+      console.log('🎯 Header alternativo detectado:', headerSection.textContent.trim());
+      handleColumnBulkAssignment(event, headerSection);
+    }
+  });
+  
+  // Event listener adicional con delegación más robusta
+  container.addEventListener('mousedown', function(event) {
+    // Usar mousedown como alternativa para mejor compatibilidad
+    const headerSection = event.target.closest('.header-section');
+    if (headerSection) {
+      // Marcar que se hizo click en un header
+      headerSection.setAttribute('data-clicked', 'true');
+      setTimeout(() => {
+        headerSection.removeAttribute('data-clicked');
+      }, 100);
+    }
+  });
+  
+  container.addEventListener('mouseup', function(event) {
+    const headerSection = event.target.closest('.header-section');
+    if (headerSection && headerSection.hasAttribute('data-clicked')) {
+      console.log('🎯 Header detectado via mousedown/mouseup:', headerSection.textContent.trim());
       handleColumnBulkAssignment(event, headerSection);
     }
   });
@@ -8541,25 +8626,51 @@ function handleBulkImageRemoval(event, imageCell) {
 
 // Función para manejar asignación masiva por columna (click en headers)
 function handleColumnBulkAssignment(event, headerSection) {
+  // Prevenir eventos duplicados
   event.preventDefault();
+  event.stopPropagation();
+  
+  console.log('🎯 Iniciando asignación masiva por columna...');
+  console.log('🔍 Navegador:', navigator.userAgent);
+  console.log('🔍 Evento tipo:', event.type);
   
   // Determinar la sección y columna del header clickeado
   const headerText = headerSection.textContent.trim();
   const sectionContainer = headerSection.closest('.section-wrapper');
+  
+  if (!sectionContainer) {
+    console.error('❌ No se encontró section-wrapper para el header:', headerText);
+    return;
+  }
+  
   let section = 'unknown';
   
-  if (sectionContainer.classList.contains('cov-wrapper')) {
+  // Método más robusto para detectar la sección
+  if (sectionContainer.classList.contains('cov-wrapper') || 
+      sectionContainer.querySelector('.cov-wrapper') ||
+      headerText.toLowerCase().includes('cov')) {
     section = 'cov';
-  } else if (sectionContainer.classList.contains('gallery-wrapper')) {
+  } else if (sectionContainer.classList.contains('gallery-wrapper') || 
+             sectionContainer.querySelector('.gallery-wrapper') ||
+             headerText.toLowerCase().includes('gal')) {
     section = 'gallery';
-  } else if (sectionContainer.classList.contains('rest-wrapper')) {
+  } else if (sectionContainer.classList.contains('rest-wrapper') || 
+             sectionContainer.querySelector('.rest-wrapper') ||
+             headerText.toLowerCase().includes('rst') ||
+             headerText.toLowerCase().includes('rest')) {
     section = 'rest';
+  }
+  
+  if (section === 'unknown') {
+    console.error('❌ No se pudo determinar la sección para el header:', headerText);
+    console.log('🔍 Classes del container:', Array.from(sectionContainer.classList));
+    return;
   }
   
   // Extraer número de columna del texto del header (ej: "GAL 03" -> 2 (índice 0-based))
   const columnMatch = headerText.match(/\d+/);
   if (!columnMatch) {
-    console.error('No se pudo extraer número de columna del header:', headerText);
+    console.error('❌ No se pudo extraer número de columna del header:', headerText);
     return;
   }
   const columnNumber = parseInt(columnMatch[0]) - 1; // Convertir a índice 0-based
