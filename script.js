@@ -4112,7 +4112,7 @@ function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, 
 function generateEmptyImageCell() {
   return `
     <div class="empty-image-cell">
-      <div class="drop-zone" title="Arrastrar imagen aquí">
+      <div class="drop-zone" title="">
         <span class="add-icon"></span>
       </div>
     </div>
@@ -8856,7 +8856,7 @@ function removeImageFromGrid(rowIndex, colIndex, section, shouldCompact = true) 
   // Reemplazar con celda vacía
   cell.innerHTML = `
     <div class="empty-image-cell">
-      <div class="drop-zone" title="Arrastrar imagen aquí">
+      <div class="drop-zone" title="">
         <span class="add-icon"></span>
       </div>
     </div>
@@ -8909,7 +8909,7 @@ function compactImagesInSection(itemCode, section, removedColIndex) {
     if (cell) {
       cell.innerHTML = `
         <div class="empty-image-cell">
-          <div class="drop-zone" title="Arrastrar imagen aquí">
+          <div class="drop-zone" title="">
             <span class="add-icon"></span>
           </div>
         </div>
@@ -9039,7 +9039,7 @@ function shiftImagesRight(fromRow, fromCol, section) {
         // Limpiar origen
         sourceCell.innerHTML = `
           <div class="empty-image-cell">
-            <div class="drop-zone" title="Arrastrar imagen aquí">
+            <div class="drop-zone" title="">
               <span class="add-icon"></span>
             </div>
           </div>
@@ -9072,7 +9072,7 @@ function shiftImagesLeft(fromRow, fromCol, section) {
         // Limpiar la siguiente posición
         nextCell.innerHTML = `
           <div class="empty-image-cell">
-            <div class="drop-zone" title="Arrastrar imagen aquí">
+            <div class="drop-zone" title="">
               <span class="add-icon"></span>
             </div>
           </div>
