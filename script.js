@@ -115,6 +115,46 @@ const MAX_BATCH_SIZE = 2; // Máximo 2 requests en batch
 let autoSaveTimeouts = new Map(); // Map para trackear timeouts por ID
 const DEBOUNCE_DELAY = 3000; // 3 segundos de debounce
 
+// Sistema de caché inteligente para item groups
+let itemGroupCache = new Map();
+const CACHE_EXPIRY_TIME = 10 * 60 * 1000; // 10 minutos
+const MAX_CACHE_SIZE = 50; // Máximo 50 item groups en caché
+
+// Sistema de debouncing para navegación a item groups
+let navigationInProgress = new Set();
+let navigationTimeouts = new Map();
+
+// Sistema de caché para comentarios de imágenes (OPTIMIZACIÓN)
+let imageCommentsCache = new Map();
+const IMAGE_CACHE_SIZE = 200; // Máximo 200 imágenes en caché
+
+// Función para manejar caché de item groups
+function getCachedItemGroup(itemGroupId) {
+  const cached = itemGroupCache.get(itemGroupId);
+  if (!cached) return null;
+  
+  // Verificar si ha expirado
+  if (Date.now() - cached.timestamp > CACHE_EXPIRY_TIME) {
+    itemGroupCache.delete(itemGroupId);
+    return null;
+  }
+  
+  return cached.data;
+}
+
+function setCachedItemGroup(itemGroupId, data) {
+  // Limpiar caché si está muy lleno
+  if (itemGroupCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = itemGroupCache.keys().next().value;
+    itemGroupCache.delete(oldestKey);
+  }
+  
+  itemGroupCache.set(itemGroupId, {
+    data: data,
+    timestamp: Date.now()
+  });
+}
+
 // Lista de atributos WA válidos
 const WA_ATTRIBUTES = [
   'WA_VIS_Comment', 'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
@@ -183,18 +223,19 @@ async function processAutoSaveQueue() {
       batch.push(autoSaveQueue.shift());
     }
     
-    try {
-      // Procesar batch secuencialmente con delay entre cada request
-      for (let j = 0; j < batch.length; j++) {
+    // Procesar batch secuencialmente con manejo de errores individual
+    for (let j = 0; j < batch.length; j++) {
+      try {
         await sendAutoSaveRequest(batch[j]);
-        
-        // Delay más largo entre requests del mismo batch
-        if (j < batch.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 segundos entre requests
-        }
+      } catch (error) {
+        // El error ya fue manejado por sendAutoSaveRequest con reintentos
+        // Simplemente continuar con el siguiente elemento
       }
-    } catch (error) {
-      console.error(`❌ Error en batch de auto-guardado:`, error);
+      
+      // Delay entre requests del mismo batch
+      if (j < batch.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 segundos entre requests
+      }
     }
     
     // Delay más largo entre batches para evitar rate limiting
@@ -208,6 +249,11 @@ async function processAutoSaveQueue() {
 
 function addToAutoSaveQueue(record, user, date) {
   const recordId = record.id || record.itemId || 'unknown';
+  
+  // OPTIMIZACIÓN: Limpiar caché de comentarios si es un comentario de imagen
+  if (record.attribute === 'WA_VIS_Comment') {
+    clearImageCommentsCache();
+  }
   
   // Limpiar timeout anterior si existe (debouncing)
   if (autoSaveTimeouts.has(recordId)) {
@@ -235,7 +281,10 @@ function addToAutoSaveQueue(record, user, date) {
   autoSaveTimeouts.set(recordId, timeoutId);
 }
 
-async function sendAutoSaveRequest(saveRequest) {
+async function sendAutoSaveRequest(saveRequest, retryCount = 0) {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_BASE = 2000; // 2 segundos base, se incrementa exponencialmente
+  
   const payload = {
     records: [saveRequest.record],
     user: "data-update", // FORZAR a data-update
@@ -243,20 +292,45 @@ async function sendAutoSaveRequest(saveRequest) {
     type: saveRequest.type
   };
   
-  return fetch(GOOGLE_APPS_SCRIPT_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(payload),
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  }).then(() => {
+  try {
+    const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    // Si llegamos aquí, el request fue exitoso
     showAutoSaveNotification('Comentario guardado');
-  }).catch(error => {
-    console.error('❌ Error en fetch de auto-guardado:', error);
-    showAutoSaveNotification('Error al guardar comentario', 'error');
-    throw error;
-  });
+    
+    // Notificación especial si fue exitoso después de fallos
+    if (retryCount > 0) {
+      showAutoSaveNotification(`Conectividad restaurada!`, 'success');
+    }
+    
+    return response;
+    
+  } catch (error) {
+    // Si no hemos alcanzado el máximo de reintentos, intentar de nuevo
+    if (retryCount < MAX_RETRIES) {
+      const retryDelay = RETRY_DELAY_BASE * Math.pow(2, retryCount); // Backoff exponencial
+      
+      // Mostrar notificación de reintento
+      showAutoSaveNotification(`Reintentando guardar... (${retryCount + 1}/${MAX_RETRIES})`, 'warning');
+      
+      // Esperar antes del reintento
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      
+      // Reintentar recursivamente
+      return sendAutoSaveRequest(saveRequest, retryCount + 1);
+    } else {
+      // Máximo de reintentos alcanzado
+      showAutoSaveNotification('Error persistente al guardar. Revisa tu conexión.', 'error');
+      throw error;
+    }
+  }
 }
 
 // ===== FUNCIÓN UNIFICADA DE GUARDADO - Usa la URL que funciona =====
@@ -525,9 +599,9 @@ const USERS = {
     displayName: 'Diego (Admin)'
   },
   veronica: {
-    name: 'Verónica',
+    name: 'Veronica', // Sin acento para comentarios
     group: 'Diseño',
-    displayName: 'Verónica (Diseño)'
+    displayName: 'Verónica (Diseño)' // Con acento para mostrar en UI
   },
   rossana: {
     name: 'Rossana',
@@ -850,22 +924,103 @@ function navigateToItemGroup(itemGroupId) {
   }
   
   // PASO 5: Preparar navegación
+  console.log(`🔄 Preparando navegación al Item Group: "${itemGroup.Name}" (ID: ${itemGroupId})`);
+  console.log(`📍 Ruta de navegación: "${navigationPath}"`);
+  console.log(`📂 Encontrado en: ${foundIn}`);
+  
+  // Mostrar indicador de navegación
+  const box4Content = document.getElementById('box4-content');
+  if (box4Content) {
+    box4Content.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; height: 200px; font-size: 16px; color: #666;">
+        <div>
+          <div style="margin-bottom: 10px;">🔄 Navegando a Item Group...</div>
+          <div style="font-size: 14px;">"${itemGroup.Name}"</div>
+        </div>
+      </div>
+    `;
+  }
   
   // Guardar estado antes de navegar
   saveInventoryViewState();
   
-  // Desactivar vista limpia si está activa
+  // Desactivar vista limpia si está activa (OPTIMIZACIÓN: solo cambiar vista sin re-renderizar árbol)
   if (isCleanViewActive) {
-    toggleCleanView();
+    console.log(`🔄 Vista limpia activa - cambiando a vista normal antes de navegar...`);
+    // Cambio optimizado: solo cambiar visibilidad, no re-renderizar
+    isCleanViewActive = false;
+    const toggleButton = document.getElementById('cleanViewToggle');
+    if (toggleButton) {
+      toggleButton.innerHTML = '<i class="fa-solid fa-table-list" style="margin-right: 6px;"></i>Información';
+      toggleButton.className = 'btn btn-secondary btn-compact'; // MORADO para "Información"
+      console.log(`🔄 Botón cambiado a "Información" para vista del visualizador`);
+    }
+
+    // Limpiar box4 y restaurar elementos del visualizador
+    const box4Content = document.getElementById('box4-content');
+    if (box4Content) {
+      box4Content.innerHTML = '';
+    }
+    
+    // LIMPIAR BOX3 que contiene las estadísticas de la vista de datos
+    const box3Content = document.getElementById('box3-content');
+    if (box3Content) {
+      box3Content.innerHTML = '';
+      console.log(`🧹 Box3 limpiado para navegación al visualizador`);
+      
+      // Restaurar el sistema de galerías en Box3
+      initializeGallerySystem();
+      console.log(`🖼️ Sistema de galerías restaurado en Box3`);
+    }
+    
+    // Mostrar elementos del visualizador
+    const elementsToShow = ['box1', 'box2', 'box3', 'box4'];
+    elementsToShow.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.style.display = 'block';
+      }
+    });
+    
+    // CRÍTICO: Solo re-renderizar el árbol si no está disponible
+    console.log(`🌳 Verificando disponibilidad del árbol...`);
+    const treeContainer = document.getElementById('tree');
+    const existingLabels = treeContainer?.querySelectorAll('.category-tree-label[data-path]');
+    
+    if (existingLabels && existingLabels.length > 0) {
+      console.log(`✅ Árbol ya disponible con ${existingLabels.length} elementos - saltando re-renderizado`);
+    } else {
+      console.log(`🌳 Re-renderizando árbol para navegación...`);
+      if (treeContainer && originalTreeData && originalTreeData.length > 0) {
+        renderAssetLibraryTree(originalTreeData, treeContainer);
+        console.log(`✅ Árbol re-renderizado con ${originalTreeData.length} elementos`);
+      } else {
+        console.error(`❌ No se puede re-renderizar el árbol: treeContainer=${!!treeContainer}, originalTreeData=${originalTreeData?.length || 0}`);
+      }
+    }
   }
   
   // PASO 6: Expandir árbol y seleccionar
+  console.log(`🌳 Expandiendo árbol para path: "${navigationPath}"`);
   expandTreeToPath(navigationPath, true);
     
-    // 4. Seleccionar el Item Group en el árbol después de expandir
-    setTimeout(() => {
+    // 4. Seleccionar el Item Group en el árbol después de expandir - OPTIMIZADO: Sin timeout
+    console.log(`🎯 Buscando elemento en el árbol para seleccionar y navegar...`);
+    
+    // Función para buscar y seleccionar el elemento
+    function searchAndSelectElement() {
       const treeContainer = document.getElementById('tree');
       if (treeContainer) {
+        
+        // Verificar que el árbol tenga elementos
+        const allLabels = treeContainer.querySelectorAll('.category-tree-label[data-path]');
+        console.log(`📊 Total de elementos en el árbol: ${allLabels.length}`);
+        
+        if (allLabels.length === 0) {
+          console.error(`❌ El árbol está vacío, no se puede navegar`);
+          alert('Error: El árbol no está disponible para navegación. Intenta refrescar la página.');
+          return;
+        }
         
         // Quitar selección previa
         const previousSelected = treeContainer.querySelectorAll('.category-tree-label.selected');
@@ -875,7 +1030,6 @@ function navigateToItemGroup(itemGroupId) {
         
         // Seleccionar el nuevo Item Group - usar un método más robusto para evitar problemas con comillas
         let targetElement = null;
-        const allLabels = treeContainer.querySelectorAll('.category-tree-label[data-path]');
         
         for (const label of allLabels) {
           if (label.getAttribute('data-path') === navigationPath) {
@@ -885,28 +1039,52 @@ function navigateToItemGroup(itemGroupId) {
         }
         if (targetElement) {
           targetElement.classList.add('selected');
+          console.log(`✅ Elemento seleccionado en árbol: "${targetElement.textContent.trim()}"`);
           
           // 5. Cargar el Item Group en el Box 4
+          console.log(`🔄 Cargando visualizador para path: "${navigationPath}"`);
           loadImageGridInBox4(navigationPath); // Usar el path original completo
           
           // 6. Hacer scroll al Item Group seleccionado
           targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          console.log(`✅ Navegación completada exitosamente`);
         } else {
           
           // Búsqueda alternativa por el text content (Name) del Item Group
+          console.log(`🔍 Búsqueda alternativa por nombre: "${itemGroup.Name}"`);
           for (const label of allLabels) {
             if (label.textContent.trim() === itemGroup.Name) {
               targetElement = label;
               console.log(`🎯 ¡Element encontrado por NOMBRE!`);
               targetElement.classList.add('selected');
+              console.log(`🔄 Cargando visualizador para path: "${label.getAttribute('data-path')}"`);
               loadImageGridInBox4(label.getAttribute('data-path')); // Usar el path del elemento encontrado
               targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              console.log(`✅ Navegación por nombre completada exitosamente`);
               break;
             }
           }
+          
+          if (!targetElement) {
+            console.error(`❌ No se pudo encontrar el elemento en el árbol para navegar`);
+            console.log(`🔍 Paths disponibles en el árbol:`, Array.from(allLabels).slice(0, 5).map(l => l.getAttribute('data-path')));
+          }
         }
       }
-    }, 2000); // Dar más tiempo para que el árbol se restaure y expanda
+    }
+    
+    // Intentar inmediatamente, si falla, pequeño retraso para permitir que el DOM se actualice
+    const treeContainer = document.getElementById('tree');
+    const allLabels = treeContainer?.querySelectorAll('.category-tree-label[data-path]');
+    
+    if (allLabels && allLabels.length > 0) {
+      // El árbol ya está listo, ejecutar inmediatamente
+      searchAndSelectElement();
+    } else {
+      // Esperar solo el mínimo necesario para que el DOM se actualice
+      console.log(`⏳ Esperando brevemente para que el árbol se actualice...`);
+      setTimeout(searchAndSelectElement, 500); // Solo 500ms en lugar de 3 segundos
+    }
 }
 
 // Función auxiliar para determinar qué mostrar en la columna imagen
@@ -3085,171 +3263,140 @@ function selectItemGroupInTree(itemGroupPath) {
   }, 500); // Delay más largo para asegurar que el árbol esté expandido
 }
 
-// Función para cargar la retícula de imágenes en box4 (NUEVA ARQUITECTURA - Carga bajo demanda)
+// Función para cargar la retícula de imágenes en box4 (OPTIMIZADA)
 async function loadImageGridInBox4(itemGroupPath) {
-  // INMEDIATAMENTE: Limpiar Box 4 para mostrar estado de carga
-  const box4Content = document.getElementById('box4-content');
-  if (box4Content) {
-    box4Content.innerHTML = '<div class="loading-state">Cargando Item Group...</div>';
-    console.log('🧹 Box 4 limpiado INMEDIATAMENTE en loadImageGridInBox4');
+  // OPTIMIZACIÓN: Evitar cargas simultáneas del mismo item group
+  if (navigationInProgress.has(itemGroupPath)) {
+    return; // Ya se está cargando este item group
   }
   
-  console.log('🔍 DEBUG loadImageGridInBox4 - Path recibido:', itemGroupPath);
+  // Cancelar navegación anterior si existe
+  if (navigationTimeouts.has(itemGroupPath)) {
+    clearTimeout(navigationTimeouts.get(itemGroupPath));
+    navigationTimeouts.delete(itemGroupPath);
+  }
   
-  // NO limpiar el path - usar exactamente como viene de Google con @fs:
-  const originalPath = itemGroupPath;
+  // Marcar como en progreso
+  navigationInProgress.add(itemGroupPath);
   
-  // DEBUG: Buscar paths similares en currentWorkingData
-  console.log('🔍 DEBUGGING - Buscando en currentWorkingData con path original...');
-  const itemGroupName = itemGroupPath.split('/').pop();
-  console.log('🔍 Nombre del Item Group extraído:', itemGroupName);
-  
-  const similarPaths = currentWorkingData
-    .filter(item => item['Object Type'] === 'Item Group')
-    .filter(item => item.NamePath && item.NamePath.includes(itemGroupName))
-    .map(item => ({ id: item.Id, name: item.Name, path: item.NamePath }))
-    .slice(0, 5);
-  
-  console.log('🔍 PATHS SIMILARES encontrados:', similarPaths);
-  
-  // ESTRATEGIA MÚLTIPLE PARA ENCONTRAR EL ITEM GROUP
-  let itemGroup = null;
-  let itemGroupId = null;
-  
-  // 1. Buscar en currentWorkingData (datos del árbol) por NamePath exacto
-  itemGroup = currentWorkingData.find(item => {
-    return item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath;
-  });
-  
-  if (itemGroup) {
-    itemGroupId = itemGroup.Id;
-  } else {
-    // 2. Extraer el nombre del Item Group del path (última parte)
+  try {
+    // INMEDIATAMENTE: Limpiar Box 4 para mostrar estado de carga
+    const box4Content = document.getElementById('box4-content');
+    if (box4Content) {
+      box4Content.innerHTML = '<div class="loading-state">Cargando Item Group...</div>';
+    }
+    
+    // Resetear event listeners para evitar duplicados
+    resetItemGroupEventListeners();
+    
+    // NO limpiar el path - usar exactamente como viene de Google con @fs:
+    const originalPath = itemGroupPath;
+    
+    // OPTIMIZACIÓN: Búsqueda más eficiente con early return
     const itemGroupName = itemGroupPath.split('/').pop();
     
-    // Buscar por Name en currentWorkingData
-    itemGroup = currentWorkingData.find(item => {
-      return item['Object Type'] === 'Item Group' && item.Name === itemGroupName;
-    });
+    // ESTRATEGIA MÚLTIPLE PARA ENCONTRAR EL ITEM GROUP (OPTIMIZADA)
+    let itemGroup = null;
+    let itemGroupId = null;
+    
+    // 1. Buscar en currentWorkingData por NamePath exacto (más eficiente primero)
+    itemGroup = currentWorkingData.find(item => 
+      item['Object Type'] === 'Item Group' && item.NamePath === itemGroupPath
+    );
     
     if (itemGroup) {
       itemGroupId = itemGroup.Id;
     } else {
-      // 3. Buscar en originalTreeData (datos completos del árbol)
-      itemGroup = originalTreeData.find(item => {
-        return item['Object Type'] === 'Item Group' && 
-               (item.NamePath === itemGroupPath || item.Name === itemGroupName);
-      });
+      // 2. Buscar por Name en currentWorkingData
+      itemGroup = currentWorkingData.find(item => 
+        item['Object Type'] === 'Item Group' && item.Name === itemGroupName
+      );
       
       if (itemGroup) {
         itemGroupId = itemGroup.Id;
-        console.log('🔍 Item Group encontrado en originalTreeData');
       } else {
-        // 4. Buscar en el caché de Item Groups por nombre
-        if (itemGroupDataCache && itemGroupDataCache.size > 0) {
-          for (let [cachedId, cachedData] of itemGroupDataCache.entries()) {
-            if (cachedData && cachedData.length > 0) {
-              const groupInfo = cachedData.find(item => 
-                item['Object Type'] === 'Item Group' && 
-                (item.Name === itemGroupName || item.NamePath === itemGroupPath)
-              );
-              if (groupInfo) {
-                itemGroupId = cachedId;
-                itemGroup = groupInfo;
-                break;
-              }
-            }
-          }
-        }
-      }
-      
-      // 5. Si aún no se encuentra, crear un objeto básico con los datos disponibles
-      if (!itemGroup && !itemGroupId) {
-        // Intentar extraer ID si está en el formato "Name (ID: 12345)" o similar
-        const idMatch = itemGroupName.match(/\(ID:\s*(\d+)\)/);
-        if (idMatch) {
-          itemGroupId = idMatch[1];
-          itemGroup = {
-            Id: itemGroupId,
-            Name: itemGroupName.replace(/\s*\(ID:\s*\d+\)/, '').trim(),
-            NamePath: itemGroupPath,
-            'Object Type': 'Item Group'
-          };
+        // 3. Buscar en originalTreeData solo si es necesario
+        itemGroup = originalTreeData.find(item => 
+          item['Object Type'] === 'Item Group' && 
+          (item.NamePath === itemGroupPath || item.Name === itemGroupName)
+        );
+        
+        if (itemGroup) {
+          itemGroupId = itemGroup.Id;
         }
       }
     }
-  }
 
-  if (!itemGroup || !itemGroupId) {
-    console.error('❌ Item Group no encontrado en ninguna fuente:', itemGroupPath);
+    if (!itemGroup || !itemGroupId) {
+      addContentToBox4(`
+        <div class="p-3">
+          <p>Item Group no encontrado: "${itemGroupPath}"</p>
+          <p>Por favor, asegúrate de que el Item Group existe y está cargado en el sistema.</p>
+          <button class="btn btn-primary" onclick="location.reload()">Recargar página</button>
+        </div>
+      `);
+      return;
+    }
+
+    // IMPORTANTE: Guardar el Item Group actual globalmente para otras funciones
+    currentItemGroup = itemGroup;
+    
+    // Mostrar estado de carga
     addContentToBox4(`
-      <div class="p-3">
-        <p>Item Group no encontrado: "${itemGroupPath}"</p>
-        <p>Por favor, asegúrate de que el Item Group existe y está cargado en el sistema.</p>
-        <button class="btn btn-primary" onclick="location.reload()">Recargar página</button>
+      <div class="loading-container" style="display: flex; justify-content: center; align-items: center; height: 200px; flex-direction: column;">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: #007bff; margin-bottom: 1rem;"></i>
+        <p>Cargando datos detallados del Item Group...</p>
       </div>
     `);
-    return;
-  }
 
-  // IMPORTANTE: Guardar el Item Group actual globalmente para otras funciones
-  currentItemGroup = itemGroup;
-  
-  // Mostrar estado de carga
-  addContentToBox4(`
-    <div class="loading-container" style="display: flex; justify-content: center; align-items: center; height: 200px; flex-direction: column;">
-      <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: #007bff; margin-bottom: 1rem;"></i>
-      <p>Cargando datos detallados del Item Group...</p>
-    </div>
-  `);
-
-  try {
-    // FASE 2: Cargar datos detallados bajo demanda
-    const detailedData = await loadItemGroupDetails(itemGroupId);
+    // OPTIMIZACIÓN: Verificar caché primero
+    let detailedData = getCachedItemGroup(itemGroupId);
+    
+    if (!detailedData) {
+      // FASE 2: Cargar datos detallados bajo demanda si no están en caché
+      detailedData = await loadItemGroupDetails(itemGroupId);
+      
+      if (detailedData && Object.keys(detailedData).length > 0) {
+        // Guardar en caché para futuras cargas
+        setCachedItemGroup(itemGroupId, detailedData);
+      }
+    }
     
     if (!detailedData || Object.keys(detailedData).length === 0) {
       addContentToBox4('<div class="p-3"><p>No se encontraron datos detallados para este Item Group.</p></div>');
       return;
     }
     
-    // Convertir el objeto transformado a array y separar Item Codes
+    // OPTIMIZACIÓN: Procesar datos más eficientemente
     const allItems = Object.values(detailedData);
     const itemCodes = allItems.filter(item => item['Object Type'] === 'Item Code');
     
-    // Asignar a variable específica para el Item Group cargado (para comentarios y funciones relacionadas)
-    // MANTENER searchableData para búsquedas (datos completos del árbol)
     currentLoadedItemGroupData = allItems;
     
-    // IMPORTANTE: NO sobrescribir currentWorkingData para mantener datos de búsqueda
-    // Solo actualizar allLibraryData para funciones de comentarios que lo necesiten
-    allLibraryData = [...allLibraryData, ...allItems.filter(item => 
-      !allLibraryData.some(existing => existing.Id === item.Id)
-    )];
+    // OPTIMIZACIÓN: Solo agregar elementos nuevos a allLibraryData
+    const existingIds = new Set(allLibraryData.map(item => item.Id));
+    const newItems = allItems.filter(item => !existingIds.has(item.Id));
+    allLibraryData.push(...newItems);
 
     if (itemCodes.length === 0) {
       addContentToBox4('<div class="p-3"><p>No se encontraron Item Codes para este grupo.</p></div>');
       return;
     }
 
-    // Buscar si hay datos del Item Group en los detalles
+    // Buscar datos del Item Group en los detalles
     const itemGroupDetails = allItems.find(item => item['Object Type'] === 'Item Group');
     if (itemGroupDetails) {
-      // Mezclar datos detallados con datos básicos, pero mantener datos básicos cuando los detallados estén vacíos
       currentItemGroup = { ...itemGroupDetails, ...itemGroup };
       
-      // Específicamente para campos críticos, si están vacíos en itemGroupDetails, usar los del itemGroup original
-      if (!currentItemGroup.CMS && itemGroup.CMS) {
-        currentItemGroup.CMS = itemGroup.CMS;
-      }
-      if (!currentItemGroup.Marca && itemGroup.Marca) {
-        currentItemGroup.Marca = itemGroup.Marca;
-      }
-      if (!currentItemGroup['Página de Catálogo'] && itemGroup['Página de Catálogo']) {
-        currentItemGroup['Página de Catálogo'] = itemGroup['Página de Catálogo'];
-      }
+      // Preservar campos críticos del original
+      ['CMS', 'Marca', 'Página de Catálogo'].forEach(field => {
+        if (!currentItemGroup[field] && itemGroup[field]) {
+          currentItemGroup[field] = itemGroup[field];
+        }
+      });
     }
 
-    // Definir las columnas de imágenes en el orden correcto
+    // OPTIMIZACIÓN: Columnas pre-calculadas
     const imageColumns = [
       'WA_Cover_Image_01', 'WA_Cover_Image_02', 'WA_Cover_Image_03', 'WA_Cover_Image_04', 'WA_Cover_Image_05',
       ...Array.from({length: 25}, (_, i) => `WA_Gallery_${String(i+1).padStart(2,'0')}`),
@@ -3260,17 +3407,16 @@ async function loadImageGridInBox4(itemGroupPath) {
     currentItemCodes = [...itemCodes];
     currentImageColumns = [...imageColumns];
 
-    // 🔄 GUARDAR ESTADO ORIGINAL para función de deshacer
+    // 🔄 GUARDAR ESTADO ORIGINAL para función de deshacer (solo si cambió)
     if (!originalItemGroupState || originalItemGroupState.itemGroupPath !== itemGroupPath) {
       originalItemGroupState = {
         itemGroupPath: itemGroupPath,
-        currentItemCodes: JSON.parse(JSON.stringify(itemCodes)), // Deep copy
-        currentImageColumns: JSON.parse(JSON.stringify(imageColumns)), // Deep copy
-        currentItemGroup: JSON.parse(JSON.stringify(currentItemGroup)), // Deep copy
-        currentWorkingData: JSON.parse(JSON.stringify(currentWorkingData)), // Deep copy
+        currentItemCodes: JSON.parse(JSON.stringify(itemCodes)),
+        currentImageColumns: JSON.parse(JSON.stringify(imageColumns)),
+        currentItemGroup: JSON.parse(JSON.stringify(currentItemGroup)),
+        currentWorkingData: JSON.parse(JSON.stringify(currentWorkingData)),
         timestamp: new Date().toISOString()
       };
-      console.log('💾 Estado original guardado para:', itemGroupPath);
     }
 
     // Crear la retícula
@@ -3307,34 +3453,25 @@ async function loadImageGridInBox4(itemGroupPath) {
     
     addContentToBox4(fullHtml);
     
-    // INICIALIZAR VARIABLES CSS INMEDIATAMENTE para evitar glitch visual
+    // OPTIMIZACIÓN: Configuración CSS inmediata
     const container = document.querySelector('.main-container');
     if (container) {
-      // Calcular valores usando el zoom persistente global
       const imageSize = Math.round(80 * globalZoomScale);
       container.style.setProperty('--image-size', imageSize + 'px');
       
-      // Calcular font-scale usando el mismo algoritmo que setupZoomControls
       let fontScale;
-      if (globalZoomScale <= 0.5) {
-        fontScale = '7px';
-      } else if (globalZoomScale <= 0.75) {
-        fontScale = '8px';
-      } else if (globalZoomScale <= 1) {
-        fontScale = '8px';
-      } else if (globalZoomScale <= 1.5) {
-        fontScale = '9px';
-      } else if (globalZoomScale <= 2) {
-        fontScale = '10px';
-      } else if (globalZoomScale <= 2.5) {
-        fontScale = '11px';
-      } else {
-        fontScale = '12px';
-      }
+      if (globalZoomScale <= 0.5) fontScale = '7px';
+      else if (globalZoomScale <= 0.75) fontScale = '8px';
+      else if (globalZoomScale <= 1) fontScale = '8px';
+      else if (globalZoomScale <= 1.5) fontScale = '9px';
+      else if (globalZoomScale <= 2) fontScale = '10px';
+      else if (globalZoomScale <= 2.5) fontScale = '11px';
+      else fontScale = '12px';
+      
       container.style.setProperty('--font-scale', fontScale);
     }
     
-    // Configurar controles de zoom y sincronización después de que se agregue al DOM
+    // OPTIMIZACIÓN: Configuración reducida en un solo timeout más corto
     setTimeout(() => {
       setupZoomControls();
       setupScrollSynchronization();
@@ -3342,33 +3479,17 @@ async function loadImageGridInBox4(itemGroupPath) {
       setupItemGroupDeleteButton();
       setupItemGroupImageClick();
       setupBrandFilter();
-      
-      // Actualizar indicadores de múltiples imágenes después de cargar el grid
       updateMultipleImagesIndicators();
       
-      // ✨ APLICAR COLORES DE APROBACIÓN AL GRID SI ESTÁN ACTIVOS
+      // Aplicar colores de aprobación si están activos
       const treeDiv = document.getElementById('tree');
       if (treeDiv && treeDiv.classList.contains('approval-view-active')) {
         applyApprovalColorsToGrid();
       }
-    }, 500);
-    
-    // Intentar de nuevo la sincronización después de un delay más largo
-    setTimeout(() => {
-      setupScrollSynchronization();
-    }, 1500);
-    
-  } catch (error) {
-    console.error('❌ Error cargando grid de imágenes:', error);
-    addContentToBox4(`
-      <div class="p-3 text-center">
-        <p class="text-danger">❌ Error cargando datos detallados:</p>
-        <p class="small">${error.message}</p>
-        <button class="btn btn-secondary btn-sm" onclick="loadImageGridInBox4('${itemGroupPath}')">
-          Reintentar
-        </button>
-      </div>
-    `);
+    }, 100); // Reducido de 300ms a 100ms
+  } finally {
+    // Remover de navegación en progreso
+    navigationInProgress.delete(itemGroupPath);
   }
 }
 
@@ -3861,23 +3982,15 @@ function regenerateImageGrid() {
 
 // Función para configurar los controles de zoom
 function setupZoomControls() {
-  console.log('Intentando configurar controles de zoom...');
+  if (zoomControlsConfigured) return; // Evitar configuración duplicada
   
-  const container = document.getElementById('imageGridContainer'); // Usar el ID correcto
+  const container = document.getElementById('imageGridContainer');
   const zoomInBtn = document.getElementById('zoomIn');
   const zoomOutBtn = document.getElementById('zoomOut');
   const zoomInfo = document.getElementById('zoomInfo');
   
-  console.log('Elementos encontrados:', {
-    container: !!container,
-    zoomInBtn: !!zoomInBtn,
-    zoomOutBtn: !!zoomOutBtn,
-    zoomInfo: !!zoomInfo
-  });
-  
   if (!container || !zoomInBtn || !zoomOutBtn || !zoomInfo) {
-    console.error('No se pudieron encontrar todos los elementos necesarios para el zoom');
-    return;
+    return; // Salir silenciosamente si no hay elementos
   }
   
   // Usar la variable global persistente en lugar de local
@@ -3895,47 +4008,29 @@ function setupZoomControls() {
     const hoverScale = 1.1;
     container.style.setProperty('--hover-scale', hoverScale);
     
-    // Calcular tamaño de fuente según rangos de zoom
-    // Base: 8px (igual que CSS) para evitar glitch visual
+    // Calcular tamaño de fuente según rangos de zoom optimizado
     let fontScale;
-    if (currentScale <= 0.5) {
-      fontScale = '7px';  // Muy pequeño (50%)
-    } else if (currentScale <= 0.75) {
-      fontScale = '8px';  // Pequeño (50-75%) - IGUAL QUE CSS INICIAL
-    } else if (currentScale <= 1) {
-      fontScale = '8px';  // Normal (75-100%) - IGUAL QUE CSS INICIAL 
-    } else if (currentScale <= 1.5) {
-      fontScale = '9px';  // Mediano pequeño (100-150%)
-    } else if (currentScale <= 2) {
-      fontScale = '10px'; // Mediano (150-200%)
-    } else if (currentScale <= 2.5) {
-      fontScale = '11px'; // Grande (200-250%)
-    } else {
-      fontScale = '12px'; // Muy grande (250%+)
-    }
+    if (currentScale <= 0.5) fontScale = '7px';
+    else if (currentScale <= 0.75) fontScale = '8px';
+    else if (currentScale <= 1) fontScale = '8px';
+    else if (currentScale <= 1.5) fontScale = '9px';
+    else if (currentScale <= 2) fontScale = '10px';
+    else if (currentScale <= 2.5) fontScale = '11px';
+    else fontScale = '12px';
     
     container.style.setProperty('--font-scale', fontScale);
     
-    // Actualizar estado de botones
-    zoomOutBtn.disabled = currentScale <= minScale;
-    zoomInBtn.disabled = currentScale >= maxScale;
-    
-    // Recalcular sincronización de scroll después del cambio de tamaño
-    setTimeout(() => {
-      setupScrollSynchronization();
-    }, 100);
+    // Actualizar zoom global para mantener persistencia
+    globalZoomScale = currentScale;
   }
   
   zoomInBtn.addEventListener('click', () => {
     if (currentScale < maxScale) {
-      // Agregar clase para transiciones de zoom
       container.classList.add('zoom-active');
-      
       currentScale = Math.min(maxScale, currentScale + scaleStep);
-      globalZoomScale = currentScale; // Actualizar variable global
+      globalZoomScale = currentScale;
       updateScale();
       
-      // Remover clase después de la transición
       setTimeout(() => {
         container.classList.remove('zoom-active');
       }, 300);
@@ -3944,14 +4039,11 @@ function setupZoomControls() {
 
   zoomOutBtn.addEventListener('click', () => {
     if (currentScale > minScale) {
-      // Agregar clase para transiciones de zoom
       container.classList.add('zoom-active');
-      
       currentScale = Math.max(minScale, currentScale - scaleStep);
-      globalZoomScale = currentScale; // Actualizar variable global
+      globalZoomScale = currentScale;
       updateScale();
       
-      // Remover clase después de la transición
       setTimeout(() => {
         container.classList.remove('zoom-active');
       }, 300);
@@ -3984,6 +4076,8 @@ function setupZoomControls() {
       saveToGoogleSheets();
     });
   }
+  
+  zoomControlsConfigured = true;
 }
 
 // ===== SISTEMA DE SELECCIÓN Y ASIGNACIÓN DE IMÁGENES =====
@@ -4809,49 +4903,54 @@ function hasImageStarComment(imageName) {
 function getImageComments(imageName) {
   if (!imageName) return '';
   
-  console.log(`🔍 DEBUG getImageComments - Buscando imagen: "${imageName}"`);
+  // OPTIMIZACIÓN: Verificar caché primero
+  if (imageCommentsCache.has(imageName)) {
+    return imageCommentsCache.get(imageName);
+  }
+  
+  let comments = '';
   
   // PASO 1: Buscar en currentWorkingData primero (donde se agregan los comentarios nuevos)
   if (currentWorkingData && currentWorkingData.length > 0) {
     const imageObject = currentWorkingData.find(item => {
-      return item['Object Type'] === 'Image' && 
-             item.Name === imageName;
+      return item['Object Type'] === 'Image' && item.Name === imageName;
     });
     
     if (imageObject && imageObject['WA_VIS_Comment']) {
-      console.log(`✅ Comentario encontrado en currentWorkingData para: ${imageName}`);
-      return imageObject['WA_VIS_Comment'];
+      comments = imageObject['WA_VIS_Comment'];
     }
   }
   
-  // PASO 2: Buscar en allLibraryData como respaldo
-  if (allLibraryData && allLibraryData.length > 0) {
+  // PASO 2: Si no se encontró, buscar en allLibraryData
+  if (!comments && allLibraryData && allLibraryData.length > 0) {
     const imageObject = allLibraryData.find(item => {
-      return item['Object Type'] === 'Image' && 
-             item.Name === imageName;
+      return item['Object Type'] === 'Image' && item.Name === imageName;
     });
     
     if (imageObject && imageObject['WA_VIS_Comment']) {
-      console.log(`✅ Comentario encontrado en allLibraryData para: ${imageName}`);
-      return imageObject['WA_VIS_Comment'];
+      comments = imageObject['WA_VIS_Comment'];
     }
   }
   
-  // PASO 3: Buscar en datos globales como último respaldo
-  if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+  // PASO 3: Si no se encontró, buscar en datos globales como último respaldo
+  if (!comments && window.allItemGroupsData && window.allItemGroupsData.length > 0) {
     const imageObject = window.allItemGroupsData.find(item => {
-      return item['Object Type'] === 'Image' && 
-             item.Name === imageName;
+      return item['Object Type'] === 'Image' && item.Name === imageName;
     });
     
     if (imageObject && imageObject['WA_VIS_Comment']) {
-      console.log(`✅ Comentario encontrado en allItemGroupsData para: ${imageName}`);
-      return imageObject['WA_VIS_Comment'];
+      comments = imageObject['WA_VIS_Comment'];
     }
   }
   
-  console.log(`❌ No se encontraron comentarios para imagen: ${imageName}`);
-  return '';
+  // OPTIMIZACIÓN: Guardar en caché (incluso si está vacío para evitar búsquedas futuras)
+  if (imageCommentsCache.size >= IMAGE_CACHE_SIZE) {
+    const firstKey = imageCommentsCache.keys().next().value;
+    imageCommentsCache.delete(firstKey);
+  }
+  imageCommentsCache.set(imageName, comments);
+  
+  return comments;
 }
 
 // Función para formatear fecha para mostrar
@@ -5132,6 +5231,10 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
       status: automaticStatus
     };
     
+    console.log('🔍 DEBUG - Nuevo comentario creado:', newComment);
+    console.log('📝 DEBUG - Texto del comentario capturado:', `"${commentText}"`);
+    console.log('📝 DEBUG - textoComentario en objeto:', `"${newComment.textoComentario}"`);
+    
     // Extraer el contexto correcto según el tipo de comentario
     let contextForData = context;
     
@@ -5359,6 +5462,8 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
   // Crear el string del nuevo comentario en formato Excel
   const newCommentString = `${newComment.usuario}¦${newComment.fechaHora}¦${newComment.tipoComentario}¦${newComment.textoComentario}¦${newComment.status}`;
   console.log('📋 String de comentario formateado:', newCommentString);
+  console.log('📝 DEBUG - textoComentario en string:', `"${newComment.textoComentario}"`);
+  console.log('📝 DEBUG - newComment completo:', JSON.stringify(newComment, null, 2));
   
   if (type === 'image' && imageName) {
     // Es un comentario de imagen - buscar en datos procesados (Object Type = 'Image')
@@ -6074,6 +6179,31 @@ function parseCommentForDebugging(commentText) {
 function updateTablesAfterComment() {
   console.log('🔄 === INICIO updateTablesAfterComment (Nueva versión con commentedItemsData) ===');
   
+  // DETECTAR SI EL USUARIO ESTÁ EN EL VISUALIZADOR DE GRUPOS
+  const box4Content = document.getElementById('box4-content');
+  const isInVisualizerGrid = box4Content && box4Content.querySelector('.image-grid-container');
+  const hasActiveItemGroup = currentItemGroup !== null;
+  
+  if (isInVisualizerGrid && hasActiveItemGroup) {
+    console.log('🎯 DETECTADO: Usuario está en visualizador de grupos - NO cambiar vista automáticamente');
+    console.log('📝 Actualizando solo los datos internos sin cambiar la vista...');
+    
+    // Solo actualizar los datos internos sin cambiar la interfaz visual
+    initializeCommentedItemsData();
+    console.log(`✅ commentedItemsData actualizada con ${commentedItemsData.length} items con comentarios`);
+    
+    // Actualizar solo las estadísticas en segundo plano
+    setTimeout(() => {
+      regenerateStatsTablesFromCommentedData();
+    }, 100);
+    
+    console.log('✅ === FIN updateTablesAfterComment (Modo visualizador - sin cambio de vista) ===');
+    return; // Salir temprano para mantener la vista del visualizador
+  }
+  
+  // CONTINUAR CON FLUJO NORMAL SOLO SI NO ESTÁ EN VISUALIZADOR
+  console.log('📊 Usuario en vista de datos - procediendo con actualización completa...');
+  
   // BANDERA: Evitar doble actualización de tablas
   window.isUpdatingCommentTables = true;
   console.log('🔒 BANDERA: isUpdatingCommentTables = true - deshabilitando restauración de filtros');
@@ -6109,7 +6239,6 @@ function updateTablesAfterComment() {
   console.log('📊 Regenerando tablas desde commentedItemsData...');
   
   // 3.1 Actualizar tabla de inventario - buscar box4Content directamente
-  const box4Content = document.getElementById('box4-content');
   if (box4Content) {
     console.log('📋 Regenerando tabla de inventario desde commentedItemsData...');
     regenerateInventoryTableFromCommentedData();
@@ -7604,34 +7733,48 @@ function handleImageRemoval(event, imageCell, imageThumbnail) {
   updateCurrentWorkingDataWithGridState(100);
 }
 
+// Banderas para evitar configuraciones duplicadas de event listeners
+let itemGroupDeleteButtonConfigured = false;
+let itemGroupImageClickConfigured = false;
+let zoomControlsConfigured = false;
+let brandFilterConfigured = false;
+
+// Función para resetear las banderas cuando el DOM cambie
+function resetItemGroupEventListeners() {
+  itemGroupDeleteButtonConfigured = false;
+  itemGroupImageClickConfigured = false;
+  zoomControlsConfigured = false;
+  brandFilterConfigured = false;
+}
+
+// Función para limpiar caché de comentarios de imágenes cuando sea necesario
+function clearImageCommentsCache() {
+  imageCommentsCache.clear();
+}
+
 // Función para configurar el event listener del botón de basura del Item Group
 function setupItemGroupDeleteButton() {
+  if (itemGroupDeleteButtonConfigured) return; // Evitar duplicados
+  
   const deleteBtn = document.querySelector('.item-group-delete-btn');
   if (deleteBtn) {
     deleteBtn.addEventListener('click', function(event) {
       event.preventDefault();
       event.stopPropagation();
-      console.log('🗑️ CLICK en botón de basura del Item Group detectado');
       handleItemGroupImageRemoval();
     });
-    console.log('✅ Event listener del botón de basura del Item Group configurado');
-  } else {
-    console.log('❌ No se encontró el botón de basura del Item Group');
+    itemGroupDeleteButtonConfigured = true;
   }
 }
 
 // Función para configurar el click en la imagen del Item Group
 function setupItemGroupImageClick() {
+  if (itemGroupImageClickConfigured) return; // Evitar duplicados
+  
   const groupImage = document.querySelector('.group-thumbnail');
   if (groupImage) {
-    // Remover listener anterior si existe
-    groupImage.removeEventListener('click', handleItemGroupImageClick);
-    
-    // Agregar nuevo listener
     groupImage.addEventListener('click', handleItemGroupImageClick);
-    console.log('✅ Event listener del click en imagen del Item Group configurado');
-  } else {
-    console.log('❌ No se encontró la imagen del Item Group (.group-thumbnail)');
+    itemGroupImageClickConfigured = true;
   }
 }
 
@@ -7692,10 +7835,11 @@ function handleItemGroupImageRemoval() {
 
 // Función para configurar el filtro de marcas
 function setupBrandFilter() {
+  if (brandFilterConfigured) return; // Evitar configuración duplicada
+  
   const brandFilter = document.getElementById('brandFilter');
   if (!brandFilter) {
-    console.log('❌ No se encontró el elemento brandFilter');
-    return;
+    return; // Salir silenciosamente si no hay elemento
   }
   
   brandFilter.addEventListener('change', function() {
@@ -7703,7 +7847,7 @@ function setupBrandFilter() {
     filterGridByBrand(selectedBrand);
   });
   
-  console.log('✅ Filtro de marcas configurado');
+  brandFilterConfigured = true; // Marcar como configurado
 }
 
 // Función para filtrar el grid por marca
@@ -10112,14 +10256,14 @@ function toggleCleanView() {
     console.log('🔄 Activando vista de datos...');
     clearAllBoxes();
     toggleButton.innerHTML = '<i class="fa-solid fa-eye" style="margin-right: 8px;"></i>Visualizador';
-    toggleButton.className = 'btn btn-secondary btn-compact';
+    toggleButton.className = 'btn btn-warning btn-compact'; // AMARILLO para "Visualizador"
     console.log('✅ Vista de datos activada - mostrando tabla de inventario');
   } else {
     // Restaurar vista normal - mostrar árbol/visualizador
     console.log('🔄 Restaurando vista normal...');
     restoreNormalView();
     toggleButton.innerHTML = '<i class="fa-solid fa-table-list" style="margin-right: 6px;"></i>Información';
-    toggleButton.className = 'btn btn-warning btn-compact';
+    toggleButton.className = 'btn btn-secondary btn-compact'; // MORADO para "Información"
     console.log('✅ Vista normal restaurada - mostrando elementos del visualizador');
   }
 }
@@ -13363,6 +13507,12 @@ async function saveToGoogleSheets() {
 
 // Función para auto-guardar un comentario individual inmediatamente después de crearlo
 function autoSaveComment(newComment, type, imageName = null, context = null) {
+  console.log('🚀 === INICIO autoSaveComment ===');
+  console.log('📝 DEBUG - newComment recibido:', newComment);
+  console.log('📝 DEBUG - type:', type);
+  console.log('📝 DEBUG - imageName:', imageName);
+  console.log('📝 DEBUG - context:', context);
+  
   const currentDate = getLocalDateTime();
   const currentUser = getCurrentUser();
   const currentUserInfo = getCurrentUserInfo();
@@ -13372,8 +13522,30 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
   let completeCommentHistory = '';
   
   if (type === 'image' && imageName) {
-    // Para imágenes, obtener comentarios actualizados (ya incluyen el nuevo)
-    completeCommentHistory = getImageComments(imageName) || '';
+    // Para imágenes, obtener comentarios actualizados directamente de los datos ya modificados
+    console.log('📝 DEBUG - Buscando comentarios actualizados para imagen:', imageName);
+    
+    // PASO 1: Buscar en currentWorkingData primero (donde se agregó el comentario)
+    let imageInCurrentWorking = currentWorkingData.find(item => 
+      item['Object Type'] === 'Image' && item.Name === imageName
+    );
+    
+    if (imageInCurrentWorking && imageInCurrentWorking['WA_VIS_Comment']) {
+      completeCommentHistory = imageInCurrentWorking['WA_VIS_Comment'];
+      console.log('✅ DEBUG - Comentarios encontrados en currentWorkingData:', completeCommentHistory);
+    } else {
+      // PASO 2: Buscar en allLibraryData como respaldo
+      let imageInAllLibrary = allLibraryData.find(item => 
+        item['Object Type'] === 'Image' && item.Name === imageName
+      );
+      
+      if (imageInAllLibrary && imageInAllLibrary['WA_VIS_Comment']) {
+        completeCommentHistory = imageInAllLibrary['WA_VIS_Comment'];
+        console.log('✅ DEBUG - Comentarios encontrados en allLibraryData:', completeCommentHistory);
+      } else {
+        console.log('❌ DEBUG - No se encontraron comentarios para imagen:', imageName);
+      }
+    }
   } else {
     // Para Item Groups/Codes, buscar en los datos usando el contexto
     if (context) {
@@ -13564,8 +13736,8 @@ function showAutoSaveNotification(message, type = 'success') {
     position: fixed;
     bottom: 20px;
     right: 20px;
-    background: ${type === 'success' ? '#6c757d' : '#dc3545'};
-    color: white;
+    background: ${type === 'success' ? '#6c757d' : type === 'warning' ? '#ffc107' : '#dc3545'};
+    color: ${type === 'warning' ? '#000' : 'white'};
     padding: 6px 12px;
     border-radius: 6px;
     font-size: 12px;
@@ -13585,7 +13757,8 @@ function showAutoSaveNotification(message, type = 'success') {
     notification.style.opacity = '1';
   }, 100);
   
-  // Ocultar y remover después de 2 segundos (más rápido)
+  // Ocultar y remover después del tiempo apropiado
+  const displayTime = type === 'warning' ? 3000 : 2000; // Más tiempo para warnings
   setTimeout(() => {
     notification.style.opacity = '0';
     setTimeout(() => {
@@ -13593,7 +13766,7 @@ function showAutoSaveNotification(message, type = 'success') {
         notification.parentNode.removeChild(notification);
       }
     }, 300);
-  }, 2000);
+  }, displayTime);
 }
 
 // Función para obtener solo los Item Codes que están visualmente visibles (no filtrados)

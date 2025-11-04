@@ -386,26 +386,8 @@ html, body {
   justify-content: center !important;
 }
 
-/* ESTADO VISUALIZADOR - Amarillo con texto negro */
+/* BOTÓN "INFORMACIÓN" - Morado con texto blanco */
 #cleanViewToggle.btn.btn-secondary {
-  background-color: #FA9F3A !important;
-  border-color: #FA9F3A !important;
-  color: #ffffff !important; /* Texto negro */
-  width: 140px !important;
-  font-weight: 543 !important; /* Peso mayor */
-  font-size: 14px !important; /* Tamaño de fuente */
-}
-
-#cleanViewToggle.btn.btn-secondary:hover {
-  background-color: #FFAA0A !important;
-  border-color: #FFAA0A !important;
-  color: #ffffff !important; /* Texto negro en hover */
-  font-weight: 543 !important; /* Peso mayor */
-  font-size: 14px !important; /* Mantener tamaño de fuente */
-}
-
-/* ESTADO DATOS - Azul con texto blanco */
-#cleanViewToggle.btn.btn-warning {
   background-color: #4347FF !important;
   border-color: #4347FF !important;
   color: #ffffff !important; /* Texto blanco */
@@ -414,9 +396,27 @@ html, body {
   font-size: 14px !important; /* Tamaño de fuente */
 }
 
-#cleanViewToggle.btn.btn-warning:hover {
+#cleanViewToggle.btn.btn-secondary:hover {
   background-color: #3539CC !important;
   border-color: #3539CC !important;
+  color: #ffffff !important; /* Texto blanco en hover */
+  font-weight: 543 !important; /* Peso mayor */
+  font-size: 14px !important; /* Mantener tamaño de fuente */
+}
+
+/* BOTÓN "VISUALIZADOR" - Amarillo con texto blanco */
+#cleanViewToggle.btn.btn-warning {
+  background-color: #FA9F3A !important;
+  border-color: #FA9F3A !important;
+  color: #ffffff !important; /* Texto blanco */
+  width: 140px !important;
+  font-weight: 543 !important; /* Peso mayor */
+  font-size: 14px !important; /* Tamaño de fuente */
+}
+
+#cleanViewToggle.btn.btn-warning:hover {
+  background-color: #FFAA0A !important;
+  border-color: #FFAA0A !important;
   color: #ffffff !important; /* Texto blanco en hover */
   font-weight: 543 !important; /* Peso mayor */
   font-size: 14px !important; /* Mantener tamaño de fuente */
