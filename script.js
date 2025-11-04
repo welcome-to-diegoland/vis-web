@@ -900,8 +900,46 @@ function navigateToItemGroup(itemGroupId) {
   // PASO 3: Verificar resultado de búsqueda
   if (!itemGroup) {
     console.error(`❌ ITEM GROUP NO ENCONTRADO: ID ${itemGroupId}`);
-    alert('Item Group no encontrado');
-    return;
+    console.log(`🔍 DEBUG - Datasets disponibles:`, datasets);
+    console.log(`🔍 DEBUG - ID buscado:`, typeof itemGroupId, itemGroupId);
+    
+    // Intentar búsqueda más amplia en caso de que sea un Item Code/Image ID
+    let relatedItemGroup = null;
+    
+    // Buscar en allLibraryData cualquier elemento con este ID
+    if (allLibraryData && allLibraryData.length > 0) {
+      const elementWithId = allLibraryData.find(item => 
+        item.ID === itemGroupId || String(item.ID) === String(itemGroupId)
+      );
+      
+      if (elementWithId) {
+        console.log(`🔍 DEBUG - Elemento encontrado:`, elementWithId['Object Type'], elementWithId.Name || elementWithId['Item Code']);
+        
+        // Si es un Item Code o Image, buscar su Item Group
+        if (elementWithId['Object Type'] === 'Item Code' || elementWithId['Object Type'] === 'Image') {
+          const itemGroupsValue = elementWithId['Item Groups'] || elementWithId['itemGroups'];
+          if (itemGroupsValue) {
+            const itemGroupId = String(itemGroupsValue).split(',')[0].trim();
+            console.log(`🔍 DEBUG - Buscando Item Group relacionado:`, itemGroupId);
+            
+            // Buscar el Item Group real
+            relatedItemGroup = allLibraryData.find(item => 
+              item['Object Type'] === 'Item Group' && 
+              (item.ID === itemGroupId || String(item.ID) === String(itemGroupId))
+            );
+          }
+        }
+      }
+    }
+    
+    if (relatedItemGroup) {
+      console.log(`✅ DEBUG - Item Group relacionado encontrado:`, relatedItemGroup.Name);
+      itemGroup = relatedItemGroup;
+      foundIn = 'allLibraryData (búsqueda relacionada)';
+    } else {
+      alert('Item Group no encontrado');
+      return;
+    }
   }
   
   // PASO 4: Verificar NamePath o construirlo
@@ -4627,6 +4665,7 @@ function parseCommentedItem(item) {
     // Datos básicos del objeto
     Name: item.Name || '',
     'Object Type': objectType || '',
+    objectType: objectType || '', // Agregada para compatibilidad con estadísticas
     cms: item.cms || '',
     marca: item.marca || '',
     titulo: item.titulo || item.Name || '',
@@ -6380,12 +6419,74 @@ function applyFiltersToCommentedData(data, viewState) {
     }
     
     if (filters.analistaStatus) {
-      filteredData = filteredData.filter(item => item.ultimoStatus === filters.analistaStatus);
+      filteredData = filteredData.filter(item => {
+        if (filters.analistaStatus === 'activos') {
+          // "Activos" = elementos con status de Revision o Diseño
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return (status.includes('revision') || status.includes('revisión') || status.includes('review')) ||
+                 (status.includes('diseño') || status.includes('diseno') || status.includes('design'));
+        } else if (filters.analistaStatus === 'diseño') {
+          // "Diseño" = elementos con status que contenga diseño
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return status.includes('diseño') || status.includes('diseno') || status.includes('design');
+        } else if (filters.analistaStatus === 'revisión') {
+          // "Revisión" = elementos con status que contenga revisión
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return status.includes('revision') || status.includes('revisión') || status.includes('review');
+        } else if (filters.analistaStatus === 'completado') {
+          // "Completado" = elementos con status que contenga completado
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return status.includes('completado') || status.includes('completed') || status.includes('complete');
+        } else if (filters.analistaStatus === 'cancelado') {
+          // "Cancelado" = elementos con status que contenga cancelado
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel');
+        } else {
+          // Filtros específicos de status (comparación exacta)
+          return item.ultimoStatus === filters.analistaStatus;
+        }
+      });
       console.log(`🔍 Filtro status analista aplicado: ${filters.analistaStatus} (${filteredData.length} items)`);
     }
     
     if (filters.diseñadorStatus) {
-      filteredData = filteredData.filter(item => item.ultimoStatus === filters.diseñadorStatus);
+      filteredData = filteredData.filter(item => {
+        if (filters.diseñadorStatus === 'activos') {
+          // "Activos" = elementos con status de Revision o Diseño
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return (status.includes('revision') || status.includes('revisión') || status.includes('review')) ||
+                 (status.includes('diseño') || status.includes('diseno') || status.includes('design'));
+        } else if (filters.diseñadorStatus === 'diseño') {
+          // "Diseño" = elementos con status que contenga diseño
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return status.includes('diseño') || status.includes('diseno') || status.includes('design');
+        } else if (filters.diseñadorStatus === 'revisión') {
+          // "Revisión" = elementos con status que contenga revisión
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return status.includes('revision') || status.includes('revisión') || status.includes('review');
+        } else if (filters.diseñadorStatus === 'completado') {
+          // "Completado" = elementos con status que contenga completado
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return status.includes('completado') || status.includes('completed') || status.includes('complete');
+        } else if (filters.diseñadorStatus === 'cancelado') {
+          // "Cancelado" = elementos con status que contenga cancelado
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          return status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel');
+        } else {
+          // Filtros específicos de status (comparación exacta)
+          return item.ultimoStatus === filters.diseñadorStatus;
+        }
+      });
       console.log(`🔍 Filtro status diseñador aplicado: ${filters.diseñadorStatus} (${filteredData.length} items)`);
     }
   }
@@ -7041,9 +7142,13 @@ function updateCommentCellsBySelector() {
 }
 
 // Función para actualizar las tablas de estadísticas cuando cambian los datos
+// Bandera para prevenir regeneración de estadísticas durante filtrado
+let isApplyingStatsFilter = false;
+
 function updateStatsTablesOnDataChange() {
   console.log('📈 === INICIO updateStatsTablesOnDataChange ===');
   console.log('🔍 Estado actual - isCleanViewActive:', isCleanViewActive);
+  console.log('🔍 isApplyingStatsFilter:', isApplyingStatsFilter);
   
   // Solo actualizar si estamos en vista de datos (no en visualizador)
   if (!isCleanViewActive) {
@@ -7051,11 +7156,26 @@ function updateStatsTablesOnDataChange() {
     return;
   }
   
-  // PASO 1: Crear datos temporales para estadísticas SIN afectar originalInventoryData
-  console.log('🔄 Calculando estadísticas al vuelo desde allLibraryData...');
+  // No actualizar si estamos aplicando un filtro (previene parpadeo)
+  if (isApplyingStatsFilter) {
+    console.log('🚫 No actualizando stats - aplicando filtro activo');
+    return;
+  }
+  
+  // PASO 1: Usar commentedItemsData como fuente única para estadísticas y filtros
+  console.log('🔄 Calculando estadísticas desde commentedItemsData...');
   let statsData = [];
-  if (allLibraryData && allLibraryData.length > 0) {
-    // INCLUIR TANTO ITEM CODES COMO IMAGES para estadísticas completas
+  
+  if (commentedItemsData && commentedItemsData.length > 0) {
+    // Usar directamente commentedItemsData que ya está procesado
+    statsData = commentedItemsData.map(item => item);
+    console.log('✅ Datos para estadísticas:', statsData.length, 'elementos (desde commentedItemsData)');
+    console.log('🔍 Breakdown:', {
+      itemCodes: statsData.filter(x => x.objectType === 'Item Code').length,
+      images: statsData.filter(x => x.objectType === 'Image').length
+    });
+  } else if (allLibraryData && allLibraryData.length > 0) {
+    // Fallback a allLibraryData si commentedItemsData no está disponible
     statsData = allLibraryData
       .filter(row => (row['Object Type'] === 'Item Code' || row['Object Type'] === 'Image') && row['WA_VIS_Comment'])
       .map(row => {
@@ -7076,7 +7196,7 @@ function updateStatsTablesOnDataChange() {
         };
       });
     
-    console.log('✅ Datos temporales para estadísticas:', statsData.length, 'elementos (Item Codes + Images)');
+    console.log('✅ Datos temporales para estadísticas:', statsData.length, 'elementos (desde allLibraryData fallback)');
     console.log('🔍 Breakdown:', {
       itemCodes: statsData.filter(x => x.objectType === 'Item Code').length,
       images: statsData.filter(x => x.objectType === 'Image').length
@@ -11011,20 +11131,42 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false) {
         console.log('🔄 Reaplicando filtros activos después de sincronización:', currentFilters);
         
         // Si hay un filtro de diseñador activo, simular el click para reaplicarlo
-        if (currentFilters.disenador !== undefined) {
-          const filterElement = document.querySelector(`[data-type="designer"][data-user="${currentFilters.disenador || ''}"]`);
+        if (currentFilters.disenador !== undefined || currentFilters.diseñadorStatus !== undefined) {
+          const designerUser = currentFilters.disenador || '';
+          const designerStatus = currentFilters.diseñadorStatus || '';
+          
+          let filterElement = null;
+          if (designerStatus) {
+            // Buscar por usuario + status específico
+            filterElement = document.querySelector(`[data-type="designer"][data-user="${designerUser}"][data-status="${designerStatus}"]`);
+          } else {
+            // Buscar solo por usuario (columna total)
+            filterElement = document.querySelector(`[data-type="designer"][data-user="${designerUser}"][data-status=""]`);
+          }
+          
           if (filterElement) {
-            console.log('🎯 Reaplicando filtro de diseñador:', currentFilters.disenador || 'vacío');
+            console.log('🎯 Reaplicando filtro de diseñador:', { user: designerUser, status: designerStatus });
             setTimeout(() => {
               filterElement.click();
             }, 100);
           }
         }
         // Si hay un filtro de analista activo, simular el click para reaplicarlo  
-        else if (currentFilters.analista !== undefined) {
-          const filterElement = document.querySelector(`[data-type="analyst"][data-user="${currentFilters.analista || ''}"]`);
+        else if (currentFilters.analista !== undefined || currentFilters.analistaStatus !== undefined) {
+          const analystUser = currentFilters.analista || '';
+          const analystStatus = currentFilters.analistaStatus || '';
+          
+          let filterElement = null;
+          if (analystStatus) {
+            // Buscar por usuario + status específico
+            filterElement = document.querySelector(`[data-type="analyst"][data-user="${analystUser}"][data-status="${analystStatus}"]`);
+          } else {
+            // Buscar solo por usuario (columna total)
+            filterElement = document.querySelector(`[data-type="analyst"][data-user="${analystUser}"][data-status=""]`);
+          }
+          
           if (filterElement) {
-            console.log('🎯 Reaplicando filtro de analista:', currentFilters.analista || 'vacío');
+            console.log('🎯 Reaplicando filtro de analista:', { user: analystUser, status: analystStatus });
             setTimeout(() => {
               filterElement.click();
             }, 100);
@@ -14545,11 +14687,81 @@ function handleStatsTableClick(event) {
 
 function applyStatsTableFilter(userKey, status, type) {
   console.log('🔍 Aplicando filtro de tabla de estadísticas:', { userKey, status, type });
+  console.log('🔍 CommentedItemsData disponible:', commentedItemsData?.length || 0);
+  console.log('🔍 UserKey es "all"?:', userKey === 'all');
+  
+  // ESPECIAL: Para filas de totales (userKey="all"), usar una lógica simplificada
+  if (userKey === 'all') {
+    console.log('🔍 Aplicando filtro de TOTALES - solo por status sin regenerar estadísticas');
+    
+    if (!commentedItemsData || commentedItemsData.length === 0) {
+      console.log('❌ No hay commentedItemsData disponible');
+      return;
+    }
+    
+    let filteredData = [...commentedItemsData];
+    
+    // Aplicar solo filtro de status si existe
+    if (status && status !== '') {
+      filteredData = filteredData.filter(item => {
+        if (status === 'activos') {
+          if (!item.ultimoStatus) return false;
+          const statusLower = item.ultimoStatus.toLowerCase();
+          return (statusLower.includes('revision') || statusLower.includes('revisión') || statusLower.includes('review')) ||
+                 (statusLower.includes('diseño') || statusLower.includes('diseno') || statusLower.includes('design'));
+        } else if (status === 'revisión') {
+          if (!item.ultimoStatus) return false;
+          const statusLower = item.ultimoStatus.toLowerCase();
+          return statusLower.includes('revision') || statusLower.includes('revisión') || statusLower.includes('review');
+        } else if (status === 'completado') {
+          if (!item.ultimoStatus) return false;
+          const statusLower = item.ultimoStatus.toLowerCase();
+          return statusLower.includes('completado') || statusLower.includes('completed') || statusLower.includes('complete');
+        } else if (status === 'cancelado') {
+          if (!item.ultimoStatus) return false;
+          const statusLower = item.ultimoStatus.toLowerCase();
+          return statusLower.includes('cancelado') || statusLower.includes('cancelled') || statusLower.includes('cancel');
+        } else if (status === 'diseño') {
+          if (!item.ultimoStatus) return false;
+          const statusLower = item.ultimoStatus.toLowerCase();
+          return statusLower.includes('diseño') || statusLower.includes('diseno') || statusLower.includes('design');
+        }
+        return true; // Si no hay status específico, mostrar todos
+      });
+    }
+    
+    console.log('✅ Datos filtrados para totales:', filteredData.length, 'de', commentedItemsData.length);
+    
+    // Regenerar tabla SIN activar bandera (para evitar bucle)
+    const box4Content = document.getElementById('box4-content');
+    if (box4Content) {
+      const convertedData = filteredData.map(item => item.originalItem);
+      const newTableHTML = generateImageInventoryTable(convertedData, true);
+      box4Content.innerHTML = newTableHTML;
+      
+      // Reconfigurar event listeners
+      setTimeout(() => {
+        setupInventoryClickListeners();
+      }, 100);
+    }
+    
+    // Marcar elemento activo visualmente
+    markStatsElementAsActive(userKey, status, type);
+    
+    return; // Salir sin más procesamiento
+  }
   
   try {
+    // Activar bandera para prevenir regeneración de estadísticas (solo para filtros de usuario específico)
+    isApplyingStatsFilter = true;
+    
     // En vista limpia, usar el sistema de commentedItemsData
     if (isCleanViewActive && commentedItemsData && commentedItemsData.length > 0) {
       console.log('📊 Aplicando filtro usando commentedItemsData...');
+      
+      // Debug: mostrar algunos ejemplos de ultimoStatus disponibles
+      const statusSamples = commentedItemsData.slice(0, 10).map(item => item.ultimoStatus).filter(s => s);
+      console.log('🔍 Ejemplos de ultimoStatus en datos:', [...new Set(statusSamples)]);
       
       // Configurar inventoryViewState con el filtro solicitado
       if (!inventoryViewState) {
@@ -14564,12 +14776,18 @@ function applyStatsTableFilter(userKey, status, type) {
       
       // Configurar filtro actual
       if (type === 'analyst') {
-        inventoryViewState.activeFilters.analista = userKey;
+        // Para userKey="all", no filtrar por usuario específico
+        if (userKey !== 'all') {
+          inventoryViewState.activeFilters.analista = userKey;
+        }
         if (status) {
           inventoryViewState.activeFilters.analistaStatus = status;
         }
       } else if (type === 'designer') {
-        inventoryViewState.activeFilters.diseñador = userKey;
+        // Para userKey="all", no filtrar por usuario específico
+        if (userKey !== 'all') {
+          inventoryViewState.activeFilters.diseñador = userKey;
+        }
         if (status) {
           inventoryViewState.activeFilters.diseñadorStatus = status;
         }
@@ -14622,6 +14840,11 @@ function applyStatsTableFilter(userKey, status, type) {
       
       // Marcar elemento activo visualmente
       markStatsElementAsActive(userKey, status, type);
+      
+      // Desactivar bandera después de un breve delay
+      setTimeout(() => {
+        isApplyingStatsFilter = false;
+      }, 500);
       
       return; // Salir aquí para vista limpia
     }
@@ -14753,6 +14976,11 @@ function applyInventoryTableFilter(filteredData) {
     console.error('❌ Error regenerando tabla filtrada:', error);
     // Restaurar datos originales en caso de error
     window.originalInventoryData = previousData;
+  } finally {
+    // Desactivar bandera para permitir regeneración de estadísticas
+    setTimeout(() => {
+      isApplyingStatsFilter = false;
+    }, 500); // Pequeño delay para evitar regeneración inmediata
   }
 }
 
