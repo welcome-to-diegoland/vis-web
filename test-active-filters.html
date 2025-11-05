@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Active Filters</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div style="padding: 20px;">
+        <h2>Test de Estados de Filtros</h2>
+        
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Total</th>
+                    <th>Activos</th>
+                    <th>Revisión</th>
+                    <th>Diseño</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="clickable-name" data-user="usuario1" data-type="designer">Usuario 1</td>
+                    <td class="clickable-stat" data-user="usuario1" data-status="" data-type="designer">15</td>
+                    <td class="clickable-stat" data-user="usuario1" data-status="activos" data-type="designer">8</td>
+                    <td class="clickable-stat active" data-user="usuario1" data-status="revisión" data-type="designer">5</td>
+                    <td class="clickable-stat" data-user="usuario1" data-status="diseño" data-type="designer">2</td>
+                </tr>
+                <tr>
+                    <td class="clickable-name" data-user="usuario2" data-type="designer">Usuario 2</td>
+                    <td class="clickable-stat" data-user="usuario2" data-status="" data-type="designer">12</td>
+                    <td class="clickable-stat" data-user="usuario2" data-status="activos" data-type="designer">6</td>
+                    <td class="clickable-stat" data-user="usuario2" data-status="revisión" data-type="designer">4</td>
+                    <td class="clickable-stat" data-user="usuario2" data-status="diseño" data-type="designer">2</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="margin-top: 20px;">
+            <p><strong>Estado normal:</strong> Sin clase especial</p>
+            <p><strong>Estado activo:</strong> Con clase 'active' - debe verse con fondo gris claro y texto blanco</p>
+            <p>En la tabla arriba, la celda "5" (Revisión del Usuario 1) tiene la clase 'active' aplicada.</p>
+        </div>
+        
+        <script>
+            // Test simple para verificar los event listeners
+            document.querySelectorAll('.clickable-stat').forEach(element => {
+                element.addEventListener('click', function() {
+                    console.log('Clic en:', this.dataset.user, this.dataset.status);
+                    
+                    // Limpiar todas las clases active
+                    document.querySelectorAll('.clickable-stat.active').forEach(el => {
+                        el.classList.remove('active');
+                    });
+                    
+                    // Agregar active al elemento clicado
+                    this.classList.add('active');
+                });
+            });
+        </script>
+    </div>
+</body>
+</html>

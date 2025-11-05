@@ -6914,6 +6914,22 @@ button[id="btn-cargar-categoria"]:disabled {
   font-weight: bold !important;
 }
 
+/* Estilos para filtros activos - Estado persistente con gris claro y texto blanco */
+.stats-table .clickable-name.active,
+.stats-table .clickable-stat.active {
+  background-color: #9CA3AF !important; /* Gris claro */
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+/* Aún más específico para filtros activos */
+.stats-table td.clickable-name.active,
+.stats-table td.clickable-stat.active {
+  background-color: #9CA3AF !important; /* Gris claro */
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
 .stats-table .clickable-name,
 .stats-table .clickable-stat {
   cursor: pointer;
@@ -7230,6 +7246,23 @@ button[id="btn-cargar-categoria"]:disabled {
 #box3-content .stats-table td.clickable-name.selected,
 #box3-content .stats-table td.clickable-stat.selected {
   background-color: #c2c2c2 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Estado activo - gris claro persistente con texto blanco - MÁXIMA ESPECIFICIDAD */
+.stats-table td.active,
+.stats-table td.clickable-name.active,
+.stats-table td.clickable-stat.active,
+.stats-table .clickable-name.active,
+.stats-table .clickable-stat.active,
+#tree .stats-table td.active,
+#tree .stats-table td.clickable-name.active,
+#tree .stats-table td.clickable-stat.active,
+#box3-content .stats-table td.active,
+#box3-content .stats-table td.clickable-name.active,
+#box3-content .stats-table td.clickable-stat.active {
+  background-color: #9CA3AF !important; /* Gris claro */
   color: #ffffff !important;
   font-weight: 700 !important;
 }

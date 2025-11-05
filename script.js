@@ -6735,10 +6735,10 @@ function regenerateInventoryTableFromCommentedData() {
           <div class="inventory-header">
             <h3>Comentarios del Visualizador</h3>
             <div class="button-group">
-              <button class="inventory-btn inventory-btn-primary" onclick="assignItemModal()">
+              <button id="assignDesignerBtn" class="inventory-btn inventory-btn-primary">
                 <i class="fas fa-user-plus"></i> Asignar
               </button>
-              <button class="inventory-btn inventory-btn-secondary" onclick="filterModal()">
+              <button id="openInventoryFilters" class="inventory-btn inventory-btn-secondary">
                 <i class="fas fa-filter"></i> Filtros
               </button>
               <button class="inventory-btn inventory-btn-secondary" onclick="clearInventoryFilter()">
@@ -6758,6 +6758,7 @@ function regenerateInventoryTableFromCommentedData() {
     // Reconfigurar event listeners después de regenerar
     setTimeout(() => {
       setupInventoryClickListeners();
+      setupAssignButtonListener();
     }, 100);
   } else {
     console.log('❌ No se encontró box4-content para regenerar tabla');
@@ -11185,6 +11186,7 @@ function clearAllBoxes() {
             // CRÍTICO: Configurar event listeners después de insertar HTML
             setTimeout(() => {
               setupInventoryClickListeners();
+              setupAssignButtonListener();
               restoreInventoryViewState();
             }, 100);
           }
@@ -11198,6 +11200,7 @@ function clearAllBoxes() {
       
       // CRÍTICO: Configurar event listeners después de insertar HTML
       setupInventoryClickListeners();
+      setupAssignButtonListener();
       
       // Restaurar estado después de generar la tabla con más tiempo
       setTimeout(() => {
@@ -11806,11 +11809,8 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
       filterButton.onclick = openInventoryFiltersModal;
     }
     
-    // Configurar el botón de asignar diseñadora
-    const assignButton = document.getElementById('assignDesignerBtn');
-    if (assignButton) {
-      assignButton.onclick = openAssignDesignerModal;
-    }
+    // Configurar el botón de asignar diseñadora con múltiples intentos
+    setupAssignButtonListener();
   }, 100);
 
   // Guardar datos originales para filtros SOLO si no existen ya (para preservar asignaciones)
@@ -12809,6 +12809,7 @@ function regenerateInventoryTable(filteredData) {
     
     // Reconfigurar event listeners
     setupInventoryClickListeners();
+    setupAssignButtonListener();
     
     // Actualizar stats
     const statsElement = document.querySelector('.inventory-stats');
@@ -12850,6 +12851,30 @@ function normalizeExistingAssignments() {
       }
     }
   });
+}
+
+// Función para configurar el listener del botón de asignar con reintentos
+function setupAssignButtonListener(attempts = 0) {
+  const maxAttempts = 10;
+  const assignButton = document.getElementById('assignDesignerBtn');
+  
+  if (assignButton) {
+    // Remover listener previo si existe
+    assignButton.onclick = null;
+    // Asignar el nuevo listener
+    assignButton.onclick = openAssignDesignerModal;
+    console.log('Assign button listener attached successfully');
+    return;
+  }
+  
+  // Si no se encuentra el botón y aún tenemos intentos
+  if (attempts < maxAttempts) {
+    setTimeout(() => {
+      setupAssignButtonListener(attempts + 1);
+    }, 50);
+  } else {
+    console.warn('Assign button not found after', maxAttempts, 'attempts');
+  }
 }
 
 window.closeAssignDesignerModal = function() {
@@ -13841,11 +13866,27 @@ function setupStatsTableListeners() {
       // Limpiar selecciones anteriores
       clearStatsTableSelections();
       
-      // Marcar como seleccionado
+      // Marcar como seleccionado (temporal) y activo (persistente)
       this.classList.add('selected');
+      this.classList.add('active');
       
       const user = this.dataset.user;
       const type = this.dataset.type;
+      
+      // Guardar el filtro activo en inventoryViewState
+      if (!inventoryViewState) inventoryViewState = {};
+      if (!inventoryViewState.activeFilters) inventoryViewState.activeFilters = {};
+      
+      if (type === 'designer') {
+        inventoryViewState.activeFilters.diseñador = user;
+        // Limpiar status cuando se selecciona solo usuario
+        delete inventoryViewState.activeFilters.diseñadorStatus;
+      } else if (type === 'analyst') {
+        inventoryViewState.activeFilters.analista = user;
+        // Limpiar status cuando se selecciona solo usuario  
+        delete inventoryViewState.activeFilters.analistaStatus;
+      }
+      
       filterInventoryByUser(user, type);
     });
   });
@@ -13856,12 +13897,26 @@ function setupStatsTableListeners() {
       // Limpiar selecciones anteriores
       clearStatsTableSelections();
       
-      // Marcar como seleccionado
+      // Marcar como seleccionado (temporal) y activo (persistente)
       this.classList.add('selected');
+      this.classList.add('active');
       
       const user = this.dataset.user;
       const status = this.dataset.status;
       const type = this.dataset.type;
+      
+      // Guardar el filtro activo en inventoryViewState
+      if (!inventoryViewState) inventoryViewState = {};
+      if (!inventoryViewState.activeFilters) inventoryViewState.activeFilters = {};
+      
+      if (type === 'designer') {
+        inventoryViewState.activeFilters.diseñador = user;
+        inventoryViewState.activeFilters.diseñadorStatus = status;
+      } else if (type === 'analyst') {
+        inventoryViewState.activeFilters.analista = user;
+        inventoryViewState.activeFilters.analistaStatus = status;
+      }
+      
       filterInventoryByUserAndStatus(user, status, type);
     });
   });
@@ -13874,7 +13929,12 @@ function clearStatsTableSelections() {
     return;
   }
   
-  // Limpiar todas las selecciones anteriores
+  // Limpiar solo las selecciones temporales (selected), mantener las activas (active) hasta que se establezca nueva
+  document.querySelectorAll('.clickable-name.selected, .clickable-stat.selected').forEach(element => {
+    element.classList.remove('selected');
+  });
+  
+  // Limpiar las clases active de filtros anteriores SOLAMENTE al establecer un nuevo filtro
   document.querySelectorAll('.clickable-name.active, .clickable-stat.active').forEach(element => {
     element.classList.remove('active');
   });
@@ -14161,6 +14221,7 @@ function updateInventoryTableDirectly(filteredData) {
   // Reconfigurar event listeners
   setTimeout(() => {
     setupInventoryClickListeners();
+    setupAssignButtonListener();
   }, 100);
   
   console.log('✅ === FIN updateInventoryTableDirectly - Tabla actualizada con', filteredData.length, 'filas ===');
