@@ -4611,25 +4611,21 @@ function setupImageSystemEventListeners() {
     }
   });
 
-  // Event listener adicional para headers clickeables (asignación masiva por columna)
+  // Event listener para headers clickeables (asignación masiva por columna)
+  // ÚNICO listener para evitar duplicados
   container.addEventListener('click', function(event) {
-    // Múltiples formas de detectar el header section para mejor compatibilidad
+    // Detectar header section con múltiples métodos de fallback
     let headerSection = event.target.closest('.header-section');
     
     // Fallback 1: Si el target es directamente un header-section
-    if (!headerSection && event.target.classList.contains('header-section')) {
+    if (!headerSection && event.target.classList && event.target.classList.contains('header-section')) {
       headerSection = event.target;
     }
     
-    // Fallback 2: Buscar por selector más amplio
-    if (!headerSection) {
-      headerSection = event.target.closest('.section-header .header-section');
-    }
-    
-    // Fallback 3: Buscar en elementos padre
+    // Fallback 2: Buscar en elementos padre manualmente
     if (!headerSection) {
       let element = event.target;
-      for (let i = 0; i < 5 && element; i++) {
+      for (let i = 0; i < 3 && element; i++) {
         if (element.classList && element.classList.contains('header-section')) {
           headerSection = element;
           break;
@@ -4638,44 +4634,12 @@ function setupImageSystemEventListeners() {
       }
     }
     
-    if (headerSection) {
+    // Solo ejecutar SI se encontró un header y NO se ha procesado ya
+    if (headerSection && !event.headerProcessed) {
+      // Marcar evento como procesado para evitar duplicados
+      event.headerProcessed = true;
+      
       console.log('🎯 Header section detectado:', headerSection.textContent.trim());
-      handleColumnBulkAssignment(event, headerSection);
-    }
-  });
-  
-  // Event listener alternativo más específico para headers
-  container.addEventListener('click', function(event) {
-    // Detectar específicamente clics en headers de columnas
-    if (event.target.matches('.header-section') || 
-        event.target.closest('.header-section')) {
-      
-      const headerSection = event.target.matches('.header-section') ? 
-                           event.target : 
-                           event.target.closest('.header-section');
-      
-      console.log('🎯 Header alternativo detectado:', headerSection.textContent.trim());
-      handleColumnBulkAssignment(event, headerSection);
-    }
-  });
-  
-  // Event listener adicional con delegación más robusta
-  container.addEventListener('mousedown', function(event) {
-    // Usar mousedown como alternativa para mejor compatibilidad
-    const headerSection = event.target.closest('.header-section');
-    if (headerSection) {
-      // Marcar que se hizo click en un header
-      headerSection.setAttribute('data-clicked', 'true');
-      setTimeout(() => {
-        headerSection.removeAttribute('data-clicked');
-      }, 100);
-    }
-  });
-  
-  container.addEventListener('mouseup', function(event) {
-    const headerSection = event.target.closest('.header-section');
-    if (headerSection && headerSection.hasAttribute('data-clicked')) {
-      console.log('🎯 Header detectado via mousedown/mouseup:', headerSection.textContent.trim());
       handleColumnBulkAssignment(event, headerSection);
     }
   });
@@ -8630,12 +8594,27 @@ function handleColumnBulkAssignment(event, headerSection) {
   event.preventDefault();
   event.stopPropagation();
   
-  console.log('🎯 Iniciando asignación masiva por columna...');
-  console.log('🔍 Navegador:', navigator.userAgent);
-  console.log('🔍 Evento tipo:', event.type);
-  
   // Determinar la sección y columna del header clickeado
   const headerText = headerSection.textContent.trim();
+  
+  // PROTECCIÓN ANTI-DUPLICADOS: Verificar si ya se está procesando esta columna
+  if (window.bulkAssignmentInProgress) {
+    console.log('⏸️ Asignación masiva ya en progreso, ignorando...');
+    return;
+  }
+  
+  // Marcar como en progreso
+  window.bulkAssignmentInProgress = true;
+  
+  // Limpiar flag después de un tiempo razonable
+  setTimeout(() => {
+    window.bulkAssignmentInProgress = false;
+  }, 1000);
+  
+  console.log('🎯 Iniciando asignación masiva por columna...');
+  console.log('🔍 Header:', headerText);
+  console.log('🔍 Navegador:', navigator.userAgent);
+  console.log('🔍 Evento tipo:', event.type);
   const sectionContainer = headerSection.closest('.section-wrapper');
   
   if (!sectionContainer) {
@@ -8705,6 +8684,11 @@ function handleColumnBulkAssignment(event, headerSection) {
     // CASO 2: No hay imagen de trabajo - eliminar toda la columna (solo visibles)
     handleBulkRemoveFromColumn(visibleColumnCells, section, columnNumber);
   }
+  
+  // Liberar flag de protección inmediatamente después de completar
+  setTimeout(() => {
+    window.bulkAssignmentInProgress = false;
+  }, 100);
 }
 
 // Función para asignar imagen de trabajo a toda una columna
