@@ -2730,9 +2730,7 @@ function transformKeyValueData(keyValueData) {
     const id = row['ID'];
     const objectType = row['Object Type'];
     const dataConcatenated = row['data_concatenated'];
-    
-    console.log(`   [${index + 1}] Procesando: ID=${id}, ObjectType="${objectType}", data_concatenated="${dataConcatenated}"`);
-    
+        
     if (!transformedItems[id]) {
       console.log(`     🆕 Creando nuevo item para ID: ${id}`);
       transformedItems[id] = {
@@ -7719,16 +7717,10 @@ function updateStatsTablesOnDataChange() {
   
   if (debugBox1) {
     const hasStatsContainer = debugBox1.querySelector('.stats-table-container');
-    console.log('📊 box1 tiene .stats-table-container:', !!hasStatsContainer);
-    console.log('📊 box1 innerHTML actual length:', debugBox1.innerHTML.length);
-    console.log('📊 box1 innerHTML primeros 100 chars:', debugBox1.innerHTML.substring(0, 100));
   }
   
   if (debugBox3) {
     const hasStatsContainer = debugBox3.querySelector('.stats-table-container');
-    console.log('📊 box3 tiene .stats-table-container:', !!hasStatsContainer);
-    console.log('📊 box3 innerHTML actual length:', debugBox3.innerHTML.length);
-    console.log('📊 box3 innerHTML primeros 100 chars:', debugBox3.innerHTML.substring(0, 100));
   }
   
   // Configurar event listeners para filtros clickeables
@@ -7740,7 +7732,6 @@ function updateStatsTablesOnDataChange() {
     // DESACTIVAR PROTECCIÓN ANTI-BUCLE
     setTimeout(() => {
       isUpdatingStats = false;
-      console.log('🔓 UNLOCKED: updateStatsTablesOnDataChange completada');
     }, 100);
   }
 }
@@ -7748,19 +7739,15 @@ function updateStatsTablesOnDataChange() {
 // Función wrapper con debouncing para llamadas externas
 function safeUpdateStatsTablesOnDataChange() {
   if (logFunctionCall('safeUpdateStatsTablesOnDataChange')) return;
-  
-  console.log('🛡️ safeUpdateStatsTablesOnDataChange llamada');
-  
+    
   // VERIFICAR ACTIVIDAD DE FILTROS ANTES DE CONTINUAR
   if (window.recentFilterActivity && (Date.now() - window.recentFilterActivity) < 3000) {
-    console.log('🚫 BLOCKED: Actividad de filtros muy reciente - no programar timeout');
     return;
   }
   
   // Cancelar cualquier actualización pendiente
   if (statsUpdateTimeout) {
     clearTimeout(statsUpdateTimeout);
-    console.log('⏰ Cancelando actualización pendiente');
   }
   
   // Programar nueva actualización con debouncing
@@ -9538,22 +9525,11 @@ async function preProcessInventoryData() {
         // Parsear los datos concatenados para extraer atributos individuales
         const parsedData = parseUniversalConcatenatedData(item);
         
-        // DEBUG: Log para imagen específica
-        if (dataConcatenated && dataConcatenated.includes('99-020-178.jpg')) {
-          console.log(`🔧 FOUND IMAGE 99-020-178.jpg: ID=${id}, ObjectType=${objectType}`);
-          console.log('🔧 data_concatenated:', dataConcatenated);
-          console.log('🔧 PARSED DATA:', parsedData);
-          console.log('🔧 KEYS en parsedData:', Object.keys(parsedData));
-        }
         
         // Convertir cada campo parseado a una fila Attribute-Value
         Object.keys(parsedData).forEach(attribute => {
           if (attribute !== 'Item Groups' && attribute !== 'ID' && attribute !== 'Object Type') {
             const value = parsedData[attribute] || '';
-            // DEBUG para imagen específica
-            if (id === '99680') {
-              console.log(`� ATTRIBUTE-VALUE: ${attribute} = ${value}`);
-            }
             attributeValueData.push({
               'Item Groups': itemGroups,
               'ID': id,
@@ -9566,7 +9542,6 @@ async function preProcessInventoryData() {
       }
     });
     
-    console.log(`📊 Datos convertidos a Attribute-Value: ${attributeValueData.length} registros`);
 
     // PASO 3: Transformar los datos de Attribute-Value al formato expandido
     console.log('🔄 PASO 3: Transformando datos de formato Attribute-Value...');
@@ -11828,12 +11803,9 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
     // CORREGIR: Después de agregar comentarios, siempre actualizar datos para reflejar cambios de Analista/Diseñador
     const isAfterCommentUpdate = window.justAddedComment === true;
     
-    console.log('🔍 DEBUGGING: hasRecentAssignments =', hasRecentAssignments);
-    console.log('🔍 DEBUGGING: isAfterCommentUpdate =', isAfterCommentUpdate);
-    console.log('🔍 DEBUGGING: window.justAddedComment =', window.justAddedComment);
+
     
     if (hasRecentAssignments && !isAfterCommentUpdate) {
-      console.log('🔒 PRESERVANDO originalInventoryData - contiene asignaciones recientes no reflejadas en tableRowsData');
       // Solo actualizar comentarios en originalInventoryData sin perder asignaciones
       originalInventoryData.forEach(originalRow => {
         const matchingTableRow = tableRowsData.find(tableRow => {
@@ -11853,7 +11825,6 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
           }
         });
         if (matchingTableRow && matchingTableRow['WA_VIS_Comment'] !== originalRow['WA_VIS_Comment']) {
-          console.log(`🔄 Actualizando solo comentarios para ${originalRow.name}: preservando diseñador "${originalRow.diseñador}"`);
           originalRow['WA_VIS_Comment'] = matchingTableRow['WA_VIS_Comment'];
           originalRow.ultimoStatus = matchingTableRow.ultimoStatus;
           originalRow.ultimaFechaEstatus = matchingTableRow.ultimaFechaEstatus;
@@ -11861,7 +11832,6 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
       });
       
       // CRÍTICO: Sincronizar asignaciones desde originalInventoryData hacia tableRowsData
-      console.log('🔄 SINCRONIZANDO asignaciones desde originalInventoryData hacia tableRowsData');
       let syncCount = 0;
       originalInventoryData.forEach(originalRow => {
         if (originalRow.diseñador && originalRow.diseñador.trim() !== '') {
@@ -12246,11 +12216,6 @@ function setupInventoryClickListeners() {
   const clickableCommentsClean = document.querySelectorAll('.clickable-comment-clean');
   const clickableStatusesClean = document.querySelectorAll('.clickable-status-clean');
   
-  console.log(`🔗 Configurando ${clickableComments.length} elementos clickeables de comentarios`);
-  console.log(` Configurando ${clickableStatuses.length} elementos clickeables de status`);
-  console.log(`🧹 Configurando ${clickableCommentsClean.length} elementos clickeables de comentarios LIMPIOS`);
-  console.log(`🧹 Configurando ${clickableStatusesClean.length} elementos clickeables de status LIMPIOS`);
-  console.log(`📊 Datos disponibles: currentWorkingData=${currentWorkingData?.length || 0}, allLibraryData=${allLibraryData?.length || 0}`);
   
   if (!allLibraryData || allLibraryData.length === 0) {
     console.warn('⚠️ allLibraryData no está disponible. Los clicks en Item Codes/Groups no funcionarán.');
@@ -15189,24 +15154,24 @@ function saveInventoryViewState() {
     let activeFilters = {};
     
     // Buscar elementos seleccionados usando las clases correctas (.active)
-    const selectedElements = document.querySelectorAll('.clickable-name.active, .clickable-stat.active');
-    console.log('🔍 Elementos seleccionados encontrados:', selectedElements.length);
+    // Solo buscar el elemento de usuario principal, no todos los contadores de status
+    const selectedUserElements = document.querySelectorAll('.clickable-name.active');
+    console.log('🔍 Elementos de usuario seleccionados encontrados:', selectedUserElements.length);
     
-    if (selectedElements.length > 0) {
-      // Si hay elementos seleccionados actualmente, usar esos
-      selectedElements.forEach(element => {
+    if (selectedUserElements.length > 0) {
+      // Solo guardar el filtro de usuario principal, no los contadores de status
+      selectedUserElements.forEach(element => {
         const user = element.dataset.user;
-        const status = element.dataset.status;
         const type = element.dataset.type;
         
-        console.log('💾 Guardando filtro activo actual:', { user, status, type, element: element.textContent });
+        console.log('💾 Guardando filtro activo principal:', { user, type, element: element.textContent });
         
         if (type === 'analyst') {
           activeFilters.analista = user;
-          if (status) activeFilters.analistaStatus = status;
+          // NO guardar analistaStatus automáticamente desde elementos activos
         } else if (type === 'designer') {
           activeFilters.diseñador = user;
-          if (status) activeFilters.diseñadorStatus = status;
+          // NO guardar diseñadorStatus automáticamente desde elementos activos
         }
       });
     } else if (inventoryViewState.activeFilters && Object.keys(inventoryViewState.activeFilters).length > 0) {
@@ -15333,22 +15298,22 @@ function restoreInventoryViewState() {
           // Determinar qué tipo de filtro aplicar basado en activeFilters
           const activeFilters = inventoryViewState.activeFilters;
           
-          if (activeFilters.analista || activeFilters.analistaStatus) {
-            // Aplicar filtro de analista con o sin status
+          if (activeFilters.analista) {
+            // Aplicar filtro de analista SIN status para mantener la vista completa del usuario
             console.log('🎯 Aplicando filtro de analista restaurado:', {
               userKey: activeFilters.analista,
-              status: activeFilters.analistaStatus || null,
+              status: null, // Siempre null para mostrar todos los items del usuario
               type: 'analyst'
             });
-            applyStatsTableFilter(activeFilters.analista, activeFilters.analistaStatus || null, 'analyst');
-          } else if (activeFilters.diseñador || activeFilters.diseñadorStatus) {
-            // Aplicar filtro de diseñador con o sin status
+            applyStatsTableFilter(activeFilters.analista, null, 'analyst');
+          } else if (activeFilters.diseñador) {
+            // Aplicar filtro de diseñador SIN status para mantener la vista completa del usuario
             console.log('🎯 Aplicando filtro de diseñador restaurado:', {
               userKey: activeFilters.diseñador,
-              status: activeFilters.diseñadorStatus || null,
+              status: null, // Siempre null para mostrar todos los items del usuario
               type: 'designer'
             });
-            applyStatsTableFilter(activeFilters.diseñador, activeFilters.diseñadorStatus || null, 'designer');
+            applyStatsTableFilter(activeFilters.diseñador, null, 'designer');
           }
           
           // Restaurar selecciones visuales
