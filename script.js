@@ -8873,16 +8873,36 @@ function compactImagesInSection(itemCode, section, removedColIndex) {
     }
   }
   
+  // CRÍTICO: Preservar comentarios de todas las imágenes ANTES de limpiar datos
+  const imageCommentsBackup = new Map();
+  for (let col = removedColIndex; col < rowCells.length; col++) {
+    const cellData = rowCells[col];
+    if (cellData && cellData.hasImage) {
+      const img = cellData.cell.querySelector('.image-thumbnail');
+      const imageName = img.getAttribute('data-filename') || '';
+      if (imageName) {
+        // Obtener comentarios ANTES de que se borren los datos
+        const comments = getImageComments(imageName);
+        if (comments && comments.trim()) {
+          imageCommentsBackup.set(imageName, comments);
+          console.log(`💾 BACKUP: Preservando comentarios para ${imageName}:`, comments);
+        }
+      }
+    }
+  }
+  
   // Crear un array con solo las imágenes que vienen después de la posición eliminada
   const imagesToShift = [];
   for (let i = removedColIndex + 1; i < rowCells.length; i++) {
     const cellData = rowCells[i];
     if (cellData && cellData.hasImage) {
       const img = cellData.cell.querySelector('.image-thumbnail');
+      const imageName = img.getAttribute('data-filename') || '';
       imagesToShift.push({
         src: img.src,
-        filename: img.getAttribute('data-filename') || '',
-        colIndex: cellData.colIndex
+        filename: imageName,
+        colIndex: cellData.colIndex,
+        preservedComments: imageCommentsBackup.get(imageName) || ''
       });
     }
   }
@@ -8913,19 +8933,28 @@ function compactImagesInSection(itemCode, section, removedColIndex) {
     if (newPosition < rowCells.length) {
       const targetCell = rowCells[newPosition]?.cell;
       if (targetCell) {
-        // Insertar la imagen en su nueva posición usando el mismo formato que generateImageCellHTML
-        targetCell.innerHTML = `
-          <div class="image-thumbnail-container">
-            <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageData.filename}" 
-                 alt="${imageData.filename}" class="image-thumbnail" 
-                 data-filename="${imageData.filename}"
-                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageData.filename}';">
-            <div class="image-controls">
-              <button class="btn-remove" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>
-            </div>
-            <div class="image-name">${imageData.filename}</div>
-          </div>
-        `;
+        // CRÍTICO: Restaurar comentarios ANTES de generar la celda
+        if (imageData.preservedComments) {
+          console.log(`🔄 RESTORE: Restaurando comentarios para ${imageData.filename} antes de regenerar celda`);
+          // Buscar y actualizar el objeto imagen en currentWorkingData
+          const imageObj = currentWorkingData.find(item => 
+            item['Object Type'] === 'Image' && item.Name === imageData.filename
+          );
+          if (imageObj) {
+            imageObj['WA_VIS_Comment'] = imageData.preservedComments;
+          }
+          
+          // También actualizar en allLibraryData si existe
+          const imageObjLib = allLibraryData?.find(item => 
+            item['Object Type'] === 'Image' && item.Name === imageData.filename
+          );
+          if (imageObjLib) {
+            imageObjLib['WA_VIS_Comment'] = imageData.preservedComments;
+          }
+        }
+        
+        // Usar generateImageCell para preservar comentarios e indicadores
+        targetCell.innerHTML = generateImageCell(imageData.filename, itemCode);
         
         // Actualizar currentWorkingData con la nueva posición
         const newColumnName = getColumnName(section, newPosition);

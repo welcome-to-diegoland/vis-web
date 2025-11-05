@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>New Comment Preservation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        button { margin: 5px; padding: 8px 15px; }
+    </style>
+</head>
+<body>
+    <h1>Test: New Comment Preservation During Image Movement</h1>
+    
+    <div class="test-section">
+        <h3>Test Scenario</h3>
+        <p>1. Add a new comment to an image</p>
+        <p>2. Trigger image movement/compaction</p>
+        <p>3. Verify comment is still preserved</p>
+        
+        <button onclick="runTest()">Run Test</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Results</h3>
+        <div id="testResults"></div>
+    </div>
+    
+    <script>
+        function addTestResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('testResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            resultsDiv.appendChild(resultDiv);
+        }
+        
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+        }
+        
+        function runTest() {
+            addTestResult('Starting new comment preservation test...', 'warning');
+            
+            // Check if we're in the main app context
+            if (typeof window.parent !== 'undefined' && window.parent.currentWorkingData) {
+                addTestResult('Found main app context, running integrated test', 'success');
+                testInMainApp();
+            } else {
+                addTestResult('Running standalone test simulation', 'warning');
+                testStandalone();
+            }
+        }
+        
+        function testInMainApp() {
+            const parent = window.parent;
+            
+            // Test 1: Check if addNewCommentToData function exists
+            if (typeof parent.addNewCommentToData === 'function') {
+                addTestResult('✓ addNewCommentToData function found', 'success');
+            } else {
+                addTestResult('✗ addNewCommentToData function not found', 'error');
+                return;
+            }
+            
+            // Test 2: Check current working data
+            if (parent.currentWorkingData && parent.currentWorkingData.length > 0) {
+                addTestResult(`✓ Found ${parent.currentWorkingData.length} items in currentWorkingData`, 'success');
+            } else {
+                addTestResult('✗ No currentWorkingData available', 'error');
+                return;
+            }
+            
+            // Test 3: Find an image to test with
+            const imageItems = parent.currentWorkingData.filter(item => item['Object Type'] === 'Image');
+            addTestResult(`Found ${imageItems.length} image items in working data`, 'success');
+            
+            if (imageItems.length > 0) {
+                const testImage = imageItems[0];
+                addTestResult(`Testing with image: ${testImage.Name}`, 'success');
+                
+                // Test 4: Check initial comment state
+                const initialComments = parent.getImageComments(testImage.Name);
+                addTestResult(`Initial comments: "${initialComments}"`, 'success');
+                
+                // Test 5: Add a test comment
+                const testComment = {
+                    usuario: 'Test User',
+                    fechaHora: new Date().toLocaleString(),
+                    tipoComentario: 'Observación',
+                    textoComentario: 'Test comment for preservation testing',
+                    status: 'En Revisión'
+                };
+                
+                addTestResult('Adding test comment...', 'warning');
+                parent.addNewCommentToData(testImage.Name, testComment, 'image', testImage.Name);
+                
+                // Test 6: Verify comment was added
+                setTimeout(() => {
+                    const updatedComments = parent.getImageComments(testImage.Name);
+                    if (updatedComments && updatedComments.includes('Test comment for preservation testing')) {
+                        addTestResult('✓ Comment successfully added to data', 'success');
+                        
+                        // Test 7: Simulate image movement
+                        addTestResult('Simulating image movement...', 'warning');
+                        if (typeof parent.compactImagesInSection === 'function') {
+                            // Find the item code that contains this image
+                            const itemCode = parent.currentItemCodes?.find(item => {
+                                const imageColumns = ['Foto 1', 'Foto 2', 'Foto 3', 'Foto 4', 'Foto 5'];
+                                return imageColumns.some(col => item[col] === testImage.Name);
+                            });
+                            
+                            if (itemCode) {
+                                // Simulate compaction
+                                parent.compactImagesInSection(itemCode['Item Code'] || itemCode['Name'], 'gallery', 0);
+                                
+                                // Test 8: Check if comment survived movement
+                                setTimeout(() => {
+                                    const finalComments = parent.getImageComments(testImage.Name);
+                                    if (finalComments && finalComments.includes('Test comment for preservation testing')) {
+                                        addTestResult('✓ Comment preserved after image movement!', 'success');
+                                    } else {
+                                        addTestResult('✗ Comment lost after image movement!', 'error');
+                                        addTestResult(`Final comments: "${finalComments}"`, 'error');
+                                    }
+                                }, 500);
+                            } else {
+                                addTestResult('Could not find item code for testing movement', 'warning');
+                            }
+                        } else {
+                            addTestResult('compactImagesInSection function not found', 'error');
+                        }
+                    } else {
+                        addTestResult('✗ Comment was not properly added to data', 'error');
+                        addTestResult(`Updated comments: "${updatedComments}"`, 'error');
+                    }
+                }, 200);
+            } else {
+                addTestResult('No image items available for testing', 'warning');
+            }
+        }
+        
+        function testStandalone() {
+            addTestResult('This test requires the main application to be loaded.', 'warning');
+            addTestResult('Please run this test from within the main vis-web application.', 'warning');
+        }
+    </script>
+</body>
+</html>
