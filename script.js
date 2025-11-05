@@ -1325,21 +1325,14 @@ async function startDataLoading() {
   console.log(`📥 Iniciando carga de datos en background... (Intento ${dataLoadingAttempts}/${MAX_LOADING_ATTEMPTS})`);
   
   try {
-    // Cargar Google Sheets
+    // Cargar Google Sheets (ahora incluye optimización de caché en paralelo)
     await loadFromGoogleSheets();
-
-    // Intentar cargar cache optimizado (importante pero no crítico)
-    console.log('🔄 Intentando optimizar caché...');
-    const cacheLoaded = await loadCacheData();
     
     dataLoaded = true;
     dataLoadingAttempts = 0; // Reset contador en caso de éxito
-    console.log('✅ Todos los datos cargados exitosamente');
+    console.log('✅ Datos críticos cargados - app lista');
     
-    // Mostrar advertencia si no hay caché pero sí hay datos
-    if (!cacheLoaded) {
-      showPerformanceWarning();
-    }
+    // Nota: El caché puede seguir cargándose en background
 
     // Verificar si puede acceder a la app
     checkAppAccess();
@@ -1907,63 +1900,99 @@ async function loadFromGoogleSheets() {
       // El Apps Script maneja CORS correctamente
     }
 
-    // PASO 1: Cargar datos críticos de la pestaña 'category' para el árbol
-    try {
-      const categoryData = await loadGoogleSheetAsCSV(
-        GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.CSV_URL,
-        'category'
-      );
-      
+    // CARGAS EN PARALELO: Iniciar todas las cargas al mismo tiempo
+    console.log('🚀 Iniciando cargas paralelas: category, asset_groups y caché...');
+    
+    // Crear las promesas para las 3 cargas simultáneas
+    const categoryPromise = loadGoogleSheetAsCSV(
+      GOOGLE_SHEETS_CONFIG.CATEGORY_SHEET.CSV_URL,
+      'category'
+    ).then(categoryData => {
       if (!categoryData || categoryData.length === 0) {
         throw new Error('No se pudieron cargar datos de la pestaña category');
       }
+      console.log('✅ category cargado en paralelo');
+      return categoryData;
+    });
 
-      // Procesar y filtrar datos para el árbol
+    const assetGroupsPromise = loadGoogleSheetAsCSV(null, 'asset_groups')
+      .then(assetGroupsData => {
+        console.log('✅ asset_groups cargado en paralelo');
+        return assetGroupsData || [];
+      })
+      .catch(error => {
+        console.warn('⚠️ asset_groups falló (no crítico):', error.message);
+        return []; // Devolver array vacío en caso de error
+      });
+
+    const cachePromise = optimizeCache()
+      .then(() => {
+        console.log('✅ Caché optimizado en paralelo');
+        return true;
+      })
+      .catch(error => {
+        console.warn('⚠️ Optimización de caché falló (no crítico):', error.message);
+        return false;
+      });
+
+    // ESPERAR POR TODAS LAS CARGAS ANTES DE CONTINUAR
+    console.log('⏳ Esperando que TODAS las cargas terminen...');
+    
+    try {
+      const [categoryData, assetGroupsData, cacheResult] = await Promise.all([
+        categoryPromise,
+        assetGroupsPromise, 
+        cachePromise
+      ]);
+      
+      console.log('🎉 TODAS las cargas paralelas completadas');
+      
+      // Procesar category (crítico)
       processCategoryData(categoryData);
       categoryLoaded = true;
-      console.log('✅ Datos críticos (category) cargados exitosamente');
+      console.log('✅ category procesado');
       
-    } catch (categoryError) {
-      console.error('❌ Error crítico cargando category:', categoryError);
-      throw categoryError; // Re-lanzar error crítico
-    }
-
-    // PASO 2: Cargar asset_groups (no crítico - puede fallar sin detener la app)
-    try {
-      console.log('🔄 Cargando asset_groups usando Apps Script proxy...');
-      const assetGroupsData = await loadGoogleSheetAsCSV(null, 'asset_groups');
-      
+      // Procesar asset_groups
       if (assetGroupsData && assetGroupsData.length > 0) {
         currentAssetGroups = assetGroupsData;
-        console.log('✅ asset_groups cargado con éxito');
-        console.log('📊 Cantidad de elementos en asset_groups:', assetGroupsData.length);
-        console.log('📊 Primer elemento de asset_groups:', assetGroupsData[0]);
-        console.log('📊 Headers/Keys disponibles:', Object.keys(assetGroupsData[0] || {}));
+        console.log('✅ asset_groups procesado:', assetGroupsData.length, 'elementos');
         
-        // IMPORTANTE: Poblar el dropdown AHORA que ya tenemos los datos
-        console.log('🔄 Poblando dropdown de galerías con datos recién cargados...');
-        
-        // Usar setTimeout para asegurar que el DOM esté listo
+        // Poblar dropdown
         setTimeout(() => {
           populateGalleryDropdown(currentAssetGroups);
         }, 100);
-        
       } else {
-        console.warn('⚠️ asset_groups está vacío o no se pudo procesar');
+        console.warn('⚠️ asset_groups está vacío');
         currentAssetGroups = [];
       }
-    } catch (assetGroupsError) {
-      console.warn('⚠️ No se pudo cargar asset_groups (no crítico):', assetGroupsError.message);
-      console.warn('📋 Continuando sin galerías...');
-      currentAssetGroups = [];
       
-      // No lanzar error - asset_groups no es crítico para la funcionalidad básica
+      console.log('✅ TODO completado - incluyendo pre-procesamiento');
+      
+    } catch (error) {
+      console.error('❌ Error en cargas paralelas:', error);
+      throw error;
     }
+
+
+    assetGroupsPromise.then(assetGroupsData => {
+      if (assetGroupsData && assetGroupsData.length > 0) {
+        currentAssetGroups = assetGroupsData;
+        console.log('� asset_groups procesado:', assetGroupsData.length, 'elementos');
+        
+        // Poblar dropdown cuando esté listo
+        setTimeout(() => {
+          populateGalleryDropdown(currentAssetGroups);
+        }, 100);
+      } else {
+        console.warn('⚠️ asset_groups está vacío');
+        currentAssetGroups = [];
+      }
+    });
+
+    // El caché continuará cargándose en background
+    console.log('� Caché continuará optimizándose en background...');
     
-    // Si llegamos aquí y categoryLoaded es true, consideramos éxito general
-    if (categoryLoaded) {
-      console.log('✅ Carga de datos completada (con o sin componentes opcionales)');
-    }
+    console.log('✅ Carga inicial completada - UI disponible');
     
   } catch (error) {
     console.error('❌ Error crítico cargando desde Google Sheets:', error);
@@ -9612,7 +9641,7 @@ async function optimizeCache() {
     
     console.log('✅ Cache optimizado exitosamente');
     
-    // NUEVO: Pre-procesar datos para tabla de inventario
+    // INMEDIATO: Pre-procesar datos para tabla de inventario en paralelo
     console.log('🚀 Iniciando pre-procesamiento de datos de inventario...');
     await preProcessInventoryData();
     console.log('✅ Pre-procesamiento completado - botón información será instantáneo');
@@ -11133,20 +11162,22 @@ function clearAllBoxes() {
         console.log('⚡ Generando tabla de inventario INSTANTÁNEA desde datos pre-procesados...');
       } else {
         console.log('� Generando tabla de inventario desde caché (método legacy - puede tardar)...');
+        console.log('⏳ Pre-procesamiento aún en curso - esperando finalización...');
         // Mostrar mensaje de carga mientras procesa
-        box4Content.innerHTML = '<div class="loading-message"><i class="fa-solid fa-spinner fa-spin"></i> Generando tabla de inventario... (esto puede tardar unos segundos)</div>';
+        box4Content.innerHTML = '<div class="loading-message"><i class="fa-solid fa-spinner fa-spin"></i> Finalizando optimización de datos...</div>';
         
-        // Usar setTimeout para permitir que se renderice el mensaje de carga
-        setTimeout(() => {
-          const inventoryHTML = generateImageInventoryTableFromCache();
-          console.log('📊 Tabla de inventario generada desde caché, longitud HTML:', inventoryHTML.length);
-          box4Content.innerHTML = inventoryHTML;
-          // Restaurar estado después de generar la tabla
-          setTimeout(() => {
-            console.log('🔄 Restaurando estado después de generar tabla desde caché...');
-            restoreInventoryViewState();
-          }, 100);
-        }, 50);
+        // Verificar periódicamente si el pre-procesamiento terminó
+        const checkPreProcessing = setInterval(() => {
+          if (isPreProcessingComplete) {
+            clearInterval(checkPreProcessing);
+            console.log('✅ Pre-procesamiento completado - generando tabla...');
+            const inventoryHTML = generateImageInventoryTableFromCache();
+            box4Content.innerHTML = inventoryHTML;
+            setTimeout(() => {
+              restoreInventoryViewState();
+            }, 100);
+          }
+        }, 500);
         return; // Salir temprano para evitar ejecución duplicada
       }
       
