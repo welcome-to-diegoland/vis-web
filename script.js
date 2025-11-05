@@ -1984,13 +1984,11 @@ async function loadFromGoogleSheets() {
           populateGalleryDropdown(currentAssetGroups);
         }, 100);
       } else {
-        console.warn('⚠️ asset_groups está vacío');
         currentAssetGroups = [];
       }
     });
 
     // El caché continuará cargándose en background
-    console.log('� Caché continuará optimizándose en background...');
     
     console.log('✅ Carga inicial completada - UI disponible');
     
@@ -2060,7 +2058,6 @@ async function loadGoogleSheetAsCSV(csvUrl, sheetName) {
     
     console.log(`✅ ${sheetName} cargado exitosamente desde Apps Script`);
     console.log(`📏 Tamaño de datos: ${responseText.length} caracteres`);
-    console.log(`📋 Primeras líneas:`, responseText.split('\n').slice(0, 3));
     
     // Convertir CSV a array de objetos
     return parseCSVToObjects(responseText, sheetName);
@@ -2473,9 +2470,7 @@ function parseCSVToObjects(csvText, sheetName) {
   
   const headers = parseCSVLine(lines[0]);
   const data = [];
-  
-  console.log(`📋 Headers encontrados en ${sheetName}:`, headers);
-  
+    
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
     if (values.length > 0 && values.some(v => v.trim())) { // Solo agregar filas no vacías
@@ -3141,7 +3136,6 @@ function reinitializeBoxContents() {
       populateGalleryDropdown(currentAssetGroups);
     }, 100);
   } else {
-    console.warn('⚠️ No hay currentAssetGroups para poblar el dropdown');
   }
   
   // Limpiar Box 4
