@@ -55,6 +55,13 @@ let commentedItemsData = []; // Fuente única para todos los items con comentari
 let lastCommentTimestamp = null; // Timestamp del último comentario agregado
 let recentCommentsFlag = false; // Flag para indicar si hay comentarios recientes
 
+// ========== PRE-PROCESSED DATA CACHE ==========
+// Variables para datos pre-procesados (optimización de performance)
+let preProcessedInventoryData = null; // Datos transformados listos para tabla de inventario
+let preProcessedInventoryHTML = null; // HTML de tabla pre-generado
+let preProcessedDataTimestamp = null; // Timestamp de cuando se procesaron los datos
+let isPreProcessingComplete = false; // Flag para saber si el pre-procesamiento está completo
+
 // Variable global para mantener el zoom persistente
 let globalZoomScale = 1; // Zoom persistente entre cambios de Item Group
 
@@ -2298,7 +2305,9 @@ function parseUniversalConcatenatedData(dataRow) {
       break;
       
     case 'Image':
+      // console.log('🖼️ DEBUG: Parseando Image con data_concatenated:', concatenated);
       parsedData = parseImageData(concatenated);
+      // console.log('🖼️ DEBUG: Resultado parseImageData:', parsedData);
       break;
       
     default:
@@ -2994,6 +3003,7 @@ function transformAttributeValueData(attributeValueData) {
   
   // Convertir objeto a array
   const resultArray = Object.values(transformedItems);
+  
   
   return resultArray;
 }
@@ -6578,7 +6588,7 @@ function updateTablesAfterComment() {
   saveInventoryViewState();
   
   // PASO 2: ACTUALIZAR commentedItemsData con último item comentado
-  console.log('� Actualizando commentedItemsData con último item comentado...');
+  console.log(' Actualizando commentedItemsData con último item comentado...');
   
   // En lugar de actualizar incrementalmente, re-inicializar completamente
   // Esto garantiza que todos los items con comentarios estén incluidos
@@ -6613,7 +6623,7 @@ function updateTablesAfterComment() {
   
   // 3.2 Actualizar tablas de resumen/estadísticas
   setTimeout(() => {
-    console.log('� Regenerando tablas de resumen desde commentedItemsData...');
+    console.log(' Regenerando tablas de resumen desde commentedItemsData...');
     regenerateStatsTablesFromCommentedData();
   }, 100);
   
@@ -6732,16 +6742,16 @@ function applyFiltersToCommentedData(data, viewState) {
     const filters = viewState.activeFilters;
     
     if (filters.analista) {
-      console.log(`🔍 ANTES filtro analista: ${data.length} items totales`);
-      console.log(`🔍 Filtrando por analista: ${filters.analista}`);
-      console.log(`🔍 Muestra de analistas en datos:`, [...new Set(data.slice(0, 5).map(item => item.analista))]);
+      // console.log(`🔍 ANTES filtro analista: ${data.length} items totales`);
+      // console.log(`🔍 Filtrando por analista: ${filters.analista}`);
+      // console.log(`🔍 Muestra de analistas en datos:`, [...new Set(data.slice(0, 5).map(item => item.analista))]);
       filteredData = filteredData.filter(item => item.analista === filters.analista);
-      console.log(`🔍 DESPUÉS filtro analista aplicado: ${filters.analista} (${filteredData.length} items)`);
+      // console.log(`🔍 DESPUÉS filtro analista aplicado: ${filters.analista} (${filteredData.length} items)`);
     }
     
     if (filters.diseñador) {
       filteredData = filteredData.filter(item => item.diseñador === filters.diseñador);
-      console.log(`🔍 Filtro diseñador aplicado: ${filters.diseñador} (${filteredData.length} items)`);
+      // console.log(`🔍 Filtro diseñador aplicado: ${filters.diseñador} (${filteredData.length} items)`);
     }
     
     if (filters.analistaStatus) {
@@ -6777,7 +6787,7 @@ function applyFiltersToCommentedData(data, viewState) {
           return item.ultimoStatus === filters.analistaStatus;
         }
       });
-      console.log(`🔍 Filtro status analista aplicado: ${filters.analistaStatus} (${filteredData.length} items)`);
+      // console.log(`🔍 Filtro status analista aplicado: ${filters.analistaStatus} (${filteredData.length} items)`);
     }
     
     if (filters.diseñadorStatus) {
@@ -6813,7 +6823,7 @@ function applyFiltersToCommentedData(data, viewState) {
           return item.ultimoStatus === filters.diseñadorStatus;
         }
       });
-      console.log(`🔍 Filtro status diseñador aplicado: ${filters.diseñadorStatus} (${filteredData.length} items)`);
+      // console.log(`🔍 Filtro status diseñador aplicado: ${filters.diseñadorStatus} (${filteredData.length} items)`);
     }
   }
   
@@ -6823,22 +6833,22 @@ function applyFiltersToCommentedData(data, viewState) {
     
     if (dropdownFilters.analista) {
       filteredData = filteredData.filter(item => item.analista === dropdownFilters.analista);
-      console.log(`🔍 Dropdown filtro analista aplicado: ${dropdownFilters.analista} (${filteredData.length} items)`);
+      // console.log(`🔍 Dropdown filtro analista aplicado: ${dropdownFilters.analista} (${filteredData.length} items)`);
     }
     
     if (dropdownFilters.disenador) {
       filteredData = filteredData.filter(item => item.diseñador === dropdownFilters.disenador);
-      console.log(`🔍 Dropdown filtro diseñador aplicado: ${dropdownFilters.disenador} (${filteredData.length} items)`);
+      // console.log(`🔍 Dropdown filtro diseñador aplicado: ${dropdownFilters.disenador} (${filteredData.length} items)`);
     }
     
     if (dropdownFilters.status) {
       filteredData = filteredData.filter(item => item.ultimoStatus === dropdownFilters.status);
-      console.log(`🔍 Dropdown filtro status aplicado: ${dropdownFilters.status} (${filteredData.length} items)`);
+      // console.log(`🔍 Dropdown filtro status aplicado: ${dropdownFilters.status} (${filteredData.length} items)`);
     }
     
     if (dropdownFilters.tipo) {
       filteredData = filteredData.filter(item => item.ultimoTipo === dropdownFilters.tipo);
-      console.log(`🔍 Dropdown filtro tipo aplicado: ${dropdownFilters.tipo} (${filteredData.length} items)`);
+      // console.log(`🔍 Dropdown filtro tipo aplicado: ${dropdownFilters.tipo} (${filteredData.length} items)`);
     }
   }
   
@@ -7093,11 +7103,11 @@ function regenerateFilteredTableAfterComment() {
           return hasAnalista;
         });
         
-        console.log('🔍 Después de filtrar por analista:', filteredData.length);
+        // console.log('🔍 Después de filtrar por analista:', filteredData.length);
         
         // Si también hay filtro de status, aplicarlo
         if (analistaStatus) {
-          console.log('🔄 Aplicando también filtro de status:', analistaStatus);
+          // console.log('🔄 Aplicando también filtro de status:', analistaStatus);
           const beforeStatusFilter = filteredData.length;
           filteredData = filteredData.filter(row => {
             if (analistaStatus === 'activos') {
@@ -7107,10 +7117,10 @@ function regenerateFilteredTableAfterComment() {
             }
             return true;
           });
-          console.log('🔍 Después de filtrar por status:', filteredData.length, '(antes:', beforeStatusFilter, ')');
+          // console.log('🔍 Después de filtrar por status:', filteredData.length, '(antes:', beforeStatusFilter, ')');
         }
         
-        console.log('✅ Datos filtrados para analista:', filteredData.length);
+        // console.log('✅ Datos filtrados para analista:', filteredData.length);
         updateInventoryTableDirectly(filteredData);
         
         // Restaurar clases visuales
@@ -7140,7 +7150,7 @@ function regenerateFilteredTableAfterComment() {
           });
         }
         
-        console.log('✅ Datos filtrados para diseñador:', filteredData.length);
+        // console.log('✅ Datos filtrados para diseñador:', filteredData.length);
         updateInventoryTableDirectly(filteredData);
         
         // Restaurar clases visuales
@@ -7471,10 +7481,100 @@ function updateCommentCellsBySelector() {
 // Bandera para prevenir regeneración de estadísticas durante filtrado
 let isApplyingStatsFilter = false;
 
+// Sistema robusto anti-bucle para updateStatsTablesOnDataChange
+let isUpdatingStats = false;
+let statsUpdateTimeout = null;
+let lastStatsUpdate = 0;
+const STATS_UPDATE_COOLDOWN = 1000; // 1 segundo mínimo entre actualizaciones
+
+// Variables para monitoreo de bucles infinitos
+let callStack = [];
+let maxCallStackSize = 10;
+let isInfiniteLoopDetected = false;
+
+function logFunctionCall(functionName) {
+  if (isInfiniteLoopDetected) return;
+  
+  const timestamp = Date.now();
+  callStack.push({ name: functionName, time: timestamp });
+  
+  // Mantener solo las últimas llamadas
+  if (callStack.length > maxCallStackSize) {
+    callStack.shift();
+  }
+  
+  // Detectar bucle: misma función llamada 3+ veces en 1 segundo
+  const recentCalls = callStack.filter(call => 
+    call.name === functionName && (timestamp - call.time) < 1000
+  );
+  
+  if (recentCalls.length >= 3) {
+    isInfiniteLoopDetected = true;
+    console.error('🚨🚨🚨 BUCLE INFINITO DETECTADO 🚨🚨🚨');
+    console.error('Función:', functionName);
+    console.error('Call stack reciente:', callStack);
+    console.error('Todas las llamadas recientes:', recentCalls);
+    
+    // DETENER INMEDIATAMENTE TODA ACTIVIDAD
+    if (statsUpdateTimeout) {
+      clearTimeout(statsUpdateTimeout);
+      statsUpdateTimeout = null;
+    }
+    
+    // Auto-reset después de 5 segundos
+    setTimeout(() => {
+      console.log('⏰ Auto-reset de detección de bucle infinito');
+      resetInfiniteLoopDetection();
+    }, 5000);
+    
+    return true; // Indica bucle detectado
+  }
+  
+  return false; // Normal
+}
+
+function resetInfiniteLoopDetection() {
+  console.log('🔄 Reseteando detección de bucle infinito');
+  isInfiniteLoopDetected = false;
+  callStack = [];
+  
+  // Limpiar todos los timeouts
+  if (statsUpdateTimeout) {
+    clearTimeout(statsUpdateTimeout);
+    statsUpdateTimeout = null;
+  }
+  
+  // Resetear flags
+  window.recentFilterActivity = null;
+  isApplyingStatsFilter = false;
+  isUpdatingStats = false;
+}
+
+// Exponer función para debugging
+window.resetInfiniteLoopDetection = resetInfiniteLoopDetection;
+
 function updateStatsTablesOnDataChange() {
+  if (logFunctionCall('updateStatsTablesOnDataChange')) return;
+  
+  const now = Date.now();
+  const timeSinceLastUpdate = now - lastStatsUpdate;
+  
   console.log('📈 === INICIO updateStatsTablesOnDataChange ===');
-  console.log('🔍 Estado actual - isCleanViewActive:', isCleanViewActive);
-  console.log('🔍 isApplyingStatsFilter:', isApplyingStatsFilter);
+  // console.log('🔍 Estado actual - isCleanViewActive:', isCleanViewActive);
+  // console.log('🔍 isApplyingStatsFilter:', isApplyingStatsFilter);
+  // console.log('🔍 isUpdatingStats:', isUpdatingStats);
+  // console.log('🔍 timeSinceLastUpdate:', timeSinceLastUpdate);
+  
+  // GUARD ROBUSTO: Múltiples verificaciones para prevenir bucles
+  if (isUpdatingStats) {
+    console.log('🚫 BLOCKED: updateStatsTablesOnDataChange ya está ejecutándose');
+    return;
+  }
+  
+  if (timeSinceLastUpdate < STATS_UPDATE_COOLDOWN) {
+    console.log(`🚫 BLOCKED: Muy pronto desde la última actualización (${timeSinceLastUpdate}ms < ${STATS_UPDATE_COOLDOWN}ms)`);
+    return;
+  }
   
   // Solo actualizar si estamos en vista de datos (no en visualizador)
   if (!isCleanViewActive) {
@@ -7482,13 +7582,25 @@ function updateStatsTablesOnDataChange() {
     return;
   }
   
-  // No actualizar si estamos aplicando un filtro (previene parpadeo)
+  // GUARD ADICIONAL: No actualizar si estamos aplicando un filtro (previene parpadeo)
   if (isApplyingStatsFilter) {
-    console.log('🚫 No actualizando stats - aplicando filtro activo');
+    console.log('🚫 BLOCKED: No actualizando stats - aplicando filtro activo');
     return;
   }
   
-  // PASO 1: Usar commentedItemsData como fuente única para estadísticas y filtros
+  // GUARD NUCLEAR: Si hay cualquier actividad de filtros reciente, bloquear completamente
+  if (window.recentFilterActivity && (Date.now() - window.recentFilterActivity) < 2000) {
+    console.log('🚫 NUCLEAR BLOCK: Actividad de filtros reciente detectada');
+    return;
+  }
+  
+  // ACTIVAR PROTECCIÓN ANTI-BUCLE
+  isUpdatingStats = true;
+  lastStatsUpdate = now;
+  console.log('🔒 LOCKED: updateStatsTablesOnDataChange iniciada');
+  
+  try {
+    // PASO 1: Usar commentedItemsData como fuente única para estadísticas y filtros
   console.log('🔄 Calculando estadísticas desde commentedItemsData...');
   let statsData = [];
   
@@ -7548,7 +7660,7 @@ function updateStatsTablesOnDataChange() {
   
   // Regenerar tabla de analistas en box3 si existe  
   if (box3 && box3.querySelector('.stats-table-container')) {
-    console.log('� Regenerando tabla de analistas...');
+    console.log(' Regenerando tabla de analistas...');
     box3.innerHTML = generateAnalystStatsTable(statsData);
   }
   
@@ -7592,7 +7704,44 @@ function updateStatsTablesOnDataChange() {
   
   // Configurar event listeners para filtros clickeables
   setupStatsTableClickEvents();
+  
+  } catch (error) {
+    console.error('❌ Error en updateStatsTablesOnDataChange:', error);
+  } finally {
+    // DESACTIVAR PROTECCIÓN ANTI-BUCLE
+    setTimeout(() => {
+      isUpdatingStats = false;
+      console.log('🔓 UNLOCKED: updateStatsTablesOnDataChange completada');
+    }, 100);
+  }
 }
+
+// Función wrapper con debouncing para llamadas externas
+function safeUpdateStatsTablesOnDataChange() {
+  if (logFunctionCall('safeUpdateStatsTablesOnDataChange')) return;
+  
+  console.log('🛡️ safeUpdateStatsTablesOnDataChange llamada');
+  
+  // VERIFICAR ACTIVIDAD DE FILTROS ANTES DE CONTINUAR
+  if (window.recentFilterActivity && (Date.now() - window.recentFilterActivity) < 3000) {
+    console.log('🚫 BLOCKED: Actividad de filtros muy reciente - no programar timeout');
+    return;
+  }
+  
+  // Cancelar cualquier actualización pendiente
+  if (statsUpdateTimeout) {
+    clearTimeout(statsUpdateTimeout);
+    console.log('⏰ Cancelando actualización pendiente');
+  }
+  
+  // Programar nueva actualización con debouncing
+  statsUpdateTimeout = setTimeout(() => {
+    console.log('⏰ Ejecutando actualización con debouncing');
+    updateStatsTablesOnDataChange();
+    statsUpdateTimeout = null;
+  }, 300); // 300ms de debouncing
+}
+
 function updateCommentBubbles(type, context, imageName = null) {
   console.log('🔄 updateCommentBubbles llamada con:', { type, context, imageName });
   
@@ -9311,6 +9460,140 @@ async function loadCacheData() {
   }
 }
 
+// Función para pre-procesar datos de inventario (optimización de performance)
+async function preProcessInventoryData() {
+  console.log('🚀 === INICIO Pre-procesamiento de datos de inventario ===');
+  
+  if (!itemGroupDataCache || itemGroupDataCache.size === 0) {
+    console.log('❌ No hay caché disponible para pre-procesar');
+    return false;
+  }
+  
+  const startTime = performance.now();
+  
+  try {
+    // PASO 1: Convertir el caché a un array plano de todos los elementos
+    console.log('🔄 PASO 1: Procesando datos del caché...');
+    let allCachedData = [];
+    let totalItemGroups = 0;
+    let totalItems = 0;
+    
+    itemGroupDataCache.forEach((itemGroupData, itemGroupId) => {
+      if (itemGroupData && Array.isArray(itemGroupData)) {
+        totalItemGroups++;
+        itemGroupData.forEach(item => {
+          allCachedData.push(item);
+          totalItems++;
+        });
+      }
+    });
+    
+    console.log(`📊 Datos del caché procesados: ${totalItemGroups} Item Groups, ${totalItems} items totales`);
+    
+    if (allCachedData.length === 0) {
+      console.log('❌ No hay datos válidos en el caché');
+      return false;
+    }
+
+    // PASO 2: Convertir datos concatenados a formato Attribute-Value
+    console.log('🔄 PASO 2: Convirtiendo datos concatenados a formato Attribute-Value...');
+    let attributeValueData = [];
+    
+    allCachedData.forEach(item => {
+      const dataConcatenated = item['data_concatenated'];
+      const itemGroups = item['Item Groups'];
+      const id = item['ID'];
+      const objectType = item['Object Type'];
+      
+      if (dataConcatenated && dataConcatenated.trim() !== '') {
+        // Parsear los datos concatenados para extraer atributos individuales
+        const parsedData = parseUniversalConcatenatedData(item);
+        
+        // DEBUG: Log para imagen específica
+        if (dataConcatenated && dataConcatenated.includes('99-020-178.jpg')) {
+          console.log(`🔧 FOUND IMAGE 99-020-178.jpg: ID=${id}, ObjectType=${objectType}`);
+          console.log('🔧 data_concatenated:', dataConcatenated);
+          console.log('🔧 PARSED DATA:', parsedData);
+          console.log('🔧 KEYS en parsedData:', Object.keys(parsedData));
+        }
+        
+        // Convertir cada campo parseado a una fila Attribute-Value
+        Object.keys(parsedData).forEach(attribute => {
+          if (attribute !== 'Item Groups' && attribute !== 'ID' && attribute !== 'Object Type') {
+            const value = parsedData[attribute] || '';
+            // DEBUG para imagen específica
+            if (id === '99680') {
+              console.log(`� ATTRIBUTE-VALUE: ${attribute} = ${value}`);
+            }
+            attributeValueData.push({
+              'Item Groups': itemGroups,
+              'ID': id,
+              'Object Type': objectType,
+              'Attribute': attribute,
+              'value': value
+            });
+          }
+        });
+      }
+    });
+    
+    console.log(`📊 Datos convertidos a Attribute-Value: ${attributeValueData.length} registros`);
+
+    // PASO 3: Transformar los datos de Attribute-Value al formato expandido
+    console.log('🔄 PASO 3: Transformando datos de formato Attribute-Value...');
+    const transformedData = transformAttributeValueData(attributeValueData);
+    
+    // Convertir el objeto transformado a array
+    const transformedArray = Object.values(transformedData);
+    console.log(`📊 Datos transformados: ${transformedArray.length} elementos`);
+    
+    // Verificar comentarios
+    const withComments = transformedArray.filter(item => item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim() !== '');
+    console.log(`📊 Elementos CON comentarios después de transformación: ${withComments.length}/${transformedArray.length}`);
+    
+    // PASO 4: Pre-generar HTML de la tabla
+    console.log('🔄 PASO 4: Pre-generando HTML de tabla de inventario...');
+    
+    // Temporalmente asignar los datos transformados
+    const originalCurrentWorkingData = currentWorkingData;
+    const originalAllLibraryData = allLibraryData;
+    
+    currentWorkingData = transformedArray;
+    allLibraryData = transformedArray;
+    
+    // Inicializar commentedItemsData con los datos transformados
+    console.log('🔄 Inicializando commentedItemsData con datos pre-procesados...');
+    initializeCommentedItemsData();
+    
+    // Generar HTML de la tabla
+    const inventoryHTML = generateImageInventoryTable(transformedArray);
+    
+    // Restaurar datos originales
+    currentWorkingData = originalCurrentWorkingData;
+    allLibraryData = originalAllLibraryData;
+    
+    // PASO 5: Guardar resultados en variables globales
+    preProcessedInventoryData = transformedArray;
+    preProcessedInventoryHTML = inventoryHTML;
+    preProcessedDataTimestamp = new Date();
+    isPreProcessingComplete = true;
+    
+    const endTime = performance.now();
+    const processingTime = endTime - startTime;
+    
+    console.log(`✅ Pre-procesamiento completado en ${processingTime.toFixed(2)}ms`);
+    console.log(`📊 HTML generado: ${inventoryHTML.length} caracteres`);
+    console.log(`💾 Datos guardados en variables globales - botón información será instantáneo`);
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error en pre-procesamiento:', error);
+    isPreProcessingComplete = false;
+    return false;
+  }
+}
+
 async function optimizeCache() {
   const btn = document.getElementById('loadCacheBtn');
   let originalHTML = '';
@@ -9328,6 +9611,11 @@ async function optimizeCache() {
     await loadAllItemGroupsToCache();
     
     console.log('✅ Cache optimizado exitosamente');
+    
+    // NUEVO: Pre-procesar datos para tabla de inventario
+    console.log('🚀 Iniciando pre-procesamiento de datos de inventario...');
+    await preProcessInventoryData();
+    console.log('✅ Pre-procesamiento completado - botón información será instantáneo');
     
     // Mostrar éxito solo si el botón existe
     if (btn) {
@@ -10841,7 +11129,27 @@ function clearAllBoxes() {
     
     // PRIMERA OPCIÓN: Usar datos del caché si está disponible (datos transformados con comentarios)
     if (itemGroupDataCache && itemGroupDataCache.size > 0) {
-      console.log('🔄 Generando tabla de inventario desde caché de Item Groups (datos transformados)...');
+      if (isPreProcessingComplete) {
+        console.log('⚡ Generando tabla de inventario INSTANTÁNEA desde datos pre-procesados...');
+      } else {
+        console.log('� Generando tabla de inventario desde caché (método legacy - puede tardar)...');
+        // Mostrar mensaje de carga mientras procesa
+        box4Content.innerHTML = '<div class="loading-message"><i class="fa-solid fa-spinner fa-spin"></i> Generando tabla de inventario... (esto puede tardar unos segundos)</div>';
+        
+        // Usar setTimeout para permitir que se renderice el mensaje de carga
+        setTimeout(() => {
+          const inventoryHTML = generateImageInventoryTableFromCache();
+          console.log('📊 Tabla de inventario generada desde caché, longitud HTML:', inventoryHTML.length);
+          box4Content.innerHTML = inventoryHTML;
+          // Restaurar estado después de generar la tabla
+          setTimeout(() => {
+            console.log('🔄 Restaurando estado después de generar tabla desde caché...');
+            restoreInventoryViewState();
+          }, 100);
+        }, 50);
+        return; // Salir temprano para evitar ejecución duplicada
+      }
+      
       const inventoryHTML = generateImageInventoryTableFromCache();
       console.log('📊 Tabla de inventario generada desde caché, longitud HTML:', inventoryHTML.length);
       box4Content.innerHTML = inventoryHTML;
@@ -10938,7 +11246,9 @@ function restoreNormalView() {
 }
 
 // Función para generar tabla de inventario de imágenes
-function generateImageInventoryTable(dataOverride = null, showAllData = false) {
+function generateImageInventoryTable(dataOverride = null, showAllData = false, suppressStatsUpdate = false) {
+  if (logFunctionCall('generateImageInventoryTable')) return '<div class="error">Bucle detectado</div>';
+  
   const workingData = dataOverride || currentWorkingData;
   
   if (!workingData || workingData.length === 0) {
@@ -11538,11 +11848,11 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false) {
           });
           
           if (matchingTableRow) {
-            console.log(`✅ Sincronizando ${originalRow.name}: "${matchingTableRow.diseñador}" → "${originalRow.diseñador}"`);
+            // console.log(`✅ Sincronizando ${originalRow.name}: "${matchingTableRow.diseñador}" → "${originalRow.diseñador}"`);
             matchingTableRow.diseñador = originalRow.diseñador;
             syncCount++;
           } else {
-            console.log(`❌ No se pudo sincronizar ${originalRow.name} (${originalRow.commentType}) - ID original: ${originalRow.itemId || originalRow.id}`);
+            // console.log(`❌ No se pudo sincronizar ${originalRow.name} (${originalRow.commentType}) - ID original: ${originalRow.itemId || originalRow.id}`);
           }
         }
       });
@@ -11623,10 +11933,15 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false) {
     }
   });
 
-  // Actualizar las tablas de estadísticas
-  setTimeout(() => {
-    updateStatsTablesOnDataChange();
-  }, 200);
+  // Actualizar las tablas de estadísticas SOLO si no está suprimido
+  if (!suppressStatsUpdate) {
+    setTimeout(() => {
+      // Usar función segura con debouncing
+      safeUpdateStatsTablesOnDataChange();
+    }, 200);
+  } else {
+    console.log('🚫 Actualizaci\u00f3n de estadísticas SUPRIMIDA por suppressStatsUpdate');
+  }
 
   return inventoryHTML;
 }
@@ -11703,7 +12018,38 @@ function generateImageInventoryTableFromAllData() {
 
 // Función para generar tabla de inventario de imágenes desde el caché de Item Groups
 function generateImageInventoryTableFromCache() {
+  if (logFunctionCall('generateImageInventoryTableFromCache')) return '<div class="error">Bucle detectado</div>';
+  
   console.log('🚀 generateImageInventoryTableFromCache iniciada');
+  
+  // OPTIMIZACIÓN: Usar datos pre-procesados si están disponibles
+  if (isPreProcessingComplete && preProcessedInventoryHTML && preProcessedInventoryData) {
+    console.log('⚡ FAST PATH: Usando datos pre-procesados - respuesta instantánea');
+    console.log(`📊 HTML pre-generado: ${preProcessedInventoryHTML.length} caracteres`);
+    console.log(`📊 Datos pre-procesados: ${preProcessedInventoryData.length} elementos`);
+    
+    // Actualizar allLibraryData para que funcionen los clicks en comentarios
+    const originalAllLibraryData = allLibraryData;
+    allLibraryData = preProcessedInventoryData;
+    
+    // Inicializar commentedItemsData con los datos pre-procesados
+    console.log('🔄 Inicializando commentedItemsData con datos pre-procesados...');
+    const originalCurrentWorkingData = currentWorkingData;
+    currentWorkingData = preProcessedInventoryData;
+    initializeCommentedItemsData();
+    currentWorkingData = originalCurrentWorkingData;
+    
+    // CRÍTICO: Generar tablas de resumen después de configurar datos
+    setTimeout(() => {
+      // Usar función segura con debouncing
+      console.log('📊 Generando tablas de resumen desde datos pre-procesados...');
+      safeUpdateStatsTablesOnDataChange();
+    }, 100);
+    
+    return preProcessedInventoryHTML;
+  }
+  
+  console.log('🐌 SLOW PATH: Pre-procesamiento no disponible, usando método legacy...');
   console.log('📊 itemGroupDataCache disponible:', !!itemGroupDataCache);
   console.log('📊 itemGroupDataCache size:', itemGroupDataCache ? itemGroupDataCache.size : 'N/A');
   
@@ -15074,21 +15420,62 @@ function undoAllChanges() {
 
 // ===== FUNCIONES PARA FILTROS CLICKEABLES EN TABLAS DE ESTADÍSTICAS =====
 
+// Flag para evitar configurar event listeners múltiples veces
+let statsTableClickEventsConfigured = false;
+
 function setupStatsTableClickEvents() {
-  console.log('🔧 Configurando event listeners para tablas de estadísticas...');
+  if (logFunctionCall('setupStatsTableClickEvents')) return;
   
-  // Limpiar event listeners existentes
+  console.log('🔧 setupStatsTableClickEvents llamada');
+  
+  // GUARD: Solo configurar una vez
+  if (statsTableClickEventsConfigured) {
+    console.log('🚫 Event listeners ya configurados - saltando');
+    return;
+  }
+  
+  console.log('🔧 Configurando event listeners para tablas de estadísticas (primera vez)...');
+  
+  // Limpiar event listeners existentes (por seguridad)
   document.removeEventListener('click', handleStatsTableClick);
   document.addEventListener('click', handleStatsTableClick);
+  
+  // Marcar como configurado
+  statsTableClickEventsConfigured = true;
+  console.log('✅ Event listeners configurados y marcados como completados');
 }
+
+// Variable para controlar debounce de clicks
+let lastStatsClickTime = 0;
+const STATS_CLICK_DEBOUNCE = 300; // Reducido de 500ms a 300ms
 
 function handleStatsTableClick(event) {
   const clickedElement = event.target;
   
   // Verificar si se clickeó un elemento clickeable de las tablas de estadísticas
   if (clickedElement.classList.contains('clickable-name') || clickedElement.classList.contains('clickable-stat')) {
+    
+    // DEBOUNCE: Prevenir múltiples clicks rápidos
+    const now = Date.now();
+    if (now - lastStatsClickTime < STATS_CLICK_DEBOUNCE) {
+      console.log('🚫 DEBOUNCED: Click muy rápido, ignorando');
+      return;
+    }
+    lastStatsClickTime = now;
+    
     event.preventDefault();
     event.stopPropagation();
+    
+    // 🚨 CANCELAR INMEDIATAMENTE CUALQUIER TIMEOUT PENDIENTE
+    if (statsUpdateTimeout) {
+      clearTimeout(statsUpdateTimeout);
+      statsUpdateTimeout = null;
+      console.log('❌ CANCELED: Timeout de estadísticas cancelado por filtro');
+    }
+    
+    // MARCAR ACTIVIDAD DE FILTROS PARA BLOQUEAR ACTUALIZACIONES AUTOMÁTICAS
+    window.recentFilterActivity = Date.now();
+    console.log('🚨 FILTER ACTIVITY MARKED:', window.recentFilterActivity);
     
     console.log('📊 Click en elemento de tabla de estadísticas:', clickedElement);
     
@@ -15111,10 +15498,29 @@ function handleStatsTableClick(event) {
 }
 
 function applyStatsTableFilter(userKey, status, type) {
+  if (logFunctionCall('applyStatsTableFilter')) return;
+  
+  // PROTECCIÓN ADICIONAL: No ejecutar si ya hay una operación de filtro en progreso
+  if (window.isApplyingStatsFilter) {
+    console.log('🚫 BLOCKED: applyStatsTableFilter ya está ejecutándose');
+    return;
+  }
+  
+  window.isApplyingStatsFilter = true;
+  
+  // Auto-limpiar la bandera después de un tiempo para evitar bloqueos permanentes
+  setTimeout(() => {
+    window.isApplyingStatsFilter = false;
+  }, 1000); // Reducido de 2000ms a 1000ms
+  
+  // MARCAR ACTIVIDAD DE FILTROS INMEDIATAMENTE
+  window.recentFilterActivity = Date.now();
+  
   console.log('🔍 Aplicando filtro de tabla de estadísticas:', { userKey, status, type });
   console.log('🔍 CommentedItemsData disponible:', commentedItemsData?.length || 0);
   console.log('🔍 UserKey es "all"?:', userKey === 'all');
-  
+  console.log('🚨 FILTER ACTIVITY EXTENDED:', window.recentFilterActivity);
+
   // ESPECIAL: Para filas de totales (userKey="all"), usar una lógica simplificada
   if (userKey === 'all') {
     console.log('🔍 Aplicando filtro de TOTALES - solo por status sin regenerar estadísticas');
@@ -15157,11 +15563,18 @@ function applyStatsTableFilter(userKey, status, type) {
     
     console.log('✅ Datos filtrados para totales:', filteredData.length, 'de', commentedItemsData.length);
     
+    // GUARD: Evitar regeneración de tabla si ya estamos actualizando stats
+    if (isUpdatingStats) {
+      console.log('🚫 Saltando regeneración de tabla - updateStats en progreso');
+      markStatsElementAsActive(userKey, status, type);
+      return;
+    }
+    
     // Regenerar tabla SIN activar bandera (para evitar bucle)
     const box4Content = document.getElementById('box4-content');
     if (box4Content) {
       const convertedData = filteredData.map(item => item.originalItem);
-      const newTableHTML = generateImageInventoryTable(convertedData, true);
+      const newTableHTML = generateImageInventoryTable(convertedData, true, true);
       box4Content.innerHTML = newTableHTML;
       
       // Reconfigurar event listeners
@@ -15224,11 +15637,19 @@ function applyStatsTableFilter(userKey, status, type) {
       const filteredData = applyFiltersToCommentedData(commentedItemsData, inventoryViewState);
       console.log('✅ Datos filtrados:', filteredData.length, 'de', commentedItemsData.length);
       
+      // GUARD: Evitar regeneración de tabla si ya estamos actualizando stats
+      if (isUpdatingStats) {
+        console.log('🚫 Saltando regeneración de tabla filtrada - updateStats en progreso');
+        markStatsElementAsActive(userKey, status, type);
+        setTimeout(() => { isApplyingStatsFilter = false; }, 500);
+        return;
+      }
+      
       // Regenerar tabla con datos filtrados
       const box4Content = document.getElementById('box4-content');
       if (box4Content && filteredData.length > 0) {
         const convertedData = filteredData.map(item => item.originalItem);
-        const newTableHTML = generateImageInventoryTable(convertedData, true);
+        const newTableHTML = generateImageInventoryTable(convertedData, true, true);
         box4Content.innerHTML = newTableHTML;
         
         console.log('✅ Tabla de inventario filtrada aplicada');
@@ -15365,8 +15786,12 @@ function applyStatsTableFilter(userKey, status, type) {
     // Marcar visualmente el elemento clickeado como activo
     markStatsElementAsActive(userKey, status, type);
     
+    // Liberar la bandera inmediatamente cuando todo termina bien
+    window.isApplyingStatsFilter = false;
+  
   } catch (error) {
     console.error('❌ Error aplicando filtro de tabla de estadísticas:', error);
+    window.isApplyingStatsFilter = false;
   }
 }
 
