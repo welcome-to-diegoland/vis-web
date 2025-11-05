@@ -689,6 +689,28 @@ function getCurrentUserInfo() {
   return USERS.usuario;
 }
 
+// Función para verificar si el usuario actual es diseñador
+function isCurrentUserDesigner() {
+  const userInfo = getCurrentUserInfo();
+  return userInfo && userInfo.group === 'Diseño';
+}
+
+// Función para actualizar la visibilidad del botón de guardar según el rol del usuario
+function updateSaveButtonVisibility() {
+  const saveBtn = document.getElementById('saveChangesButton');
+  if (saveBtn) {
+    if (isCurrentUserDesigner()) {
+      // Ocultar botón para diseñadores
+      saveBtn.style.display = 'none';
+      console.log('🎨 Botón de guardar ocultado para diseñador');
+    } else {
+      // Mostrar botón para otros roles
+      saveBtn.style.display = 'inline-flex';
+      console.log('💾 Botón de guardar visible para analista/admin');
+    }
+  }
+}
+
 // ===== FUNCIÓN PARA OBTENER NOMBRE FORMATEADO DE CUALQUIER USUARIO =====
 function getFormattedUserName(username) {
   if (!username) return 'Usuario';
@@ -1773,6 +1795,9 @@ function updateUserInfoInHeader() {
     userNameElement.textContent = formattedName;
     userGroupElement.textContent = `(${currentUser.group})`;
     console.log(`👤 Usuario actualizado en header: ${formattedName} (${currentUser.group})`);
+    
+    // Actualizar visibilidad del botón de guardar según el rol
+    updateSaveButtonVisibility();
   }
 }
 
@@ -3806,9 +3831,11 @@ async function loadImageGridInBox4(itemGroupPath) {
             </button>
           </div>
           <div class="controls-center">
+            ${isCurrentUserDesigner() ? '' : `
             <button class="save-button" id="saveChangesButton" title="Guardar todos los cambios realizados">
               <i class="fa-solid fa-floppy-disk"></i> Guardar
             </button>
+            `}
           </div>
           <div class="controls-right">
             <div class="zoom-controls">
@@ -3823,6 +3850,9 @@ async function loadImageGridInBox4(itemGroupPath) {
     `;
     
     addContentToBox4(fullHtml);
+    
+    // Actualizar visibilidad del botón de guardar según el rol del usuario
+    updateSaveButtonVisibility();
     
     // OPTIMIZACIÓN: Configuración CSS inmediata
     const container = document.querySelector('.main-container');
@@ -4300,9 +4330,11 @@ function regenerateImageGrid() {
           </button>
         </div>
         <div class="controls-center">
+          ${isCurrentUserDesigner() ? '' : `
           <button class="save-button" id="saveChangesButton" title="Guardar todos los cambios realizados">
             <i class="fa-solid fa-floppy-disk"></i> Guardar
           </button>
+          `}
         </div>
         <div class="controls-right">
           <div class="zoom-controls">
@@ -4317,6 +4349,9 @@ function regenerateImageGrid() {
   `;
   
   box4Content.innerHTML = fullHtml;
+  
+  // Actualizar visibilidad del botón de guardar según el rol del usuario
+  updateSaveButtonVisibility();
   
   // Configurar event listener para el botón de basura del Item Group
   setupItemGroupDeleteButton();
@@ -9293,16 +9328,18 @@ function saveToLocalStorage() {
     
     // Mostrar feedback al usuario
     const saveBtn = document.getElementById('saveChangesButton');
-    const originalText = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<i class="fa-solid fa-check" style="font-weight: 2000;"></i> Guardado!';
-    saveBtn.classList.remove('btn-success');
-    saveBtn.classList.add('btn-outline-success');
-    
-    setTimeout(() => {
-      saveBtn.innerHTML = originalText;
-      saveBtn.classList.remove('btn-outline-success');
-      saveBtn.classList.add('btn-success');
-    }, 2000);
+    if (saveBtn) {
+      const originalText = saveBtn.innerHTML;
+      saveBtn.innerHTML = '<i class="fa-solid fa-check" style="font-weight: 2000;"></i> Guardado!';
+      saveBtn.classList.remove('btn-success');
+      saveBtn.classList.add('btn-outline-success');
+      
+      setTimeout(() => {
+        saveBtn.innerHTML = originalText;
+        saveBtn.classList.remove('btn-outline-success');
+        saveBtn.classList.add('btn-success');
+      }, 2000);
+    }
     
     console.log(`Se guarda Item Group: "${currentItemGroup.Name}"`);
   } catch (error) {
@@ -9310,24 +9347,26 @@ function saveToLocalStorage() {
     
     // Mostrar feedback específico para error de cuota
     const saveBtn = document.getElementById('saveChangesButton');
-    const originalText = saveBtn.innerHTML;
-    
-    if (error.message.includes('quota') || error.name === 'QuotaExceededError') {
-      saveBtn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Datos muy grandes';
-      saveBtn.classList.remove('btn-success');
-      saveBtn.classList.add('btn-warning');
-      console.warn('Los datos son muy grandes para localStorage. Se implementará guardado específico según la lógica de trabajo.');
-    } else {
-      saveBtn.innerHTML = '<i class="fa-solid fa-times"></i> Error al guardar';
-      saveBtn.classList.remove('btn-success');
-      saveBtn.classList.add('btn-danger');
+    if (saveBtn) {
+      const originalText = saveBtn.innerHTML;
+      
+      if (error.message.includes('quota') || error.name === 'QuotaExceededError') {
+        saveBtn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Datos muy grandes';
+        saveBtn.classList.remove('btn-success');
+        saveBtn.classList.add('btn-warning');
+        console.warn('Los datos son muy grandes para localStorage. Se implementará guardado específico según la lógica de trabajo.');
+      } else {
+        saveBtn.innerHTML = '<i class="fa-solid fa-times"></i> Error al guardar';
+        saveBtn.classList.remove('btn-success');
+        saveBtn.classList.add('btn-danger');
+      }
+      
+      setTimeout(() => {
+        saveBtn.innerHTML = originalText;
+        saveBtn.classList.remove('btn-warning', 'btn-danger');
+        saveBtn.classList.add('btn-success');
+      }, 3000);
     }
-    
-    setTimeout(() => {
-      saveBtn.innerHTML = originalText;
-      saveBtn.classList.remove('btn-warning', 'btn-danger');
-      saveBtn.classList.add('btn-success');
-    }, 3000);
   }
 }
 
@@ -11142,7 +11181,10 @@ function clearAllBoxes() {
             console.log('✅ Pre-procesamiento completado - generando tabla...');
             const inventoryHTML = generateImageInventoryTableFromCache();
             box4Content.innerHTML = inventoryHTML;
+            
+            // CRÍTICO: Configurar event listeners después de insertar HTML
             setTimeout(() => {
+              setupInventoryClickListeners();
               restoreInventoryViewState();
             }, 100);
           }
@@ -11153,6 +11195,10 @@ function clearAllBoxes() {
       const inventoryHTML = generateImageInventoryTableFromCache();
       console.log('📊 Tabla de inventario generada desde caché, longitud HTML:', inventoryHTML.length);
       box4Content.innerHTML = inventoryHTML;
+      
+      // CRÍTICO: Configurar event listeners después de insertar HTML
+      setupInventoryClickListeners();
+      
       // Restaurar estado después de generar la tabla con más tiempo
       setTimeout(() => {
         console.log('🔄 Restaurando estado después de generar tabla desde caché...');
@@ -12209,7 +12255,6 @@ function setupInventoryClickListeners() {
   // NUEVAS CLASES LIMPIAS
   const clickableCommentsClean = document.querySelectorAll('.clickable-comment-clean');
   const clickableStatusesClean = document.querySelectorAll('.clickable-status-clean');
-  
   
   if (!allLibraryData || allLibraryData.length === 0) {
     console.warn('⚠️ allLibraryData no está disponible. Los clicks en Item Codes/Groups no funcionarán.');
@@ -14380,27 +14425,42 @@ async function saveToGoogleSheets() {
     
     // Mostrar progreso
     const saveBtn = document.getElementById('saveChangesButton');
-    const originalText = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
-    saveBtn.disabled = true;
-    
-    try {
-      // Usar la función unificada que sabemos que funciona
-      const success = await saveToVisSandra(visibleData, 'manual');
+    if (saveBtn) {
+      const originalText = saveBtn.innerHTML;
+      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+      saveBtn.disabled = true;
       
-      if (success) {
+      try {
+        // Usar la función unificada que sabemos que funciona
+        const success = await saveToVisSandra(visibleData, 'manual');
         
-        console.log(`✅ ${visibleData.length} registros guardados exitosamente en vis-sandra`);
+        if (success) {
+          console.log(`✅ ${visibleData.length} registros guardados exitosamente en vis-sandra`);
+        } else {
+          throw new Error('Error en el guardado unificado');
+        }
+      } catch (error) {
+        console.error('❌ Error en saveToGoogleSheets:', error);
+        alert(`❌ Error al guardar: ${error.message}`);
+      } finally {
+        // Restaurar botón
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+      }
+    } else {
+      // Si no hay botón (diseñador), solo hacer el guardado
+      try {
+        const success = await saveToVisSandra(visibleData, 'manual');
         
-      } else {
-        throw new Error('Error en el guardado unificado');
-      }    } catch (error) {
-      console.error('❌ Error en saveToGoogleSheets:', error);
-      alert(`❌ Error al guardar: ${error.message}`);
-    } finally {
-      // Restaurar botón
-      saveBtn.innerHTML = originalText;
-      saveBtn.disabled = false;
+        if (success) {
+          console.log(`✅ ${visibleData.length} registros guardados exitosamente en vis-sandra`);
+        } else {
+          throw new Error('Error en el guardado unificado');
+        }
+      } catch (error) {
+        console.error('❌ Error en saveToGoogleSheets:', error);
+        alert(`❌ Error al guardar: ${error.message}`);
+      }
     }
   } catch (error) {
     console.error('❌ Error general en saveToGoogleSheets:', error);
