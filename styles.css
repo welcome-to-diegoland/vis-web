@@ -814,6 +814,9 @@ input[type="file"] {
 
 #box3 {
   height: 110%;
+  display: flex; /* Convertir en contenedor flex */
+  flex-direction: column; /* Layout vertical */
+  overflow: hidden; /* Eliminar scroll externo */
 }
 
 #box4 {
@@ -2164,6 +2167,7 @@ html, body {
   padding: 10px 10px 0 10px;
   width: 100%;
   min-height: 50px;
+  flex-shrink: 0; /* No se comprime */
 }
 
 .category-tree-header > button {
@@ -2179,6 +2183,10 @@ html, body {
   border: 1px solid #dee2e6;
   border-radius: 4px;
   display: block;
+  flex-shrink: 0; /* No se reduce, permanece fijo */
+  position: sticky; /* Se queda fijo en la parte superior */
+  top: 0; /* Se adhiere al top */
+  z-index: 10; /* Encima del contenido scrollable */
 }
 
 .approval-toggle-container .form-check {
@@ -2386,18 +2394,43 @@ button[id="btn-cargar-categoria"]:disabled {
 }
 
 .category-tree-list {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
+  flex: 1 1 auto; /* Ocupa todo el espacio restante */
+  min-height: 0; /* Permite que flexbox funcione correctamente */
+  overflow-y: auto; /* Solo scroll vertical */
+  overflow-x: hidden; /* Sin scroll horizontal */
   margin-top: 0;
   padding: 0;
+  height: 100%; /* Usa toda la altura disponible */
 }
 
-#tree, .category-tree-list, #box3-content {
+#tree {
   max-height: 100%;
-  overflow-y: auto;
+  overflow: hidden; /* Sin scroll propio - solo estructura flex */
   font-family: inherit;
   font-size: 11px;
+  display: flex;
+  flex-direction: column; /* Para que header sea fijo y tree-list sea flexible */
+}
+
+.category-tree-list {
+  flex: 1 1 auto; /* Ocupa todo el espacio restante */
+  min-height: 0; /* Permite que flexbox funcione correctamente */
+  overflow-y: auto; /* Solo scroll vertical */
+  overflow-x: hidden; /* Sin scroll horizontal */
+  margin-top: 0;
+  padding: 0;
+  height: 100%; /* Usa toda la altura disponible */
+}
+
+#box3-content {
+  flex: 1 1 auto; /* Ocupa todo el espacio disponible */
+  min-height: 0; /* Permite que flexbox funcione correctamente */
+  overflow: hidden; /* Sin scroll - delega a los hijos */
+  font-family: inherit;
+  font-size: 11px;
+  height: 100%; /* Usa toda la altura disponible */
+  display: flex; /* Convertir en contenedor flex */
+  flex-direction: column; /* Layout vertical */
 }
 
 
