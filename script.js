@@ -97,6 +97,35 @@ let inventoryViewState = {
   lastFilteredData: null
 };
 
+// ===== NUEVO SISTEMA UNIFICADO DE ESTADO =====
+// Fuente única de verdad para todos los datos
+let masterCommentData = null; // Todos los datos con comentarios/asignaciones más recientes
+let masterStatsData = null;   // Datos agregados para tablas de resumen
+
+// Estado unificado para todas las tablas de información
+let unifiedViewState = {
+  tables: {
+    comments: { 
+      filters: {}, 
+      scroll: { top: 0, left: 0 },
+      activeElements: [] // Elementos con clase 'active'
+    },
+    analysts: { 
+      filters: {}, 
+      scroll: { top: 0, left: 0 },
+      activeElements: []
+    }, 
+    designers: { 
+      filters: {}, 
+      scroll: { top: 0, left: 0 },
+      activeElements: []
+    }
+  },
+  lastDataUpdate: null,
+  pendingChanges: [],
+  preserveState: false // Flag para saber si debemos preservar estado al regenerar
+};
+
 // Configuración para Google Apps Script
 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxxIA_xud4YQwe8kq2z0HIiBLPDVxNzjEYAnXKGkiwuQX5YUgkHAA198lW22-spDtVi/exec';
 
@@ -897,14 +926,25 @@ function generateImageContext(imageName) {
   return `${itemGroupName} (${itemGroupId}) | ${itemCodeName} | ${brandName} | ${imageName}`;
 }
 
+// Variable global para prevenir navegaciones duplicadas
+let isNavigating = false;
+
 // Función para navegar a un Item Group específico desde la tabla de inventario
 function navigateToItemGroup(itemGroupId) {
-  console.log(`🚀 NAVEGACIÓN A ITEM GROUP: ${itemGroupId}`);
-  
-  if (!itemGroupId || !allLibraryData) {
-    console.error('❌ ID de Item Group no válido o datos no cargados');
+  // Prevenir navegaciones duplicadas
+  if (isNavigating) {
+    console.log(`🚀 ⚠️ Navegación a ${itemGroupId} ya en progreso - saltando duplicada`);
     return;
   }
+  
+  isNavigating = true;
+  console.log(`🚀 NAVEGACIÓN A ITEM GROUP: ${itemGroupId}`);
+  
+  try {
+    if (!itemGroupId || !allLibraryData) {
+      console.error('❌ ID de Item Group no válido o datos no cargados');
+      return;
+    }
   
   // PASO 1: Verificar disponibilidad de datasets
   const datasets = {
@@ -1012,7 +1052,17 @@ function navigateToItemGroup(itemGroupId) {
     return;
   }
   
-  // PASO 5: Preparar navegación
+  // PASO 5: CRÍTICO - Guardar estado ANTES de modificar el DOM
+  console.log('💾 Guardando estado completo antes de navegar al visualizador...');
+  saveUnifiedViewState();
+  
+  // Compatibilidad: También guardar en sistema legacy
+  saveInventoryViewState();
+  
+  // Marcar que debemos preservar estado al regresar
+  unifiedViewState.preserveState = true;
+
+  // PASO 6: Preparar navegación con indicador
   console.log(`🔄 Preparando navegación al Item Group: "${itemGroup.Name}" (ID: ${itemGroupId})`);
   console.log(`📍 Ruta de navegación: "${navigationPath}"`);
   console.log(`📂 Encontrado en: ${foundIn}`);
@@ -1029,10 +1079,7 @@ function navigateToItemGroup(itemGroupId) {
       </div>
     `;
   }
-  
-  // Guardar estado antes de navegar
-  saveInventoryViewState();
-  
+
   // Desactivar vista limpia si está activa (OPTIMIZACIÓN: solo cambiar vista sin re-renderizar árbol)
   if (isCleanViewActive) {
     console.log(`🔄 Vista limpia activa - cambiando a vista normal antes de navegar...`);
@@ -1169,11 +1216,23 @@ function navigateToItemGroup(itemGroupId) {
     if (allLabels && allLabels.length > 0) {
       // El árbol ya está listo, ejecutar inmediatamente
       searchAndSelectElement();
+      // Resetear flag después de ejecutar
+      setTimeout(() => {
+        isNavigating = false;
+      }, 100);
     } else {
       // Esperar solo el mínimo necesario para que el DOM se actualice
       console.log(`⏳ Esperando brevemente para que el árbol se actualice...`);
-      setTimeout(searchAndSelectElement, 500); // Solo 500ms en lugar de 3 segundos
+      setTimeout(() => {
+        searchAndSelectElement();
+        // Resetear flag después de completar navegación
+        isNavigating = false;
+      }, 500); // Solo 500ms en lugar de 3 segundos
     }
+  } catch (error) {
+    console.error('❌ Error en navegateToItemGroup:', error);
+    isNavigating = false;
+  }
 }
 
 // Función auxiliar para determinar qué mostrar en la columna imagen
@@ -1228,8 +1287,21 @@ function getCurrentStatus(commentText) {
   const lastComment = parsedComments[parsedComments.length - 1];
   const rawStatus = lastComment.status || '';
   
+  // DEBUG: Log solo para casos específicos (comentado para reducir logs)
+  // if (parsedComments.length > 1) {
+  //   console.log(`🔍 DEBUG Status - Total comentarios: ${parsedComments.length}`);
+  //   console.log(`🔍 DEBUG Status - Último comentario:`, lastComment);
+  //   console.log(`🔍 DEBUG Status - Raw status: "${rawStatus}"`);
+  // }
+  
   // Normalizar el status para asegurar consistencia
-  return normalizeStatus(rawStatus);
+  const normalized = normalizeStatus(rawStatus);
+  
+  // if (parsedComments.length > 1) {
+  //   console.log(`🔍 DEBUG Status - Normalizado: "${normalized}"`);
+  // }
+  
+  return normalized;
 }
 
 // Función para normalizar status y asegurar que coincidan con los CSS
@@ -1300,9 +1372,29 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeLoginSystem() {
   console.log('🔐 Inicializando sistema de login...');
   
-  // Limpiar localStorage automáticamente al cargar la página
+  // Limpiar localStorage automáticamente al cargar la página (pero preservar estado unificado)
   console.clear();
-  localStorage.clear();
+  
+  // Restaurar estado unificado desde localStorage si existe
+  try {
+    const savedUnifiedState = localStorage.getItem('unifiedViewState');
+    if (savedUnifiedState) {
+      const parsed = JSON.parse(savedUnifiedState);
+      unifiedViewState = { ...unifiedViewState, ...parsed };
+      console.log('💾 Estado unificado restaurado desde localStorage:', unifiedViewState.tables.comments.scroll);
+    }
+  } catch (error) {
+    console.error('❌ Error restaurando estado unificado:', error);
+  }
+  
+  // Limpiar otros datos de localStorage (no críticos)
+  const keysToKeep = ['unifiedViewState', 'lastActiveFilters'];
+  const allKeys = Object.keys(localStorage);
+  allKeys.forEach(key => {
+    if (!keysToKeep.includes(key)) {
+      localStorage.removeItem(key);
+    }
+  });
   
   // Iniciar carga de datos en background inmediatamente
   startDataLoading();
@@ -6518,6 +6610,11 @@ function updateCacheWithNewComment(newComment, type, context, imageName) {
     console.log('⚠️ No se encontraron items actualizados para Item Group:', itemGroupId);
   }
   
+  // Actualizar los datos maestros después de modificar el caché
+  console.log('🔄 Actualizando datos maestros después del nuevo comentario...');
+  updateMasterDataFromAllSources();
+  console.log('✅ Datos maestros actualizados después del nuevo comentario');
+  
   console.log('✅ === FIN updateCacheWithNewComment ===');
 }
 
@@ -6645,6 +6742,10 @@ function updateTablesAfterComment() {
     initializeCommentedItemsData();
     console.log(`✅ commentedItemsData actualizada con ${commentedItemsData.length} items con comentarios`);
     
+    // NUEVO: Guardar estado unificado después de agregar comentario
+    console.log('💾 Guardando estado unificado después de agregar comentario en visualizador...');
+    saveUnifiedViewState();
+    
     // Actualizar solo las estadísticas en segundo plano
     setTimeout(() => {
       regenerateStatsTablesFromCommentedData();
@@ -6709,6 +6810,10 @@ function updateTablesAfterComment() {
   setTimeout(() => {
     console.log('🔄 Restaurando filtros después de regenerar tablas...');
     restoreInventoryViewState();
+    
+    // NUEVO: Guardar estado unificado después de todas las actualizaciones
+    console.log('💾 Guardando estado unificado después de actualizar tablas...');
+    saveUnifiedViewState();
     
     // Limpiar bandera
     window.isUpdatingCommentTables = false;
@@ -11135,7 +11240,14 @@ function toggleCleanView() {
   console.log('🎯 toggleCleanView ejecutado');
   console.log('🔍 Estado antes - isCleanViewActive:', isCleanViewActive);
   
-  // GUARDAR ESTADO ANTES DE CAMBIAR VISTA
+  // NUEVO: Guardar estado unificado antes de cambiar vista
+  if (isCleanViewActive) {
+    // Si estamos saliendo de vista limpia, guardar estado completo
+    console.log('💾 Guardando estado completo al salir de vista de información...');
+    saveUnifiedViewState();
+  }
+  
+  // Compatibilidad: También guardar en sistema legacy
   saveInventoryViewState();
   
   isCleanViewActive = !isCleanViewActive;
@@ -11187,23 +11299,56 @@ function clearAllBoxes() {
     console.log('🔍 DEBUG toggleCleanView - allLibraryData length:', allLibraryData ? allLibraryData.length : 'null/undefined');
     console.log('🔍 DEBUG toggleCleanView - fullItemGroupCache size:', itemGroupDataCache ? itemGroupDataCache.size : 'null/undefined');
     
-    // PRIMERA OPCIÓN: Usar datos del caché si está disponible (datos transformados con comentarios)
-    if (itemGroupDataCache && itemGroupDataCache.size > 0) {
-      if (isPreProcessingComplete) {
-        console.log('⚡ Generando tabla de inventario INSTANTÁNEA desde datos pre-procesados...');
-      } else {
-        console.log('� Generando tabla de inventario desde caché (método legacy - puede tardar)...');
-        console.log('⏳ Pre-procesamiento aún en curso - esperando finalización...');
-        // Mostrar mensaje de carga mientras procesa
-        box4Content.innerHTML = '<div class="loading-message"><i class="fa-solid fa-spinner fa-spin"></i> Finalizando optimización de datos...</div>';
-        
-        // Verificar periódicamente si el pre-procesamiento terminó
-        const checkPreProcessing = setInterval(() => {
-          if (isPreProcessingComplete) {
-            clearInterval(checkPreProcessing);
-            console.log('✅ Pre-procesamiento completado - generando tabla...');
-            const inventoryHTML = generateImageInventoryTableFromCache();
-            box4Content.innerHTML = inventoryHTML;
+    // NUEVO SISTEMA: Verificar si tenemos estado que preservar O filtros activos
+    const hasActiveFilters = unifiedViewState.tables.analysts.activeElements.length > 0 ||
+                            unifiedViewState.tables.designers.activeElements.length > 0 ||
+                            unifiedViewState.tables.comments.activeFilters > 0;
+    
+    const hasStateToPreserve = unifiedViewState.preserveState || hasActiveFilters;
+    const hasCommentData = (masterCommentData && masterCommentData.length > 0) || 
+                          (commentedItemsData && commentedItemsData.length > 0);
+    
+    console.log('🔍 Estado de preservación:', {
+      preserveState: unifiedViewState.preserveState,
+      hasActiveFilters: hasActiveFilters,
+      hasStateToPreserve: hasStateToPreserve,
+      hasCommentData: hasCommentData,
+      masterCommentDataLength: masterCommentData ? masterCommentData.length : 0,
+      commentedItemsDataLength: commentedItemsData ? commentedItemsData.length : 0
+    });
+    
+    if (hasStateToPreserve && hasCommentData) {
+      console.log('🔄 Regenerando tabla de información con estado preservado...');
+      
+      // Usar el nuevo sistema para regenerar tabla con filtros
+      setTimeout(() => {
+        regenerateAllTablesWithState();
+      }, 100);
+      
+      // Mostrar loading mientras se regenera
+      box4Content.innerHTML = '<div class="loading-message"><i class="fa-solid fa-spinner fa-spin"></i> Restaurando tabla con filtros...</div>';
+      
+    } else {
+      // SISTEMA LEGACY: Generar tabla desde caché o datos disponibles
+      console.log('🔄 Generando tabla de información desde datos disponibles...');
+      
+      // PRIMERA OPCIÓN: Usar datos del caché si está disponible (datos transformados con comentarios)
+      if (itemGroupDataCache && itemGroupDataCache.size > 0) {
+        if (isPreProcessingComplete) {
+          console.log('⚡ Generando tabla de inventario INSTANTÁNEA desde datos pre-procesados...');
+        } else {
+          console.log('🔄 Generando tabla de inventario desde caché (método legacy - puede tardar)...');
+          console.log('⏳ Pre-procesamiento aún en curso - esperando finalización...');
+          // Mostrar mensaje de carga mientras procesa
+          box4Content.innerHTML = '<div class="loading-message"><i class="fa-solid fa-spinner fa-spin"></i> Finalizando optimización de datos...</div>';
+          
+          // Verificar periódicamente si el pre-procesamiento terminó
+          const checkPreProcessing = setInterval(() => {
+            if (isPreProcessingComplete) {
+              clearInterval(checkPreProcessing);
+              console.log('✅ Pre-procesamiento completado - generando tabla...');
+              const inventoryHTML = generateImageInventoryTableFromCache();
+              box4Content.innerHTML = inventoryHTML;
             
             // CRÍTICO: Configurar event listeners después de insertar HTML
             setTimeout(() => {
@@ -11229,21 +11374,43 @@ function clearAllBoxes() {
         console.log('🔄 Restaurando estado después de generar tabla desde caché...');
         restoreInventoryViewState();
       }, 500); // Aumentar timing para asegurar renderizado completo
-    } 
-    // SEGUNDA OPCIÓN: Usar currentWorkingData solo como fallback (datos del árbol, sin comentarios)
-    else if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
-      console.log('🔄 Generando tabla de inventario desde currentWorkingData (fallback - datos del árbol)...');
-      const inventoryHTML = generateImageInventoryTable();
-      console.log('📊 Tabla de inventario generada, longitud HTML:', inventoryHTML.length);
-      box4Content.innerHTML = inventoryHTML;
-      // Restaurar estado después de generar la tabla con más tiempo
-      setTimeout(() => {
-        console.log('🔄 Restaurando estado después de generar tabla de fallback...');
-        restoreInventoryViewState();
-      }, 500); // Aumentar timing para asegurar renderizado completo
-    } else {
-      box4Content.innerHTML = '<div class="empty-box-message">Box 4 - Cargar Excel o usar "Optimizar" para ver inventario de imágenes</div>';
-    }
+      
+      } else {
+        // SEGUNDA OPCIÓN: Usar currentWorkingData solo como fallback (datos del árbol, sin comentarios)
+        if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+          console.log('🔄 Generando tabla de inventario desde currentWorkingData (fallback - datos del árbol)...');
+          const inventoryHTML = generateImageInventoryTable();
+          console.log('📊 Tabla de inventario generada, longitud HTML:', inventoryHTML.length);
+          box4Content.innerHTML = inventoryHTML;
+          // Restaurar estado después de generar la tabla con más tiempo
+          setTimeout(() => {
+            console.log('🔄 Restaurando estado después de generar tabla de fallback...');
+            restoreInventoryViewState();
+          }, 500); // Aumentar timing para asegurar renderizado completo
+        } else {
+          box4Content.innerHTML = '<div class="empty-box-message">Box 4 - Cargar Excel o usar "Optimizar" para ver inventario de imágenes</div>';
+        }
+      } // Cierre del else del SISTEMA LEGACY
+    } // Cierre del if (box4Content)
+    
+    // SIEMPRE regenerar tablas de estadísticas cuando se activa vista de datos
+    console.log('📊 Regenerando tablas de resumen para vista de datos...');
+    setTimeout(() => {
+      // Verificar si tenemos datos para generar estadísticas
+      if (commentedItemsData && commentedItemsData.length > 0) {
+        console.log('📊 Generando tablas de resumen desde commentedItemsData...');
+        updateStatsTablesOnDataChange();
+      } else if (masterCommentData && masterCommentData.length > 0) {
+        console.log('📊 Generando tablas de resumen desde masterCommentData...');
+        // Forzar actualización de commentedItemsData desde masterCommentData
+        initializeCommentedItemsData();
+        setTimeout(() => {
+          updateStatsTablesOnDataChange();
+        }, 100);
+      } else {
+        console.log('⚠️ No hay datos de comentarios para generar tablas de estadísticas');
+      }
+    }, 200);
   }
 }
 
@@ -11292,10 +11459,32 @@ function restoreNormalView() {
       }
     }
     
-    // Restaurar estado de inventario después de restaurar la vista
+    // NUEVO SISTEMA: Actualizar datos maestros y preservar estado
+    console.log('🔄 Actualizando datos maestros y preservando estado...');
+    
+    // PASO 1: Actualizar datos maestros desde todas las fuentes
+    updateMasterDataFromAllSources();
+    
+    // PASO 2: Regenerar todas las tablas con el estado preservado
     setTimeout(() => {
-      restoreInventoryViewState();
-    }, 200);
+      if (unifiedViewState.preserveState) {
+        console.log('🔄 Preservando estado - regenerando todas las tablas con filtros...');
+        // IMPORTANTE: Solo regenerar tablas si estamos en vista de información
+        if (isCleanViewActive) {
+          regenerateAllTablesWithState();
+        } else {
+          // En visualizador, solo restaurar elementos activos sin regenerar tabla de comentarios
+          restoreUnifiedViewState();
+        }
+        unifiedViewState.preserveState = false; // Reset flag
+      } else {
+        console.log('🔄 Regenerando tablas sin filtros específicos...');
+        // IMPORTANTE: Solo regenerar tablas si estamos en vista de información
+        if (isCleanViewActive) {
+          regenerateAllTablesWithState();
+        }
+      }
+    }, 250);
     
   } else {
     // Si no hay datos, mostrar mensajes de estado inicial
@@ -11832,7 +12021,10 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
     }
     
     // Configurar el botón de asignar diseñadora con múltiples intentos
-    setupAssignButtonListener();
+    // Solo configurar si estamos en vista de comentarios
+    if (isCleanViewActive) {
+      setupAssignButtonListener();
+    }
   }, 100);
 
   // Guardar datos originales para filtros SOLO si no existen ya (para preservar asignaciones)
@@ -12877,6 +13069,12 @@ function normalizeExistingAssignments() {
 
 // Función para configurar el listener del botón de asignar con reintentos
 function setupAssignButtonListener(attempts = 0) {
+  // Solo intentar si estamos en vista de comentarios (tabla de inventario visible)
+  if (!isCleanViewActive) {
+    // console.log('Saltando setupAssignButtonListener - no estamos en vista de comentarios');
+    return;
+  }
+  
   const maxAttempts = 10;
   const assignButton = document.getElementById('assignDesignerBtn');
   
@@ -12885,7 +13083,7 @@ function setupAssignButtonListener(attempts = 0) {
     assignButton.onclick = null;
     // Asignar el nuevo listener
     assignButton.onclick = openAssignDesignerModal;
-    console.log('Assign button listener attached successfully');
+    // console.log('Assign button listener attached successfully');
     return;
   }
   
@@ -12895,7 +13093,10 @@ function setupAssignButtonListener(attempts = 0) {
       setupAssignButtonListener(attempts + 1);
     }, 50);
   } else {
-    console.warn('Assign button not found after', maxAttempts, 'attempts');
+    // Solo mostrar warning si realmente deberíamos encontrar el botón
+    if (isCleanViewActive) {
+      console.warn('Assign button not found after', maxAttempts, 'attempts');
+    }
   }
 }
 
@@ -14090,6 +14291,10 @@ function clearInventoryFilter() {
     inventoryViewState.dropdownFilters = {};
   }
   
+  // Limpiar también filtros de localStorage
+  localStorage.removeItem('lastActiveFilters');
+  console.log('🧹 Filtros limpiados de localStorage');
+  
   // Regenerar tabla completa sin filtros
   regenerateInventoryTableFromCommentedData();
   
@@ -15222,14 +15427,25 @@ function createStatusTag(status) {
   if (!status) return "<span class=\"status-tag\">-</span>";
   
   const s = status.toLowerCase();
-  let c = "revision";
+  let c = "default"; // Cambiar valor por defecto
   
-  // Manejar tanto "diseño" como "diseno" (con y sin tilde)
-  if (s.includes("diseño") || s.includes("diseno")) c = "diseno";
-  else if (s.includes("cancelado")) c = "cancelado";
-  else if (s.includes("completado")) c = "completado";
+  // Mapear status a clases CSS apropiadas
+  if (s.includes("diseño") || s.includes("diseno") || s.includes("design")) {
+    c = "diseno";
+  } else if (s.includes("revision") || s.includes("revisión") || s.includes("review")) {
+    c = "revision";
+  } else if (s.includes("cancelado") || s.includes("cancelled") || s.includes("cancel")) {
+    c = "cancelado";
+  } else if (s.includes("completado") || s.includes("completed") || s.includes("complete")) {
+    c = "completado";
+  } else if (s.includes("analista") || s.includes("analyst")) {
+    c = "analista";
+  } else {
+    // Para otros status, usar una clase genérica
+    c = "default";
+  }
   
-  // console.log(`🏷️ createStatusTag: "${status}" → clase "${c}"`); // Comentado para reducir log
+  // console.log(`🏷️ createStatusTag: "${status}" → clase "${c}"`); // Comentado para evitar spam
   return `<span class="status-tag ${c}">${status}</span>`;
 }
 
@@ -15633,6 +15849,9 @@ function handleStatsTableClick(event) {
 function applyStatsTableFilter(userKey, status, type) {
   if (logFunctionCall('applyStatsTableFilter')) return;
   
+  // 🚨 DEBUG: Ver qué parámetros estamos recibiendo
+  console.log('🚨 DEBUG applyStatsTableFilter recibió:', { userKey, status, type });
+  
   // PROTECCIÓN ADICIONAL: No ejecutar si ya hay una operación de filtro en progreso
   if (window.isApplyingStatsFilter) {
     console.log('🚫 BLOCKED: applyStatsTableFilter ya está ejecutándose');
@@ -15641,77 +15860,192 @@ function applyStatsTableFilter(userKey, status, type) {
   
   window.isApplyingStatsFilter = true;
   
-  // Auto-limpiar la bandera después de un tiempo para evitar bloqueos permanentes
-  setTimeout(() => {
+  // NUEVO SISTEMA: Actualizar estado unificado con filtros
+  console.log('🔧 Aplicando filtro unificado:', { userKey, status, type });
+  
+  // Guardar filtros en el estado unificado
+  if (type === 'analyst') {
+    const newFilters = {
+      analista: userKey === 'all' ? null : userKey,
+      analistaStatus: status || null
+    };
+    console.log('🚨 DEBUG: Guardando filtros de analista:', newFilters);
+    unifiedViewState.tables.comments.filters = newFilters;
+  } else if (type === 'designer') {
+    const newFilters = {
+      diseñador: userKey === 'all' ? null : userKey,
+      diseñadorStatus: status || null
+    };
+    console.log('🚨 DEBUG: Guardando filtros de diseñador:', newFilters);
+    unifiedViewState.tables.comments.filters = newFilters;
+  }
+  
+  // Compatibilidad: También actualizar inventoryViewState para funciones legacy
+  if (!inventoryViewState.activeFilters) {
+    inventoryViewState.activeFilters = {};
+  }
+  
+  if (type === 'analyst') {
+    inventoryViewState.activeFilters.analista = userKey === 'all' ? null : userKey;
+    inventoryViewState.activeFilters.analistaStatus = status || null;
+    // Limpiar filtros de diseñador
+    delete inventoryViewState.activeFilters.diseñador;
+    delete inventoryViewState.activeFilters.diseñadorStatus;
+  } else if (type === 'designer') {
+    inventoryViewState.activeFilters.diseñador = userKey === 'all' ? null : userKey;
+    inventoryViewState.activeFilters.diseñadorStatus = status || null;
+    // Limpiar filtros de analista
+    delete inventoryViewState.activeFilters.analista;
+    delete inventoryViewState.activeFilters.analistaStatus;
+  }
+  
+  // USAR NUEVO SISTEMA: Regenerar todas las tablas con filtros
+  try {
+    console.log('🔄 Usando sistema unificado para aplicar filtros...');
+    
+    // Marcar que debemos preservar estado
+    unifiedViewState.preserveState = true;
+    
+    // Regenerar todas las tablas con el nuevo filtro
+    setTimeout(() => {
+      regenerateAllTablesWithState();
+      window.isApplyingStatsFilter = false;
+    }, 100);
+    
+  } catch (error) {
+    console.error('❌ Error aplicando filtro unificado:', error);
+    
+    // FALLBACK: Usar sistema legacy si falla el nuevo
+    console.log('⚠️ Fallback al sistema legacy...');
+    
+    // Continuar con lógica legacy (código original resumido)
+    legacyApplyStatsTableFilter(userKey, status, type);
+    
     window.isApplyingStatsFilter = false;
-  }, 1000); // Reducido de 2000ms a 1000ms
-  
-  // MARCAR ACTIVIDAD DE FILTROS INMEDIATAMENTE
-  window.recentFilterActivity = Date.now();
-  
-  console.log('🔍 Aplicando filtro de tabla de estadísticas:', { userKey, status, type });
-  console.log('🔍 CommentedItemsData disponible:', commentedItemsData?.length || 0);
-  console.log('🔍 UserKey es "all"?:', userKey === 'all');
-  console.log('🚨 FILTER ACTIVITY EXTENDED:', window.recentFilterActivity);
+  }
+}
 
-  // ESPECIAL: Para filas de totales (userKey="all"), usar una lógica simplificada
-  if (userKey === 'all') {
-    console.log('🔍 Aplicando filtro de TOTALES - solo por status sin regenerar estadísticas');
-    
-    if (!commentedItemsData || commentedItemsData.length === 0) {
-      console.log('❌ No hay commentedItemsData disponible');
-      return;
+/**
+ * Función legacy de aplicación de filtros (como fallback)
+ */
+function legacyApplyStatsTableFilter(userKey, status, type) {
+  console.log('🔄 Ejecutando lógica legacy de filtros...');
+  
+  // Aplicar filtros usando el sistema legacy original
+  try {
+    // Configurar inventoryViewState con el filtro solicitado
+    if (!inventoryViewState) {
+      inventoryViewState = { activeFilters: {}, dropdownFilters: {} };
+    }
+    if (!inventoryViewState.activeFilters) {
+      inventoryViewState.activeFilters = {};
     }
     
-    let filteredData = [...commentedItemsData];
+    // Limpiar filtros anteriores
+    inventoryViewState.activeFilters = {};
     
-    // Aplicar solo filtro de status si existe
-    if (status && status !== '') {
-      filteredData = filteredData.filter(item => {
-        if (status === 'activos') {
-          if (!item.ultimoStatus) return false;
-          const statusLower = item.ultimoStatus.toLowerCase();
-          return (statusLower.includes('revision') || statusLower.includes('revisión') || statusLower.includes('review')) ||
-                 (statusLower.includes('diseño') || statusLower.includes('diseno') || statusLower.includes('design'));
-        } else if (status === 'revisión') {
-          if (!item.ultimoStatus) return false;
-          const statusLower = item.ultimoStatus.toLowerCase();
-          return statusLower.includes('revision') || statusLower.includes('revisión') || statusLower.includes('review');
-        } else if (status === 'completado') {
-          if (!item.ultimoStatus) return false;
-          const statusLower = item.ultimoStatus.toLowerCase();
-          return statusLower.includes('completado') || statusLower.includes('completed') || statusLower.includes('complete');
-        } else if (status === 'cancelado') {
-          if (!item.ultimoStatus) return false;
-          const statusLower = item.ultimoStatus.toLowerCase();
-          return statusLower.includes('cancelado') || statusLower.includes('cancelled') || statusLower.includes('cancel');
-        } else if (status === 'diseño') {
-          if (!item.ultimoStatus) return false;
-          const statusLower = item.ultimoStatus.toLowerCase();
-          return statusLower.includes('diseño') || statusLower.includes('diseno') || statusLower.includes('design');
+    // Configurar filtro actual
+    if (type === 'analyst') {
+      inventoryViewState.activeFilters.analista = userKey === 'all' ? null : userKey;
+      if (status && status !== '') {
+        inventoryViewState.activeFilters.analistaStatus = status;
+      }
+    } else if (type === 'designer') {
+      inventoryViewState.activeFilters.diseñador = userKey === 'all' ? null : userKey;
+      if (status && status !== '') {
+        inventoryViewState.activeFilters.diseñadorStatus = status;
+      }
+    }
+    
+    // Aplicar filtros usando función legacy
+    if (commentedItemsData && commentedItemsData.length > 0) {
+      let filteredData = [...commentedItemsData];
+      
+      // Aplicar filtros básicos
+      if (userKey !== 'all') {
+        if (type === 'analyst') {
+          filteredData = filteredData.filter(item => item.ultimoAnalista === userKey);
+        } else if (type === 'designer') {
+          filteredData = filteredData.filter(item => item.ultimoDisenador === userKey);
         }
-        return true; // Si no hay status específico, mostrar todos
-      });
+      }
+      
+      // Regenerar tabla con datos filtrados
+      const box4Content = document.getElementById('box4-content');
+      if (box4Content) {
+        const convertedData = filteredData.map(item => item.originalItem);
+        const newTableHTML = generateImageInventoryTable(convertedData, true, true);
+        box4Content.innerHTML = newTableHTML;
+        
+        // Reconfigurar event listeners
+        setTimeout(() => {
+          setupInventoryClickListeners();
+        }, 100);
+      }
     }
     
-    console.log('✅ Datos filtrados para totales:', filteredData.length, 'de', commentedItemsData.length);
+    // Marcar elemento activo visualmente
+    markStatsElementAsActive(userKey, status, type);
     
-    // GUARD: Evitar regeneración de tabla si ya estamos actualizando stats
-    if (isUpdatingStats) {
-      console.log('🚫 Saltando regeneración de tabla - updateStats en progreso');
-      markStatsElementAsActive(userKey, status, type);
-      return;
+  } catch (error) {
+    console.error('❌ Error en fallback legacy:', error);
+  }
+}
+
+function applyStatsTableFilter(userKey, status, type) {
+  if (!userKey && !status) {
+    console.warn('⚠️ No se proporcionaron parámetros de filtro');
+    return;
+  }
+
+  console.log(`🎯 === INICIO FILTRO DE ESTADÍSTICAS ===`);
+  console.log(`Usuario: ${userKey}, Status: ${status}, Tipo: ${type}`);
+  console.log(`Vista activa: ${isCleanViewActive ? 'Limpia' : 'Normal'}`);
+
+  // Verificar si la aplicación está en un estado válido para filtrar
+  if (!isCleanViewActive && (!allLibraryData || allLibraryData.length === 0)) {
+    console.warn('⚠️ No hay datos válidos para filtrar');
+    return;
+  }
+
+  // Caso especial: click en userKey "all" con un status específico en vista de cuadrícula
+  if (userKey === 'all' && status && !isCleanViewActive) {
+    console.log('🔄 Navegando a vista de comentarios con filtro por status...');
+    
+    // Actualizar estado unificado con el filtro de status
+    if (!unifiedViewState.tables.comments.filters) {
+      unifiedViewState.tables.comments.filters = {};
     }
+    unifiedViewState.tables.comments.filters.status = status;
     
-    // Regenerar tabla SIN activar bandera (para evitar bucle)
+    // Navegar a vista de comentarios con el filtro aplicado
     const box4Content = document.getElementById('box4-content');
     if (box4Content) {
-      const convertedData = filteredData.map(item => item.originalItem);
-      const newTableHTML = generateImageInventoryTable(convertedData, true, true);
-      box4Content.innerHTML = newTableHTML;
+      showCommentsTable();
       
-      // Reconfigurar event listeners
+      // Aplicar el filtro después de mostrar la tabla
       setTimeout(() => {
+        const filteredData = masterCommentData.filter(item => {
+          if (!item.ultimoStatus) return false;
+          const statusLower = item.ultimoStatus.toLowerCase();
+          
+          if (status === 'activos') {
+            return (statusLower.includes('revision') || statusLower.includes('revisión') || statusLower.includes('review')) ||
+                   (statusLower.includes('diseño') || statusLower.includes('diseno') || statusLower.includes('design'));
+          } else {
+            const statusMap = {
+              'revisión': ['revision', 'revisión', 'review'],
+              'diseño': ['diseño', 'diseno', 'design'],
+              'completado': ['completado', 'completed', 'complete'],
+              'cancelado': ['cancelado', 'cancelled', 'cancel']
+            };
+            const statusTerms = statusMap[status] || [status];
+            return statusTerms.some(term => statusLower.includes(term));
+          }
+        });
+        
+        // Regenerar tabla con datos filtrados
+        box4Content.innerHTML = generateCommentsTableHTML(filteredData);
         setupInventoryClickListeners();
       }, 100);
     }
@@ -15721,155 +16055,74 @@ function applyStatsTableFilter(userKey, status, type) {
     
     return; // Salir sin más procesamiento
   }
-  
+
   try {
-    // Activar bandera para prevenir regeneración de estadísticas (solo para filtros de usuario específico)
+    // Activar bandera para prevenir regeneración de estadísticas
     isApplyingStatsFilter = true;
     
-    // En vista limpia, usar el sistema de commentedItemsData
-    if (isCleanViewActive && commentedItemsData && commentedItemsData.length > 0) {
-      console.log('📊 Aplicando filtro usando commentedItemsData...');
-      
-      // Debug: mostrar algunos ejemplos de ultimoStatus disponibles
-      const statusSamples = commentedItemsData.slice(0, 10).map(item => item.ultimoStatus).filter(s => s);
-      console.log('🔍 Ejemplos de ultimoStatus en datos:', [...new Set(statusSamples)]);
-      
-      // Configurar inventoryViewState con el filtro solicitado
-      if (!inventoryViewState) {
-        inventoryViewState = { activeFilters: {}, dropdownFilters: {} };
-      }
-      if (!inventoryViewState.activeFilters) {
-        inventoryViewState.activeFilters = {};
-      }
-      
-      // Limpiar filtros anteriores
-      inventoryViewState.activeFilters = {};
-      
-      // Configurar filtro actual
-      if (type === 'analyst') {
-        // Para userKey="all", no filtrar por usuario específico
-        if (userKey !== 'all') {
-          inventoryViewState.activeFilters.analista = userKey;
-        }
-        if (status) {
-          inventoryViewState.activeFilters.analistaStatus = status;
-        }
-      } else if (type === 'designer') {
-        // Para userKey="all", no filtrar por usuario específico
-        if (userKey !== 'all') {
-          inventoryViewState.activeFilters.diseñador = userKey;
-        }
-        if (status) {
-          inventoryViewState.activeFilters.diseñadorStatus = status;
-        }
-      }
-      
-      console.log('🔧 Filtros configurados:', inventoryViewState.activeFilters);
-      
-      // Aplicar filtros usando la función existente
-      const filteredData = applyFiltersToCommentedData(commentedItemsData, inventoryViewState);
-      console.log('✅ Datos filtrados:', filteredData.length, 'de', commentedItemsData.length);
-      
-      // GUARD: Evitar regeneración de tabla si ya estamos actualizando stats
-      if (isUpdatingStats) {
-        console.log('🚫 Saltando regeneración de tabla filtrada - updateStats en progreso');
-        markStatsElementAsActive(userKey, status, type);
-        setTimeout(() => { isApplyingStatsFilter = false; }, 500);
-        return;
-      }
-      
-      // Regenerar tabla con datos filtrados
-      const box4Content = document.getElementById('box4-content');
-      if (box4Content && filteredData.length > 0) {
-        const convertedData = filteredData.map(item => item.originalItem);
-        const newTableHTML = generateImageInventoryTable(convertedData, true, true);
-        box4Content.innerHTML = newTableHTML;
-        
-        console.log('✅ Tabla de inventario filtrada aplicada');
-        
-        // Reconfigurar event listeners después de regenerar
-        setTimeout(() => {
-          setupInventoryClickListeners();
-        }, 100);
-      } else if (box4Content) {
-        // Mostrar mensaje de "no hay datos"
-        box4Content.innerHTML = `
-          <div class="inventory-controls">
-            <div class="inventory-header">
-              <h3>Comentarios del Visualizador</h3>
-              <div class="button-group">
-                <button class="inventory-btn inventory-btn-primary" onclick="assignItemModal()">
-                  <i class="fas fa-user-plus"></i> Asignar
-                </button>
-                <button class="inventory-btn inventory-btn-secondary" onclick="filterModal()">
-                  <i class="fas fa-filter"></i> Filtros
-                </button>
-                <button class="inventory-btn inventory-btn-secondary" onclick="clearInventoryFilter()">
-                  <i class="fas fa-times"></i> Limpiar Filtros
-                </button>
-              </div>
-              <div class="inventory-stats">Comentarios visibles: <strong>0</strong></div>
-            </div>
-          </div>
-          <div class="inventory-table-wrapper">
-            <div class="no-data-message">No hay elementos con comentarios que coincidan con los filtros.</div>
-          </div>
-        `;
-      }
-      
-      // Marcar elemento activo visualmente
-      markStatsElementAsActive(userKey, status, type);
-      
-      // Desactivar bandera después de un breve delay
-      setTimeout(() => {
-        isApplyingStatsFilter = false;
-      }, 500);
-      
-      return; // Salir aquí para vista limpia
-    }
+    // PASO 1: Actualizar datos maestros ANTES de filtrar
+    console.log('🔄 Actualizando datos maestros antes de aplicar filtro...');
+    updateMasterDataFromAllSources();
     
-    // Para vista normal, mantener lógica original
-    // Determinar qué datos usar según el contexto
+    // PASO 2: Obtener datos base desde el sistema unificado
     let dataToFilter;
-    if (isCleanViewActive && commentedItemsData && commentedItemsData.length > 0) {
-      // En vista limpia, usar commentedItemsData
-      dataToFilter = commentedItemsData;
-      console.log('📊 Datos base para filtrar: commentedItemsData con', dataToFilter.length, 'items');
-    } else {
-      // En vista normal, usar originalInventoryData
-      dataToFilter = originalInventoryData || [];
-      console.log('📊 Datos base para filtrar: originalInventoryData con', dataToFilter.length, 'items');
-    }
     
-    let filteredData = dataToFilter;
+    console.log('📊 === VERIFICANDO FUENTES DE DATOS ===');
+    console.log(`masterCommentData: ${masterCommentData?.length || 0} elementos`);
+    console.log(`commentedItemsData: ${commentedItemsData?.length || 0} elementos`);
+    console.log(`allLibraryData: ${allLibraryData?.length || 0} elementos`);
+    console.log(`recentCommentsFlag: ${recentCommentsFlag}`);
+    
+    if (isCleanViewActive && masterCommentData && masterCommentData.length > 0) {
+      console.log('📊 Aplicando filtro usando masterCommentData...');
+      dataToFilter = masterCommentData;
+    } else if (commentedItemsData && commentedItemsData.length > 0) {
+      console.log('📊 Aplicando filtro usando commentedItemsData...');
+      dataToFilter = commentedItemsData;
+    } else if (allLibraryData && allLibraryData.length > 0) {
+      console.log('📊 Aplicando filtro usando allLibraryData...');
+      dataToFilter = allLibraryData.filter(item => 
+        (item['Object Type'] === 'Item Code' || item['Object Type'] === 'Image') && 
+        item['WA_VIS_Comment'] && 
+        item['WA_VIS_Comment'].trim() !== ''
+      );
+      console.log(`📊 Filtrados ${dataToFilter.length} elementos con comentarios de ${allLibraryData.length} totales`);
+    } else {
+      console.warn('⚠️ No hay datos disponibles para filtrar');
+      console.log('📊 === ESTADO DE FUENTES DETALLADO ===');
+      console.log('masterCommentData:', masterCommentData);
+      console.log('commentedItemsData:', commentedItemsData);
+      console.log('allLibraryData sample:', allLibraryData?.slice(0, 2));
+      isApplyingStatsFilter = false;
+      return;
+    }
+
+    console.log(`🔍 Iniciando filtro - Usuario: ${userKey}, Status: ${status}, Tipo: ${type}`);
+    console.log(`📦 Datos base: ${dataToFilter.length} elementos`);
+    
+    let filteredData = [...dataToFilter];
     
     // Aplicar filtro por usuario
-    if (userKey && userKey !== 'all' && userKey !== '') {
-      const userName = USERS[userKey]?.name || userKey;
-      console.log(`👤 Filtrando por ${type}: ${userName}`);
+    if (userKey && userKey !== 'all') {
+      console.log(`👤 Filtrando por usuario: ${userKey}`);
       
-      if (type === 'designer') {
-        filteredData = filteredData.filter(row => {
-          const rowDesigner = normalizeDesignerName(row.diseñador);
-          const targetDesigner = normalizeDesignerName(userName);
-          return rowDesigner === targetDesigner;
-        });
-      } else if (type === 'analyst') {
-        if (userKey === 'arturo' || userName === 'Arturo') {
-          // Lógica especial para Arturo
+      if (userKey !== '') {
+        const userName = userKey.toLowerCase(); // Convertir a minúsculas para comparación
+        console.log(`🎯 Buscando usuario (case-insensitive): "${userName}"`);
+        
+        if (type === 'designer') {
           filteredData = filteredData.filter(row => {
-            if (!row['WA_VIS_Comment'] || row['WA_VIS_Comment'].trim() === '') {
-              return false;
-            }
-            const comentarios = parseCommentsFromExcel(row['WA_VIS_Comment']);
-            if (comentarios.length === 0) return false;
-            const primerComentario = comentarios[0];
-            return primerComentario.usuario.toLowerCase() === 'arturo';
+            const rowDesigner = row.ultimoDisenador || row.diseñador || '';
+            const rowDesignerLower = rowDesigner ? rowDesigner.toLowerCase() : '';
+            console.log(`🔍 Comparando diseñador: "${rowDesignerLower}" vs "${userName}"`);
+            return rowDesignerLower === userName;
           });
-        } else {
+        } else if (type === 'analyst') {
           filteredData = filteredData.filter(row => {
-            const rowAnalyst = row.analista;
-            return rowAnalyst === userName;
+            const rowAnalyst = row.ultimoAnalista || row.analista || '';
+            const rowAnalystLower = rowAnalyst ? rowAnalyst.toLowerCase() : '';
+            console.log(`🔍 Comparando analista: "${rowAnalystLower}" vs "${userName}"`);
+            return rowAnalystLower === userName;
           });
         }
       }
@@ -15877,9 +16130,9 @@ function applyStatsTableFilter(userKey, status, type) {
       // Filtrar por elementos "Vacío"
       console.log(`🔍 Filtrando por elementos vacíos de ${type}`);
       if (type === 'designer') {
-        filteredData = filteredData.filter(row => !row.diseñador || row.diseñador === '');
+        filteredData = filteredData.filter(row => !row.ultimoDisenador && !row.diseñador);
       } else if (type === 'analyst') {
-        filteredData = filteredData.filter(row => !row.analista || row.analista === '');
+        filteredData = filteredData.filter(row => !row.ultimoAnalista && !row.analista);
       }
     }
     
@@ -15895,18 +16148,28 @@ function applyStatsTableFilter(userKey, status, type) {
                  (statusLower.includes('diseño') || statusLower.includes('diseno') || statusLower.includes('design'));
         });
       } else {
-        const statusMap = {
-          'revisión': ['revision', 'revisión', 'review'],
-          'diseño': ['diseño', 'diseno', 'design'],
-          'completado': ['completado', 'completed', 'complete'],
-          'cancelado': ['cancelado', 'cancelled', 'cancel']
-        };
-        
-        const statusTerms = statusMap[status] || [status];
+        // USAR LA MISMA LÓGICA QUE EL RESUMEN: .includes() en lugar de ===
+        // Esto debe coincidir exactamente con generateAggregatedStatsData()
         filteredData = filteredData.filter(row => {
           if (!row.ultimoStatus) return false;
           const statusLower = row.ultimoStatus.toLowerCase();
-          return statusTerms.some(term => statusLower.includes(term));
+          const filterLower = status.toLowerCase();
+          
+          console.log(`🔍 Comparando status: "${row.ultimoStatus}" (lower: "${statusLower}") vs filter "${status}" (lower: "${filterLower}")`);
+          
+          // Usar la misma lógica que generateAggregatedStatsData
+          if (filterLower === 'revisión' || filterLower === 'revision') {
+            return statusLower.includes('revision') || statusLower.includes('revisión');
+          } else if (filterLower === 'diseño' || filterLower === 'design') {
+            return statusLower.includes('diseño') || statusLower.includes('design');
+          } else if (filterLower === 'completado' || filterLower === 'complete') {
+            return statusLower.includes('completado') || statusLower.includes('complete');
+          } else if (filterLower === 'cancelado' || filterLower === 'cancel') {
+            return statusLower.includes('cancelado') || statusLower.includes('cancel');
+          } else {
+            // Para otros status, usar includes genérico
+            return statusLower.includes(filterLower);
+          }
         });
       }
     }
@@ -15929,8 +16192,7 @@ function applyStatsTableFilter(userKey, status, type) {
 }
 
 function applyInventoryTableFilter(filteredData) {
-  console.log('🔄 Aplicando filtro a tabla principal con', filteredData.length, 'elementos');
-  
+  console.log('� Aplicando filtro a tabla principal con', filteredData.length, 'elementos');
   // Actualizar originalInventoryData temporalmente para mostrar solo datos filtrados
   const previousData = window.originalInventoryData;
   window.originalInventoryData = filteredData;
@@ -15951,8 +16213,19 @@ function applyInventoryTableFilter(filteredData) {
       return;
     }
     
-    // Usar la función existente regenerateInventoryTable
-    regenerateInventoryTable(filteredData);
+    // Verificar si estamos en vista limpia (comentarios) o normal
+    if (isCleanViewActive) {
+      // En vista limpia, usar el sistema unificado
+      const box4Content = document.getElementById('box4-content');
+      if (box4Content) {
+        const tableHTML = generateCommentsTableHTML(filteredData);
+        box4Content.innerHTML = tableHTML;
+        setupInventoryClickListeners();
+      }
+    } else {
+      // En vista normal, usar regenerateInventoryTable
+      regenerateInventoryTable(filteredData);
+    }
     
     console.log('✅ Tabla de inventario filtrada aplicada');
   } catch (error) {
@@ -16030,3 +16303,1041 @@ function clearStatsTableFilters() {
 
 // Hacer la función global para que pueda ser llamada desde HTML
 window.clearStatsTableFilters = clearStatsTableFilters;
+
+// ===== NUEVO SISTEMA UNIFICADO DE GESTIÓN DE ESTADO =====
+
+/**
+ * Actualiza los datos maestros desde todas las fuentes disponibles
+ * Esta es la función central que unifica todos los datos
+ */
+function updateMasterDataFromAllSources() {
+  console.log('🔄 === INICIO updateMasterDataFromAllSources ===');
+  
+  try {
+    // 1. DETERMINAR LA FUENTE DE DATOS MÁS ACTUALIZADA
+    let mostRecentData = null;
+    let dataSource = 'none';
+    
+    // Prioridad 1: Datos pre-procesados si están frescos y completos
+    if (isPreProcessingComplete && preProcessedInventoryData && preProcessedInventoryData.length > 0) {
+      console.log('📊 Usando datos pre-procesados como fuente primaria');
+      mostRecentData = [...preProcessedInventoryData];
+      dataSource = 'preProcessed';
+    }
+    // Prioridad 2: allLibraryData si hay comentarios recientes
+    else if (recentCommentsFlag && allLibraryData && allLibraryData.length > 0) {
+      console.log('📊 Usando allLibraryData por comentarios recientes');
+      const inventoryItems = allLibraryData.filter(item => 
+        item['Object Type'] === 'Item Code' || item['Object Type'] === 'Image'
+      );
+      mostRecentData = [...inventoryItems];
+      dataSource = 'allLibraryData';
+    }
+    // Prioridad 3: commentedItemsData como fallback
+    else if (commentedItemsData && commentedItemsData.length > 0) {
+      console.log('📊 Usando commentedItemsData como fallback');
+      mostRecentData = commentedItemsData.map(item => item.originalItem || item);
+      dataSource = 'commentedItemsData';
+    }
+    // Prioridad 4: Intentar reconstruir desde caché
+    else if (itemGroupDataCache && itemGroupDataCache.size > 0) {
+      console.log('📊 Reconstruyendo desde itemGroupDataCache');
+      const allCachedData = [];
+      itemGroupDataCache.forEach(groupData => {
+        if (groupData && groupData.length > 0) {
+          allCachedData.push(...groupData);
+        }
+      });
+      
+      if (allCachedData.length > 0) {
+        const inventoryItems = allCachedData.filter(item => 
+          item['Object Type'] === 'Item Code' || item['Object Type'] === 'Image'
+        );
+        mostRecentData = [...inventoryItems];
+        dataSource = 'itemGroupDataCache';
+      }
+    }
+    
+    if (!mostRecentData || mostRecentData.length === 0) {
+      console.warn('⚠️ No se encontraron datos válidos en ninguna fuente');
+      masterCommentData = [];
+      masterStatsData = [];
+      return false;
+    }
+    
+    console.log(`✅ Datos maestros actualizados desde: ${dataSource}`);
+    console.log(`📊 Total elementos procesados: ${mostRecentData.length}`);
+    
+    // 2. FILTRAR SOLO ELEMENTOS CON COMENTARIOS PARA MASTER DATA
+    const itemsWithComments = mostRecentData.filter(item => 
+      item['WA_VIS_Comment'] && item['WA_VIS_Comment'].trim() !== ''
+    );
+    
+    console.log(`📝 Elementos con comentarios: ${itemsWithComments.length} de ${mostRecentData.length}`);
+    
+    // 3. ACTUALIZAR MASTER COMMENT DATA
+    masterCommentData = itemsWithComments.map(item => {
+      // Parsear comentarios para extraer analista y diseñador
+      const parsedComments = parseCommentsFromExcel(item['WA_VIS_Comment']);
+      const analista = getLatestAnalyst(parsedComments);
+      const diseñador = getLatestDesigner(parsedComments);
+      
+      // CRÍTICO: Extraer status del último comentario, no del campo Status
+      const ultimoStatusFromComments = getCurrentStatus(item['WA_VIS_Comment']);
+      const originalStatus = item['Status'] || item['WA_VIS_Status'] || '';
+      
+      // DEBUG: Log cuando hay discrepancia entre status de comentarios vs campo Status
+      if (ultimoStatusFromComments && originalStatus && ultimoStatusFromComments !== originalStatus) {
+        console.log(`🔍 DISCREPANCIA Status para ${item.Name || item['Item Code']}:`);
+        console.log(`   - Status de comentarios: "${ultimoStatusFromComments}"`);
+        console.log(`   - Status de campo: "${originalStatus}"`);
+        console.log(`   - Comentarios raw: "${(item['WA_VIS_Comment'] || '').substring(0, 100)}..."`);
+      }
+      
+      // Asegurar que tengamos todos los campos necesarios
+      return {
+        ...item,
+        // Campos calculados para la tabla
+        ultimoComentario: item['WA_VIS_Comment'] || '',
+        ultimoStatus: ultimoStatusFromComments || originalStatus,
+        ultimoAnalista: item['Analyst'] || item['WA_VIS_Analyst'] || analista || '',
+        ultimoDisenador: item['Designer'] || item['WA_VIS_Designer'] || diseñador || '',
+        fechaComentario: item['Comment Date'] || item['WA_VIS_Comment_Date'] || '',
+        fechaAnalista: item['Analyst Date'] || item['WA_VIS_Analyst_Date'] || '',
+        fechaDisenador: item['Designer Date'] || item['WA_VIS_Designer_Date'] || '',
+        // Campos de compatibilidad con el filtro
+        analista: analista || '',
+        diseñador: diseñador || '',
+        // Preservar item original para compatibilidad
+        originalItem: item
+      };
+    });
+    
+    // 4. GENERAR MASTER STATS DATA (agregaciones para tablas de resumen)
+    masterStatsData = generateAggregatedStatsData(masterCommentData);
+    
+    // 5. ACTUALIZAR TIMESTAMP
+    unifiedViewState.lastDataUpdate = new Date();
+    
+    console.log('✅ === FIN updateMasterDataFromAllSources ===');
+    console.log(`📊 Master Comment Data: ${masterCommentData.length} elementos`);
+    console.log(`📊 Master Stats Data: ${Object.keys(masterStatsData).length} usuarios`);
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error en updateMasterDataFromAllSources:', error);
+    return false;
+  }
+}
+
+/**
+ * Genera datos agregados para las tablas de resumen
+ */
+function generateAggregatedStatsData(commentData) {
+  const stats = {
+    analysts: {},
+    designers: {}
+  };
+  
+  commentData.forEach(item => {
+    const analyst = item.ultimoAnalista || '';
+    const designer = item.ultimoDisenador || '';
+    const status = item.ultimoStatus || '';
+    
+    // Estadísticas de analistas
+    if (analyst && analyst.trim() !== '') {
+      if (!stats.analysts[analyst]) {
+        stats.analysts[analyst] = {
+          total: 0,
+          activos: 0,
+          revision: 0,
+          diseño: 0,
+          completado: 0,
+          cancelado: 0
+        };
+      }
+      
+      stats.analysts[analyst].total++;
+      
+      if (status) {
+        const statusLower = status.toLowerCase();
+        if (statusLower.includes('revision') || statusLower.includes('revisión')) {
+          stats.analysts[analyst].revision++;
+          stats.analysts[analyst].activos++;
+        } else if (statusLower.includes('diseño') || statusLower.includes('design')) {
+          stats.analysts[analyst].diseño++;
+          stats.analysts[analyst].activos++;
+        } else if (statusLower.includes('completado') || statusLower.includes('complete')) {
+          stats.analysts[analyst].completado++;
+        } else if (statusLower.includes('cancelado') || statusLower.includes('cancel')) {
+          stats.analysts[analyst].cancelado++;
+        }
+      }
+    }
+    
+    // Estadísticas de diseñadores
+    if (designer && designer.trim() !== '') {
+      if (!stats.designers[designer]) {
+        stats.designers[designer] = {
+          total: 0,
+          activos: 0,
+          revision: 0,
+          diseño: 0,
+          completado: 0,
+          cancelado: 0
+        };
+      }
+      
+      stats.designers[designer].total++;
+      
+      if (status) {
+        const statusLower = status.toLowerCase();
+        if (statusLower.includes('revision') || statusLower.includes('revisión')) {
+          stats.designers[designer].revision++;
+          stats.designers[designer].activos++;
+        } else if (statusLower.includes('diseño') || statusLower.includes('design')) {
+          stats.designers[designer].diseño++;
+          stats.designers[designer].activos++;
+        } else if (statusLower.includes('completado') || statusLower.includes('complete')) {
+          stats.designers[designer].completado++;
+        } else if (statusLower.includes('cancelado') || statusLower.includes('cancel')) {
+          stats.designers[designer].cancelado++;
+        }
+      }
+    }
+  });
+  
+  return stats;
+}
+
+/**
+ * Función central que regenera TODAS las tablas con estado preservado
+ * Esta es la función principal que se debe llamar cuando se regresa del visualizador
+ */
+function regenerateAllTablesWithState() {
+  console.log('🔄 === INICIO regenerateAllTablesWithState ===');
+  
+  try {
+    // NOTA: NO guardar estado al inicio porque las tablas están vacías sin clases .active
+    // saveUnifiedViewState(); // Comentado - esto sobrescribía los filtros guardados
+    
+    // 1. ACTUALIZAR DATOS MAESTROS DESDE TODAS LAS FUENTES
+    const dataUpdated = updateMasterDataFromAllSources();
+    
+    if (!dataUpdated) {
+      console.warn('⚠️ No se pudieron actualizar los datos maestros');
+      return false;
+    }
+    
+    // 2. REGENERAR TABLA DE COMENTARIOS (Box 4)
+    const commentsRegenerated = regenerateCommentsTableWithFilters();
+    
+    // 4. REGENERAR TABLAS DE RESUMEN (Box 1)
+    const statsRegenerated = regenerateStatsTablesWithFilters();
+    
+    // 5. RESTAURAR ESTADOS DE SCROLL Y ELEMENTOS ACTIVOS
+    setTimeout(() => {
+      restoreUnifiedViewState();
+    }, 150);
+    
+    console.log('✅ === FIN regenerateAllTablesWithState ===');
+    console.log(`📊 Comentarios regenerados: ${commentsRegenerated}`);
+    console.log(`📊 Stats regenerados: ${statsRegenerated}`);
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error en regenerateAllTablesWithState:', error);
+    return false;
+  }
+}
+
+/**
+ * Regenera la tabla de comentarios aplicando filtros guardados
+ */
+function regenerateCommentsTableWithFilters() {
+  console.log('🔄 Regenerando tabla de comentarios con filtros...');
+  
+  // CONTROL DE VISTA: Solo regenerar tabla de comentarios si estamos en vista de información
+  if (!isCleanViewActive) {
+    console.log('ℹ️ Vista de visualizador activa - saltando regeneración de tabla de comentarios');
+    return false;
+  }
+  
+  try {
+    if (!masterCommentData || masterCommentData.length === 0) {
+      console.warn('⚠️ No hay masterCommentData para regenerar tabla de comentarios');
+      return false;
+    }
+    
+    // 1. APLICAR FILTROS GUARDADOS
+    let filteredData = [...masterCommentData];
+    const tableState = unifiedViewState.tables.comments;
+    
+    if (tableState.filters && Object.keys(tableState.filters).length > 0) {
+      console.log('🔧 Aplicando filtros de comentarios:', tableState.filters);
+      console.log('🔧 Datos antes del filtro:', filteredData.length);
+      filteredData = applyFiltersToData(filteredData, tableState.filters);
+      console.log('🔧 Datos después del filtro:', filteredData.length);
+    }
+    
+    // 2. REGENERAR HTML DE LA TABLA
+    const box4Content = document.getElementById('box4-content');
+    if (box4Content) {
+      const tableHTML = generateCommentsTableHTML(filteredData);
+      box4Content.innerHTML = tableHTML;
+      
+      // 3. RECONFIGURAR EVENT LISTENERS
+      setTimeout(() => {
+        setupInventoryClickListeners();
+      }, 50);
+      
+      console.log(`✅ Tabla de comentarios regenerada: ${filteredData.length} elementos`);
+      return true;
+    }
+    
+    return false;
+    
+  } catch (error) {
+    console.error('❌ Error regenerando tabla de comentarios:', error);
+    return false;
+  }
+}
+
+/**
+ * Regenera las tablas de resumen (analistas y diseñadores) aplicando filtros guardados
+ */
+function regenerateStatsTablesWithFilters() {
+  console.log('🔄 Regenerando tablas de resumen con filtros...');
+  
+  try {
+    console.log('🔍 DEBUG - masterStatsData:', masterStatsData);
+    
+    if (!masterStatsData) {
+      console.warn('⚠️ No hay masterStatsData para regenerar tablas de resumen');
+      return false;
+    }
+    
+    console.log('🔍 DEBUG - masterStatsData.analysts:', masterStatsData.analysts);
+    console.log('🔍 DEBUG - masterStatsData.designers:', masterStatsData.designers);
+    
+    // 1. REGENERAR TABLA DE ANALISTAS
+    const analystTableState = unifiedViewState.tables.analysts;
+    console.log('🔍 DEBUG - analystTableState:', analystTableState);
+    const analystHTML = generateAnalystStatsTableHTML(masterStatsData.analysts, analystTableState.filters);
+    console.log('🔍 DEBUG - analystHTML length:', analystHTML.length);
+    
+    // 2. REGENERAR TABLA DE DISEÑADORES  
+    const designerTableState = unifiedViewState.tables.designers;
+    console.log('🔍 DEBUG - designerTableState:', designerTableState);
+    const designerHTML = generateDesignerStatsTableHTML(masterStatsData.designers, designerTableState.filters);
+    console.log('🔍 DEBUG - designerHTML length:', designerHTML.length);
+    
+    // 3. ACTUALIZAR DOM
+    const box1Content = document.getElementById('box1-content');
+    if (box1Content) {
+      // Buscar contenedores existentes o crear estructura
+      let analystContainer = box1Content.querySelector('.analyst-stats-container');
+      let designerContainer = box1Content.querySelector('.designer-stats-container');
+      
+      if (!analystContainer || !designerContainer) {
+        // Crear estructura completa si no existe
+        box1Content.innerHTML = `
+          <div class="analyst-stats-container">
+            <h3>Resumen Analistas</h3>
+            <div class="analyst-stats-table">${analystHTML}</div>
+          </div>
+          <div class="designer-stats-container">
+            <h3>Resumen Diseñadores</h3>
+            <div class="designer-stats-table">${designerHTML}</div>
+          </div>
+        `;
+      } else {
+        // Actualizar solo las tablas
+        analystContainer.querySelector('.analyst-stats-table').innerHTML = analystHTML;
+        designerContainer.querySelector('.designer-stats-table').innerHTML = designerHTML;
+      }
+      
+      console.log('✅ Tablas de resumen regeneradas');
+      return true;
+    }
+    
+    return false;
+    
+  } catch (error) {
+    console.error('❌ Error regenerando tablas de resumen:', error);
+    return false;
+  }
+}
+
+/**
+ * Guarda el estado actual de todas las tablas (scroll, filtros, elementos activos)
+ */
+// Variable global para prevenir múltiples ejecuciones
+let isSavingState = false;
+
+function saveUnifiedViewState() {
+  // Prevenir múltiples ejecuciones simultáneas
+  if (isSavingState) {
+    return;
+  }
+  
+  isSavingState = true;
+  
+  try {
+    // 1. GUARDAR SCROLL DE TABLA DE COMENTARIOS (solo si estamos en vista de comentarios)
+    if (isCleanViewActive) {
+      const inventoryWrapper = document.querySelector('.inventory-table-wrapper') || 
+                              document.querySelector('#box4-content .table-container') ||
+                              document.querySelector('#box4-content');
+      
+      if (inventoryWrapper) {
+        unifiedViewState.tables.comments.scroll = {
+          top: inventoryWrapper.scrollTop,
+          left: inventoryWrapper.scrollLeft
+        };
+        // console.log('💾 SCROLL GUARDADO:', unifiedViewState.tables.comments.scroll, 'desde:', inventoryWrapper.className);
+      }
+    } else {
+      // PRESERVAR scroll existente cuando no estamos en vista de comentarios
+      if (!unifiedViewState.tables.comments.scroll) {
+        unifiedViewState.tables.comments.scroll = { top: 0, left: 0 };
+      }
+      console.log('💾 PRESERVANDO scroll existente (no en vista de comentarios):', unifiedViewState.tables.comments.scroll);
+    }
+    
+    // 2. GUARDAR FILTROS ACTIVOS - DIRECTAMENTE DE LA INTERFAZ
+    unifiedViewState.tables.comments.filters = {};
+    
+    // Buscar elementos activos en las tablas de estadísticas
+    const activeElements = document.querySelectorAll('#box1-content .active[data-user], #box3-content .active[data-user]');
+    
+    activeElements.forEach(element => {
+      const user = element.getAttribute('data-user');
+      const status = element.getAttribute('data-status');
+      const type = element.getAttribute('data-type');
+      
+      if (type === 'analyst') {
+        unifiedViewState.tables.comments.filters.analista = user;
+        if (status) {
+          unifiedViewState.tables.comments.filters.analistaStatus = status;
+        }
+      } else if (type === 'designer') {
+        unifiedViewState.tables.comments.filters.diseñador = user;
+        if (status) {
+          unifiedViewState.tables.comments.filters.diseñadorStatus = status;
+        }
+      }
+    });
+    
+    // CRÍTICO: Guardar filtros también en localStorage para persistencia
+    if (Object.keys(unifiedViewState.tables.comments.filters).length > 0) {
+      localStorage.setItem('lastActiveFilters', JSON.stringify(unifiedViewState.tables.comments.filters));
+    } else {
+      localStorage.removeItem('lastActiveFilters');
+    }
+    
+    // 3. GUARDAR ELEMENTOS ACTIVOS DE COMENTARIOS
+    const activeCommentElements = document.querySelectorAll('#box4-content .active');
+    unifiedViewState.tables.comments.activeElements = Array.from(activeCommentElements).map(el => ({
+      selector: getElementSelector(el),
+      classes: Array.from(el.classList)
+    }));
+    
+    // 4. GUARDAR ELEMENTOS ACTIVOS DE TABLAS DE RESUMEN (para restaurar selecciones visuales)
+    // Elementos activos de analistas
+    const activeAnalystElements = document.querySelectorAll('#box1-content .analyst-stats-table .active');
+    unifiedViewState.tables.analysts.activeElements = Array.from(activeAnalystElements).map(el => ({
+      selector: getElementSelector(el),
+      classes: Array.from(el.classList),
+      dataAttributes: {
+        user: el.getAttribute('data-user'),
+        status: el.getAttribute('data-status'),
+        type: el.getAttribute('data-type')
+      }
+    }));
+    
+    // Elementos activos de diseñadores  
+    const activeDesignerElements = document.querySelectorAll('#box1-content .designer-stats-table .active');
+    unifiedViewState.tables.designers.activeElements = Array.from(activeDesignerElements).map(el => ({
+      selector: getElementSelector(el),
+      classes: Array.from(el.classList),
+      dataAttributes: {
+        user: el.getAttribute('data-user'),
+        status: el.getAttribute('data-status'),
+        type: el.getAttribute('data-type')
+      }
+    }));
+    
+    // 5. SINCRONIZAR CON inventoryViewState para compatibilidad
+    if (!inventoryViewState) inventoryViewState = {};
+    inventoryViewState.activeFilters = { ...unifiedViewState.tables.comments.filters };
+    
+    // 6. GUARDAR EN LOCALSTORAGE PARA PERSISTENCIA
+    localStorage.setItem('unifiedViewState', JSON.stringify(unifiedViewState));
+    
+  } catch (error) {
+    console.error('❌ Error guardando estado unificado:', error);
+  } finally {
+    // Resetear flag al final
+    isSavingState = false;
+  }
+}
+
+/**
+ * Restaura el estado de todas las tablas (scroll, filtros, elementos activos)
+ */
+function restoreUnifiedViewState() {
+  try {
+    // 1. RESTAURAR ELEMENTOS ACTIVOS PRIMERO (para que estén marcados visualmente)
+    // Analistas
+    unifiedViewState.tables.analysts.activeElements.forEach(elementInfo => {
+      const selector = `.clickable-name[data-user="${elementInfo.dataAttributes.user}"][data-type="${elementInfo.dataAttributes.type}"], .clickable-stat[data-user="${elementInfo.dataAttributes.user}"][data-status="${elementInfo.dataAttributes.status}"][data-type="${elementInfo.dataAttributes.type}"]`;
+      const element = document.querySelector(selector);
+      if (element) {
+        element.classList.add('active');
+      }
+    });
+    
+    // Diseñadores
+    unifiedViewState.tables.designers.activeElements.forEach(elementInfo => {
+      const selector = `.clickable-name[data-user="${elementInfo.dataAttributes.user}"][data-type="${elementInfo.dataAttributes.type}"], .clickable-stat[data-user="${elementInfo.dataAttributes.user}"][data-status="${elementInfo.dataAttributes.status}"][data-type="${elementInfo.dataAttributes.type}"]`;
+      const element = document.querySelector(selector);
+      if (element) {
+        element.classList.add('active');
+      }
+    });
+
+    // 2. RESTAURAR FILTROS GUARDADOS DESPUÉS DE MARCAR ELEMENTOS
+    let filtersToRestore = {};
+    
+    // Prioridad 1: Filtros guardados en unifiedViewState
+    if (unifiedViewState.tables.comments.filters && Object.keys(unifiedViewState.tables.comments.filters).length > 0) {
+      filtersToRestore = { ...unifiedViewState.tables.comments.filters };
+    }
+    // Prioridad 2: Filtros de inventoryViewState como fallback
+    else if (inventoryViewState && inventoryViewState.activeFilters && Object.keys(inventoryViewState.activeFilters).length > 0) {
+      filtersToRestore = { ...inventoryViewState.activeFilters };
+    }
+    // Prioridad 3: Filtros de localStorage como último recurso
+    else {
+      try {
+        const lastActiveFilters = localStorage.getItem('lastActiveFilters');
+        if (lastActiveFilters) {
+          const parsedFilters = JSON.parse(lastActiveFilters);
+          if (Object.keys(parsedFilters).length > 0) {
+            filtersToRestore = { ...parsedFilters };
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error leyendo filtros de localStorage:', error);
+      }
+    }
+    
+    if (Object.keys(filtersToRestore).length > 0) {
+      // Restaurar inventoryViewState.activeFilters para compatibilidad
+      if (!inventoryViewState) inventoryViewState = {};
+      inventoryViewState.activeFilters = { ...filtersToRestore };
+      
+      // MARCAR ELEMENTOS COMO ACTIVOS ANTES DE APLICAR FILTROS
+      setTimeout(() => {
+        if (filtersToRestore.analista) {
+          const analistaElements = document.querySelectorAll(`[data-user="${filtersToRestore.analista}"][data-type="analyst"]`);
+          analistaElements.forEach(el => el.classList.add('active'));
+          
+          if (filtersToRestore.analistaStatus) {
+            const statusElements = document.querySelectorAll(`[data-user="${filtersToRestore.analista}"][data-status="${filtersToRestore.analistaStatus}"][data-type="analyst"]`);
+            statusElements.forEach(el => el.classList.add('active'));
+          }
+        }
+        
+        if (filtersToRestore.diseñador) {
+          const designerElements = document.querySelectorAll(`[data-user="${filtersToRestore.diseñador}"][data-type="designer"]`);
+          designerElements.forEach(el => el.classList.add('active'));
+          
+          if (filtersToRestore.diseñadorStatus) {
+            const statusElements = document.querySelectorAll(`[data-user="${filtersToRestore.diseñador}"][data-status="${filtersToRestore.diseñadorStatus}"][data-type="designer"]`);
+            statusElements.forEach(el => el.classList.add('active'));
+          }
+        }
+        
+        // 3. RESTAURAR SCROLL DESPUÉS DE APLICAR FILTROS
+        setTimeout(() => {
+          const inventoryWrapper = document.querySelector('.inventory-table-wrapper') ||
+                                 document.querySelector('#box4-content .table-container') ||
+                                 document.querySelector('#box4-content');
+          
+          if (inventoryWrapper && unifiedViewState.tables.comments.scroll) {
+            const scroll = unifiedViewState.tables.comments.scroll;
+            
+            if (scroll.top > 0) {
+              inventoryWrapper.scrollTop = scroll.top;
+              // console.log('📍 SCROLL RESTAURADO:', scroll.top, 'en:', inventoryWrapper.className);
+            }
+            if (scroll.left > 0) {
+              inventoryWrapper.scrollLeft = scroll.left;
+            }
+          }
+        }, 300);
+        
+      }, 50);
+    } else {
+      // Si no hay filtros, restaurar scroll inmediatamente
+      setTimeout(() => {
+        const inventoryWrapper = document.querySelector('.inventory-table-wrapper') ||
+                               document.querySelector('#box4-content .table-container') ||
+                               document.querySelector('#box4-content');
+        if (inventoryWrapper && unifiedViewState.tables.comments.scroll) {
+          const scroll = unifiedViewState.tables.comments.scroll;
+          if (scroll.top > 0 || scroll.left > 0) {
+            inventoryWrapper.scrollTop = scroll.top;
+            inventoryWrapper.scrollLeft = scroll.left;
+            // console.log('📍 SCROLL RESTAURADO (sin filtros):', scroll.top, 'vertical,', scroll.left, 'horizontal');
+          }
+        }
+      }, 200);
+    }
+
+    // 4. RESTAURAR ELEMENTOS ACTIVOS DE COMENTARIOS
+    unifiedViewState.tables.comments.activeElements.forEach(elementInfo => {
+      const element = document.querySelector(elementInfo.selector);
+      if (element) {
+        elementInfo.classes.forEach(className => {
+          if (className !== 'active') element.classList.add(className);
+        });
+        element.classList.add('active');
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error restaurando estado unificado:', error);
+  }
+}
+
+/**
+ * Aplica filtros a un conjunto de datos
+ */
+function applyFiltersToData(data, filters) {
+  if (!filters || Object.keys(filters).length === 0) {
+    return data;
+  }
+  
+  return data.filter(item => {
+    // Filtro por analista
+    if (filters.analista && item.ultimoAnalista !== filters.analista) {
+      return false;
+    }
+    
+    // Filtro por diseñador
+    if (filters.diseñador && item.ultimoDisenador !== filters.diseñador) {
+      return false;
+    }
+    
+    // Filtro por status de analista
+    if (filters.analistaStatus && filters.analista) {
+      if (!item.ultimoStatus) return false;
+      const status = item.ultimoStatus.toLowerCase();
+      
+      if (filters.analistaStatus === 'activos') {
+        // "Activos" = elementos con status de Revision o Diseño
+        if (!(status.includes('revision') || status.includes('revisión') || status.includes('review')) &&
+            !(status.includes('diseño') || status.includes('diseno') || status.includes('design'))) {
+          return false;
+        }
+      } else if (filters.analistaStatus === 'diseño') {
+        // "Diseño" = elementos con status que contenga diseño
+        if (!(status.includes('diseño') || status.includes('diseno') || status.includes('design'))) {
+          return false;
+        }
+      } else if (filters.analistaStatus === 'revisión') {
+        // "Revisión" = elementos con status que contenga revisión
+        if (!(status.includes('revision') || status.includes('revisión') || status.includes('review'))) {
+          return false;
+        }
+      } else if (filters.analistaStatus === 'completado') {
+        // "Completado" = elementos con status que contenga completado
+        if (!(status.includes('completado') || status.includes('completed') || status.includes('complete'))) {
+          return false;
+        }
+      } else if (filters.analistaStatus === 'cancelado') {
+        // "Cancelado" = elementos con status que contenga cancelado
+        if (!(status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel'))) {
+          return false;
+        }
+      } else {
+        // Filtros específicos de status (comparación exacta)
+        if (item.ultimoStatus !== filters.analistaStatus) {
+          return false;
+        }
+      }
+    }
+    
+    // Filtro por status de diseñador
+    if (filters.diseñadorStatus && filters.diseñador) {
+      if (!item.ultimoStatus) return false;
+      const status = item.ultimoStatus.toLowerCase();
+      
+      if (filters.diseñadorStatus === 'activos') {
+        // "Activos" = elementos con status de Revision o Diseño
+        if (!(status.includes('revision') || status.includes('revisión') || status.includes('review')) &&
+            !(status.includes('diseño') || status.includes('diseno') || status.includes('design'))) {
+          return false;
+        }
+      } else if (filters.diseñadorStatus === 'diseño') {
+        // "Diseño" = elementos con status que contenga diseño
+        if (!(status.includes('diseño') || status.includes('diseno') || status.includes('design'))) {
+          return false;
+        }
+      } else if (filters.diseñadorStatus === 'revisión') {
+        // "Revisión" = elementos con status que contenga revisión
+        if (!(status.includes('revision') || status.includes('revisión') || status.includes('review'))) {
+          return false;
+        }
+      } else if (filters.diseñadorStatus === 'completado') {
+        // "Completado" = elementos con status que contenga completado
+        if (!(status.includes('completado') || status.includes('completed') || status.includes('complete'))) {
+          return false;
+        }
+      } else if (filters.diseñadorStatus === 'cancelado') {
+        // "Cancelado" = elementos con status que contenga cancelado
+        if (!(status.includes('cancelado') || status.includes('cancelled') || status.includes('cancel'))) {
+          return false;
+        }
+      } else {
+        // Filtros específicos de status (comparación exacta)
+        if (item.ultimoStatus !== filters.diseñadorStatus) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  });
+}
+
+/**
+ * Genera un selector único para un elemento DOM
+ */
+function getElementSelector(element) {
+  if (element.id) {
+    return `#${element.id}`;
+  }
+  
+  let selector = element.tagName.toLowerCase();
+  
+  if (element.className) {
+    const classes = Array.from(element.classList).filter(c => c !== 'active' && c !== 'selected');
+    if (classes.length > 0) {
+      selector += '.' + classes.join('.');
+    }
+  }
+  
+  // Añadir data attributes para mayor especificidad
+  ['data-user', 'data-status', 'data-type'].forEach(attr => {
+    const value = element.getAttribute(attr);
+    if (value) {
+      selector += `[${attr}="${value}"]`;
+    }
+  });
+  
+  return selector;
+}
+
+/**
+ * Genera HTML para la tabla de comentarios basada en datos filtrados
+ */
+function generateCommentsTableHTML(filteredData) {
+  if (!filteredData || filteredData.length === 0) {
+    return '<div class="empty-box-message">No hay comentarios que mostrar con los filtros actuales</div>';
+  }
+  
+  console.log(`🔄 Generando HTML de tabla de comentarios para ${filteredData.length} elementos`);
+  
+  // Usar la función existente generateImageInventoryTable pero con datos específicos
+  const originalCurrentWorkingData = currentWorkingData;
+  currentWorkingData = filteredData.map(item => item.originalItem || item);
+  
+  const tableHTML = generateImageInventoryTable(null, true, true); // showAllData=true, suppressStatsUpdate=true
+  
+  // Restaurar currentWorkingData
+  currentWorkingData = originalCurrentWorkingData;
+  
+  return tableHTML;
+}
+
+/**
+ * Genera HTML para la tabla de resumen de analistas
+ */
+function generateAnalystStatsTableHTML(analystStats, filters = {}) {
+  if (!analystStats || Object.keys(analystStats).length === 0) {
+    return '<div class="empty-stats">No hay datos de analistas</div>';
+  }
+  
+  let tableHTML = `
+    <table class="stats-table">
+      <thead>
+        <tr>
+          <th>Analista</th>
+          <th>Total</th>
+          <th>Activos</th>
+          <th>Revisión</th>
+          <th>Diseño</th>
+          <th>Completado</th>
+          <th>Cancelado</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  
+  // Ordenar analistas por total descendente
+  const sortedAnalysts = Object.entries(analystStats).sort((a, b) => b[1].total - a[1].total);
+  
+  sortedAnalysts.forEach(([analyst, stats]) => {
+    tableHTML += `
+      <tr>
+        <td class="clickable-name" data-user="${analyst}" data-type="analyst">${analyst}</td>
+        <td class="clickable-stat" data-user="${analyst}" data-status="" data-type="analyst">${stats.total}</td>
+        <td class="clickable-stat" data-user="${analyst}" data-status="activos" data-type="analyst">${stats.activos}</td>
+        <td class="clickable-stat" data-user="${analyst}" data-status="revisión" data-type="analyst">${stats.revision}</td>
+        <td class="clickable-stat" data-user="${analyst}" data-status="diseño" data-type="analyst">${stats.diseño}</td>
+        <td class="clickable-stat" data-user="${analyst}" data-status="completado" data-type="analyst">${stats.completado}</td>
+        <td class="clickable-stat" data-user="${analyst}" data-status="cancelado" data-type="analyst">${stats.cancelado}</td>
+      </tr>
+    `;
+  });
+  
+  // Totales generales
+  const totals = {
+    total: 0,
+    activos: 0,
+    revision: 0,
+    diseño: 0,
+    completado: 0,
+    cancelado: 0
+  };
+  
+  Object.values(analystStats).forEach(stats => {
+    totals.total += stats.total;
+    totals.activos += stats.activos;
+    totals.revision += stats.revision;
+    totals.diseño += stats.diseño;
+    totals.completado += stats.completado;
+    totals.cancelado += stats.cancelado;
+  });
+  
+  tableHTML += `
+      <tr class="totals-row">
+        <td><strong>TOTAL</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="" data-type="analyst"><strong>${totals.total}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="activos" data-type="analyst"><strong>${totals.activos}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="revisión" data-type="analyst"><strong>${totals.revision}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="diseño" data-type="analyst"><strong>${totals.diseño}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="completado" data-type="analyst"><strong>${totals.completado}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="analyst"><strong>${totals.cancelado}</strong></td>
+      </tr>
+    </tbody>
+    </table>
+  `;
+  
+  return tableHTML;
+}
+
+/**
+ * Genera HTML para la tabla de resumen de diseñadores
+ */
+function generateDesignerStatsTableHTML(designerStats, filters = {}) {
+  if (!designerStats || Object.keys(designerStats).length === 0) {
+    return '<div class="empty-stats">No hay datos de diseñadores</div>';
+  }
+  
+  let tableHTML = `
+    <table class="stats-table">
+      <thead>
+        <tr>
+          <th>Diseñador</th>
+          <th>Total</th>
+          <th>Activos</th>
+          <th>Revisión</th>
+          <th>Diseño</th>
+          <th>Completado</th>
+          <th>Cancelado</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  
+  // Ordenar diseñadores por total descendente
+  const sortedDesigners = Object.entries(designerStats).sort((a, b) => b[1].total - a[1].total);
+  
+  sortedDesigners.forEach(([designer, stats]) => {
+    tableHTML += `
+      <tr>
+        <td class="clickable-name" data-user="${designer}" data-type="designer">${designer}</td>
+        <td class="clickable-stat" data-user="${designer}" data-status="" data-type="designer">${stats.total}</td>
+        <td class="clickable-stat" data-user="${designer}" data-status="activos" data-type="designer">${stats.activos}</td>
+        <td class="clickable-stat" data-user="${designer}" data-status="revisión" data-type="designer">${stats.revision}</td>
+        <td class="clickable-stat" data-user="${designer}" data-status="diseño" data-type="designer">${stats.diseño}</td>
+        <td class="clickable-stat" data-user="${designer}" data-status="completado" data-type="designer">${stats.completado}</td>
+        <td class="clickable-stat" data-user="${designer}" data-status="cancelado" data-type="designer">${stats.cancelado}</td>
+      </tr>
+    `;
+  });
+  
+  // Totales generales
+  const totals = {
+    total: 0,
+    activos: 0,
+    revision: 0,
+    diseño: 0,
+    completado: 0,
+    cancelado: 0
+  };
+  
+  Object.values(designerStats).forEach(stats => {
+    totals.total += stats.total;
+    totals.activos += stats.activos;
+    totals.revision += stats.revision;
+    totals.diseño += stats.diseño;
+    totals.completado += stats.completado;
+    totals.cancelado += stats.cancelado;
+  });
+  
+  tableHTML += `
+      <tr class="totals-row">
+        <td><strong>TOTAL</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="" data-type="designer"><strong>${totals.total}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="activos" data-type="designer"><strong>${totals.activos}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="revisión" data-type="designer"><strong>${totals.revision}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="diseño" data-type="designer"><strong>${totals.diseño}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="completado" data-type="designer"><strong>${totals.completado}</strong></td>
+        <td class="clickable-stat" data-user="all" data-status="cancelado" data-type="designer"><strong>${totals.cancelado}</strong></td>
+      </tr>
+    </tbody>
+    </table>
+  `;
+  
+  return tableHTML;
+}
+
+/**
+ * Función que se llama cuando se hacen asignaciones para actualizar el sistema unificado
+ * Esta función debe ser llamada después de cualquier cambio de asignación
+ */
+function handleAssignmentUpdate(itemIds, newAnalyst, newDesigner) {
+  console.log('🔄 === INICIO handleAssignmentUpdate ===');
+  console.log('📋 Items afectados:', itemIds.length);
+  console.log('👤 Nuevo analista:', newAnalyst);
+  console.log('👤 Nuevo diseñador:', newDesigner);
+  
+  try {
+    // 1. MARCAR QUE HAY CAMBIOS PENDIENTES
+    unifiedViewState.pendingChanges.push({
+      type: 'assignment',
+      itemIds: itemIds,
+      analyst: newAnalyst,
+      designer: newDesigner,
+      timestamp: new Date()
+    });
+    
+    // 2. ACTUALIZAR DATOS LOCALES INMEDIATAMENTE
+    updateLocalAssignmentData(itemIds, newAnalyst, newDesigner);
+    
+    // 3. REGENERAR TODAS LAS TABLAS CON NUEVO ESTADO
+    if (isCleanViewActive) {
+      console.log('🔄 Vista de información activa - regenerando tablas con asignaciones...');
+      
+      // Usar timeout para permitir que se complete la operación de asignación
+      setTimeout(() => {
+        regenerateAllTablesWithState();
+      }, 100);
+    }
+    
+    console.log('✅ === FIN handleAssignmentUpdate ===');
+    
+  } catch (error) {
+    console.error('❌ Error en handleAssignmentUpdate:', error);
+  }
+}
+
+/**
+ * Actualiza los datos locales con las nuevas asignaciones
+ */
+function updateLocalAssignmentData(itemIds, newAnalyst, newDesigner) {
+  console.log('📝 Actualizando datos locales con asignaciones...');
+  
+  // Actualizar masterCommentData si existe
+  if (masterCommentData && masterCommentData.length > 0) {
+    masterCommentData.forEach(item => {
+      if (itemIds.includes(item.Id) || itemIds.includes(String(item.Id))) {
+        if (newAnalyst) {
+          item.ultimoAnalista = newAnalyst;
+          item['Analyst'] = newAnalyst;
+          item['WA_VIS_Analyst'] = newAnalyst;
+          // Actualizar fecha de analista
+          const now = new Date().toISOString().split('T')[0];
+          item.fechaAnalista = now;
+          item['Analyst Date'] = now;
+          item['WA_VIS_Analyst_Date'] = now;
+        }
+        
+        if (newDesigner) {
+          item.ultimoDisenador = newDesigner;
+          item['Designer'] = newDesigner;
+          item['WA_VIS_Designer'] = newDesigner;
+          // Actualizar fecha de diseñador
+          const now = new Date().toISOString().split('T')[0];
+          item.fechaDisenador = now;
+          item['Designer Date'] = now;
+          item['WA_VIS_Designer_Date'] = now;
+        }
+        
+        // Actualizar originalItem también
+        if (item.originalItem) {
+          if (newAnalyst) {
+            item.originalItem['Analyst'] = newAnalyst;
+            item.originalItem['WA_VIS_Analyst'] = newAnalyst;
+            item.originalItem['Analyst Date'] = item.fechaAnalista;
+            item.originalItem['WA_VIS_Analyst_Date'] = item.fechaAnalista;
+          }
+          if (newDesigner) {
+            item.originalItem['Designer'] = newDesigner;
+            item.originalItem['WA_VIS_Designer'] = newDesigner;
+            item.originalItem['Designer Date'] = item.fechaDisenador;
+            item.originalItem['WA_VIS_Designer_Date'] = item.fechaDisenador;
+          }
+        }
+      }
+    });
+  }
+  
+  // Actualizar allLibraryData si existe  
+  if (allLibraryData && allLibraryData.length > 0) {
+    allLibraryData.forEach(item => {
+      if (itemIds.includes(item.Id) || itemIds.includes(String(item.Id))) {
+        if (newAnalyst) {
+          item['Analyst'] = newAnalyst;
+          item['WA_VIS_Analyst'] = newAnalyst;
+          item['Analyst Date'] = new Date().toISOString().split('T')[0];
+          item['WA_VIS_Analyst_Date'] = item['Analyst Date'];
+        }
+        
+        if (newDesigner) {
+          item['Designer'] = newDesigner;
+          item['WA_VIS_Designer'] = newDesigner;
+          item['Designer Date'] = new Date().toISOString().split('T')[0];
+          item['WA_VIS_Designer_Date'] = item['Designer Date'];
+        }
+      }
+    });
+  }
+  
+  // Marcar que hay comentarios recientes para preservar cambios
+  recentCommentsFlag = true;
+  lastCommentTimestamp = new Date();
+  
+  console.log(`✅ Datos locales actualizados para ${itemIds.length} items`);
+}
+
+// Hacer la función global para que pueda ser llamada desde otras partes del código
+window.handleAssignmentUpdate = handleAssignmentUpdate;

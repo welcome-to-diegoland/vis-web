@@ -6299,6 +6299,16 @@ button[id="btn-cargar-categoria"]:disabled {
   color: white;
 }
 
+.status-tag.analista {
+  background-color: #FF6B35; /* Naranja - para status de analista */
+  color: white;
+}
+
+.status-tag.default {
+  background-color: #6B7280; /* Gris neutral - para status desconocidos */
+  color: white;
+}
+
 .status-tag:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
