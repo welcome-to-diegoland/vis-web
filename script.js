@@ -3951,6 +3951,9 @@ async function loadImageGridInBox4(itemGroupPath) {
               <span class="zoom-info" id="zoomInfo">100%</span>
               <button class="zoom-button" id="zoomIn" title="Aumentar tamaño"><i class="fa-solid fa-magnifying-glass"></i>+</button>
             </div>
+            <button class="helpbtn" id="helpButton" title="Ayuda de atajos">
+              ?
+            </button>
           </div>
         </div>
         ${gridHtml}
@@ -4450,6 +4453,9 @@ function regenerateImageGrid() {
             <span class="zoom-info" id="zoomInfo">100%</span>
             <button class="zoom-button" id="zoomIn" title="Aumentar tamaño"><i class="fa-solid fa-magnifying-glass"></i>+</button>
           </div>
+          <button class="btn btn-secondary btn-sm" id="helpButton" title="Ayuda de atajos">
+            <i class="fa-solid fa-question"></i>
+          </button>
         </div>
       </div>
       ${gridHtml}
@@ -4566,6 +4572,14 @@ function setupZoomControls() {
   
   // Inicializar
   updateScale();
+  
+  // Event listener para el botón de ayuda
+  const helpButton = document.getElementById('helpButton');
+  if (helpButton) {
+    helpButton.addEventListener('click', () => {
+      showHelpModal();
+    });
+  }
   
   // Event listener para el botón de limpieza
   const cleanupBtn = document.getElementById('cleanupGalButton');
@@ -17335,3 +17349,45 @@ function updateLocalAssignmentData(itemIds, newAnalyst, newDesigner) {
 
 // Hacer la función global para que pueda ser llamada desde otras partes del código
 window.handleAssignmentUpdate = handleAssignmentUpdate;
+
+// ========== HELP MODAL FUNCTIONS ==========
+function showHelpModal() {
+  const modal = document.getElementById('helpModal');
+  if (modal) {
+    modal.classList.add('show');
+    
+    // Focus en el modal para capturar teclas
+    modal.focus();
+  }
+}
+
+function hideHelpModal() {
+  const modal = document.getElementById('helpModal');
+  if (modal) {
+    modal.classList.remove('show');
+  }
+}
+
+// Event listener global para ESC key
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    const helpModal = document.getElementById('helpModal');
+    if (helpModal && helpModal.classList.contains('show')) {
+      hideHelpModal();
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+});
+
+// Event listener para click fuera del modal
+document.addEventListener('DOMContentLoaded', function() {
+  const helpModal = document.getElementById('helpModal');
+  if (helpModal) {
+    helpModal.addEventListener('click', function(event) {
+      if (event.target === helpModal) {
+        hideHelpModal();
+      }
+    });
+  }
+});
