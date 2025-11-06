@@ -4062,7 +4062,7 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
                 '<div class="no-image"><img src="assets/no-img-purple.svg" alt="No image" style="width: 100%; height: 100%; object-fit: contain;"></div>'
               }
               ${itemGroup && itemGroup['WA_VIS_Comment'] && itemGroup['WA_VIS_Comment'].trim() ? 
-                `<div class="comment-indicator group-comment" data-comment="${itemGroup['WA_VIS_Comment']}" data-status="${getCurrentStatus(itemGroup['WA_VIS_Comment'])}">💬</div>` : 
+                `<div class="comment-indicator group-comment" data-comment="${itemGroup['WA_VIS_Comment']}" data-status="${getCurrentStatus(itemGroup['WA_VIS_Comment'])}"><i class="fa-solid fa-comment"></i></div>` : 
                 ''
               }
             </div>
@@ -4129,7 +4129,7 @@ function generateUnifiedTableWithHeaders(unifiedRows, columnGroups) {
               <div class="table-row" data-row-index="${rowIndex}">
                 <div class="table-cell item-code-cell" data-item-code="${row.itemCode.Name || row.itemCode['Item Code'] || row.itemCode.Id || row.itemCode.ID || 'Sin nombre'}" data-name-path="${row.itemCode.NamePath}">
                   ${row.itemCode['WA_VIS_Comment'] && row.itemCode['WA_VIS_Comment'].trim() ? 
-                    `<div class="comment-indicator" data-comment="${row.itemCode['WA_VIS_Comment']}" data-status="${getCurrentStatus(row.itemCode['WA_VIS_Comment'])}">💬</div>` : 
+                    `<div class="comment-indicator" data-comment="${row.itemCode['WA_VIS_Comment']}" data-status="${getCurrentStatus(row.itemCode['WA_VIS_Comment'])}"><i class="fa-solid fa-comment"></i></div>` : 
                     ''
                   }
                   <div class="item-code-main">${row.itemCode.Name || row.itemCode['Item Code'] || row.itemCode.Id || row.itemCode.ID || 'Sin nombre'}</div>
@@ -4275,7 +4275,7 @@ function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, 
       <div class="image-controls">
         <button class="btn-remove" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>
       </div>
-      ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}"${statusAttribute} onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios">💬</div>` : ''}
+      ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}"${statusAttribute} onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios"><i class="fa-solid fa-comment"></i></div>` : ''}
       ${hasStarComment ? `<div class="star-comment-indicator" title="Imagen de comentario"><i class="fa-solid fa-star"></i></div>` : ''}
       ${multipleImagesIndicator}
       <div class="image-name">${imageName}</div>
@@ -5824,7 +5824,7 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
               const newBubble = document.createElement('div');
               newBubble.className = 'comment-indicator';
               newBubble.setAttribute('data-status', currentStatus);
-              newBubble.textContent = '💬';
+              newBubble.innerHTML = '<i class="fa-solid fa-comment"></i>';
               newBubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
               newBubble.addEventListener('click', function(event) {
                 handleCommentClick(event, this);
@@ -5848,7 +5848,7 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
               newBubble.className = 'comment-indicator group-comment';
               newBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
               newBubble.setAttribute('data-status', currentStatus);
-              newBubble.textContent = '💬';
+              newBubble.innerHTML = '<i class="fa-solid fa-comment"></i>';
               newBubble.addEventListener('click', function(event) {
                 handleCommentClick(event, this);
               });
@@ -6150,7 +6150,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
                     newBubble.setAttribute('data-status', currentStatus);
                     newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${imageName}')`);
                     newBubble.setAttribute('title', 'Ver comentarios');
-                    newBubble.textContent = '💬';
+                    newBubble.innerHTML = '<i class="fa-solid fa-comment"></i>';
                     container.appendChild(newBubble);
                   }
                 }
@@ -6180,7 +6180,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
                     newBubble.setAttribute('data-status', currentStatus);
                     newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${imageName}')`);
                     newBubble.setAttribute('title', 'Ver comentarios');
-                    newBubble.textContent = '💬';
+                    newBubble.innerHTML = '<i class="fa-solid fa-comment"></i>';
                     container.appendChild(newBubble);
                   }
                 }
@@ -6211,7 +6211,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
                   newBubble.setAttribute('data-status', currentStatus);
                   newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${imageName}')`);
                   newBubble.setAttribute('title', 'Ver comentarios');
-                  newBubble.textContent = '💬';
+                  newBubble.innerHTML = '<i class="fa-solid fa-comment"></i>';
                   container.appendChild(newBubble);
                 }
               }
@@ -7959,7 +7959,7 @@ function updateCommentBubbles(type, context, imageName = null) {
             newBubble.setAttribute('data-status', currentStatus);
             newBubble.setAttribute('onclick', `handleImageCommentClick(event, '${realImageName}')`);
             newBubble.setAttribute('title', 'Ver comentarios');
-            newBubble.textContent = '💬';
+            newBubble.innerHTML = '<i class="fa-solid fa-comment"></i>';
             container.appendChild(newBubble);
             console.log('✅ Burbuja creada y agregada al container');
           }
@@ -8000,7 +8000,7 @@ function updateCommentBubbles(type, context, imageName = null) {
           newBubble.className = 'comment-indicator group-comment';
           newBubble.setAttribute('data-comment', currentItemGroup['WA_VIS_Comment'] || '');
           newBubble.setAttribute('data-status', currentStatus);
-          newBubble.textContent = '💬';
+          newBubble.innerHTML = '<i class="fa-solid fa-comment"></i>';
           newBubble.addEventListener('click', function(event) {
             handleCommentClick(event, this);
           });
@@ -8031,7 +8031,7 @@ function updateCommentBubbles(type, context, imageName = null) {
             const newBubble = document.createElement('div');
             newBubble.className = 'comment-indicator';
             newBubble.setAttribute('data-status', currentStatus);
-            newBubble.textContent = '💬';
+            newBubble.innerHTML = '<i class="fa-solid fa-comment"></i>';
             newBubble.setAttribute('data-comment', item?.['WA_VIS_Comment'] || '');
             newBubble.addEventListener('click', function(event) {
               handleCommentClick(event, this);
@@ -8293,7 +8293,7 @@ function updateItemGroupHeaderImage(imageName) {
            alt="Gallery 1" class="group-thumbnail"
            onerror="this.style.display='none';">
       <div class="item-group-delete-btn" title="Quitar imagen del Item Group"><i class="fa-solid fa-trash"></i></div>
-      ${hasComment ? `<div class="comment-indicator group-comment" data-comment="${(currentItemGroup['WA_VIS_Comment'] || '').replace(/"/g, '&quot;')}"${statusAttribute}>💬</div>` : ''}
+      ${hasComment ? `<div class="comment-indicator group-comment" data-comment="${(currentItemGroup['WA_VIS_Comment'] || '').replace(/"/g, '&quot;')}"${statusAttribute}><i class="fa-solid fa-comment"></i></div>` : ''}
     `;
     
     // Configurar event listener para el botón de basura
