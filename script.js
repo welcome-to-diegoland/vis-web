@@ -11,7 +11,6 @@ const VALID_USERS = {
   'ximena': { password: '1234', group: 'Analista' },
   'carlos': { password: '1234', group: 'Analista' },
   'kalem': { password: '1234', group: 'Analista' },
-  'angel': { password: '1234', group: 'Analista' },
   'diego': { password: 'mrmedel', group: 'Admin' },
   'rafael': { password: '1234', group: 'Admin' },
   'daniela': { password: '1234', group: 'Admin' },
@@ -645,11 +644,6 @@ const USERS = {
     name: 'Kalem',
     group: 'Analistas',
     displayName: 'Kalem (Analistas)'
-  },
-  angel: {
-    name: 'Angel',
-    group: 'Analistas',
-    displayName: 'Angel (Analistas)'
   },
   diego: {
     name: 'Diego',
@@ -6667,7 +6661,7 @@ function parseCommentForDebugging(commentText) {
 
     // Separar analistas y diseñadores basado en los usuarios conocidos
     // Lista de analistas conocidos (puedes expandir esta lista)
-    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Angel'];
+    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego'];
     // Lista de diseñadores conocidos (puedes expandir esta lista)  
     const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
     
@@ -11699,7 +11693,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
 
       // Separar analistas y diseñadores basado en los usuarios conocidos
       // Lista de analistas conocidos (basada en VALID_USERS)
-      const analistasConocidos = ['Sandra', 'Victor', 'Ximena', 'Carlos', 'Kalem', 'Angel', 'Diego'];
+      const analistasConocidos = ['Sandra', 'Victor', 'Ximena', 'Carlos', 'Kalem', 'Diego'];
       // Lista de diseñadores conocidos (basada en VALID_USERS)  
       const diseñadoresConocidos = ['Veronica', 'Verónica', 'Rossana', 'Carla', 'Gabriela', 'Thanya', 'Grecia', 'Cinthya'];
       

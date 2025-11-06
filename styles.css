@@ -6929,7 +6929,7 @@ button[id="btn-cargar-categoria"]:disabled {
   font-weight: 600 !important;
   color: #3539CC !important;
   text-align: center !important;
-  margin: 0 0 15px 0 !important;
+  margin: 0 0 0px 0 !important;
   letter-spacing: -0.012em;
 }
 
@@ -7377,7 +7377,6 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Estilos para header de tablas de estadísticas */
 .stats-header {
-  display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
