@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Keyboard Shortcuts PC/Mac</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-area {
+            border: 2px solid #ccc;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .shortcut-info {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-left: 4px solid #2196f3;
+            margin: 10px 0;
+        }
+        .log {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .test-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .test-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test de Keyboard Shortcuts - Mac y PC</h1>
+    
+    <div class="shortcut-info">
+        <h3>Shortcuts disponibles:</h3>
+        <ul>
+            <li><strong>Alt + Cmd/Ctrl + Click:</strong> Abrir modal de comentarios</li>
+            <li><strong>Alt + Cmd/Ctrl + Shift + Click:</strong> Asignar imagen principal</li>
+            <li><strong>Alt + Click:</strong> Eliminar imagen</li>
+            <li><strong>Shift + Click:</strong> Seleccionar imagen</li>
+            <li><strong>Cmd/Ctrl + Click:</strong> Asignar imagen de trabajo</li>
+        </ul>
+        <p><em>En Mac usa Cmd, en PC usa Ctrl</em></p>
+    </div>
+
+    <div class="test-area">
+        <h3>Área de prueba - Haz click con diferentes combinaciones</h3>
+        <button class="test-button" id="testButton">Click aquí con diferentes shortcuts</button>
+        <p>Los eventos detectados aparecerán en el log abajo:</p>
+        <div class="log" id="eventLog"></div>
+        <button onclick="clearLog()">Limpiar Log</button>
+    </div>
+
+    <script>
+        // Función utilitaria igual que en la aplicación principal
+        function isMainModifierKey(event) {
+            return event.metaKey || event.ctrlKey;
+        }
+
+        function logEvent(message) {
+            const log = document.getElementById('eventLog');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}<br>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('eventLog').innerHTML = '';
+        }
+
+        // Event listener para probar shortcuts
+        document.addEventListener('click', function(event) {
+            const target = event.target.id === 'testButton' ? 'TEST BUTTON' : 'other';
+            
+            if (target === 'TEST BUTTON') {
+                // Alt + Cmd/Ctrl + Click (sin Shift)
+                if (isMainModifierKey(event) && event.altKey && !event.shiftKey) {
+                    event.preventDefault();
+                    logEvent('✅ COMENTARIOS: Alt + Cmd/Ctrl + Click detectado');
+                    alert('¡Shortcut de comentarios funciona!');
+                }
+                // Alt + Cmd/Ctrl + Shift + Click
+                else if (isMainModifierKey(event) && event.altKey && event.shiftKey) {
+                    event.preventDefault();
+                    logEvent('✅ IMAGEN PRINCIPAL: Alt + Cmd/Ctrl + Shift + Click detectado');
+                    alert('¡Shortcut de imagen principal funciona!');
+                }
+                // Alt + Click (sin otras teclas)
+                else if (event.altKey && !isMainModifierKey(event) && !event.shiftKey) {
+                    event.preventDefault();
+                    logEvent('✅ ELIMINAR: Alt + Click detectado');
+                    alert('¡Shortcut de eliminar funciona!');
+                }
+                // Shift + Click (sin otras teclas)
+                else if (event.shiftKey && !isMainModifierKey(event) && !event.altKey) {
+                    event.preventDefault();
+                    logEvent('✅ SELECCIONAR: Shift + Click detectado');
+                    alert('¡Shortcut de seleccionar funciona!');
+                }
+                // Cmd/Ctrl + Click (sin otras teclas)
+                else if (isMainModifierKey(event) && !event.shiftKey && !event.altKey) {
+                    event.preventDefault();
+                    logEvent('✅ ASIGNAR: Cmd/Ctrl + Click detectado');
+                    alert('¡Shortcut de asignar funciona!');
+                }
+                // Click normal
+                else if (!isMainModifierKey(event) && !event.shiftKey && !event.altKey) {
+                    logEvent('ℹ️ NORMAL: Click normal detectado');
+                }
+            }
+        });
+
+        // Log inicial
+        logEvent('Sistema iniciado. Plataforma: ' + (navigator.platform.includes('Mac') ? 'Mac' : 'PC'));
+        logEvent('Usa las combinaciones de teclas + click en el botón para probar');
+    </script>
+</body>
+</html>

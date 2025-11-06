@@ -28,6 +28,23 @@ const VALID_USERS = {
 
 // ========== END LOGIN SYSTEM ==========
 
+// ========== KEYBOARD SHORTCUTS ==========
+// Disponibles tanto en Mac como PC:
+// Alt + Cmd/Ctrl + Click: Abrir modal de comentarios
+// Alt + Cmd/Ctrl + Shift + Click: Asignar imagen como principal del Item Group
+// Alt + Click: Eliminar/quitar imagen
+// Shift + Click: Seleccionar imagen de trabajo
+// Cmd/Ctrl + Click: Asignar imagen de trabajo
+// ESC: Cerrar modales abiertos
+console.log('📋 Keyboard Shortcuts disponibles:');
+console.log('• Alt + Cmd/Ctrl + Click: Abrir comentarios');
+console.log('• Alt + Cmd/Ctrl + Shift + Click: Asignar imagen principal');
+console.log('• Alt + Click: Eliminar imagen');
+console.log('• Shift + Click: Seleccionar imagen');
+console.log('• Cmd/Ctrl + Click: Asignar imagen de trabajo');
+console.log('• ESC: Cerrar modales');
+// ========== END KEYBOARD SHORTCUTS ==========
+
 // Elementos del DOM (sección limpia)
 const verticalDivider = document.getElementById('verticalDivider');
 const leftSection = document.getElementById('leftSection');
@@ -187,6 +204,11 @@ document.addEventListener('keydown', function(event) {
     }
   }
 });
+
+// Función utilitaria para detectar la tecla modificadora principal (Cmd en Mac, Ctrl en PC)
+function isMainModifierKey(event) {
+  return event.metaKey || event.ctrlKey;
+}
 
 // Función para truncar texto a aproximadamente 4 líneas (para celdas de tabla)
 function truncateTextForTable(text, maxChars = 100) {
@@ -4540,7 +4562,7 @@ function setupImageSystemEventListeners() {
 
   // Event listener para el modo visual de asignación
   document.addEventListener('keydown', function(event) {
-    if (event.metaKey && event.altKey && event.shiftKey) {
+    if (isMainModifierKey(event) && event.altKey && event.shiftKey) {
       container.classList.add('itemgroup-assignment-mode');
     }
   });
@@ -4550,14 +4572,14 @@ function setupImageSystemEventListeners() {
     container.classList.remove('itemgroup-assignment-mode');
   });
 
-  // Event listener para Command + Alt + Click para abrir comentarios
+  // Event listener para Alt + Cmd/Ctrl + Click para abrir comentarios (compatible Mac y PC)
   document.addEventListener('click', function(event) {
-    // Verificar si se presionaron Command + Alt pero NO Shift
-    if (event.metaKey && event.altKey && !event.shiftKey) {
+    // Verificar si se presionaron Alt + Command/Ctrl pero NO Shift
+    if (isMainModifierKey(event) && event.altKey && !event.shiftKey) {
       event.preventDefault();
       event.stopPropagation();
       
-      console.log('🎯 Alt+Cmd+Click detectado');
+      console.log('🎯 Alt+Cmd/Ctrl+Click detectado (compatible Mac/PC)');
       
       // Determinar qué tipo de elemento se clickeó
       const imageCell = event.target.closest('.image-cell');
@@ -4651,28 +4673,28 @@ function setupImageSystemEventListeners() {
       return;
     }
     
-    // Cmd+Alt+Shift+Click: Asignar como imagen principal del Item Group
-    if (event.metaKey && event.altKey && event.shiftKey) {
+    // Cmd/Ctrl+Alt+Shift+Click: Asignar como imagen principal del Item Group
+    if (isMainModifierKey(event) && event.altKey && event.shiftKey) {
       handleItemGroupImageAssignment(event, imageCell, imageThumbnail);
     }
     
     // Alt+Click: Eliminar/quitar imagen de la celda
-    else if (event.altKey && !event.metaKey && !event.shiftKey && !event.ctrlKey) {
+    else if (event.altKey && !isMainModifierKey(event) && !event.shiftKey) {
       handleImageRemoval(event, imageCell, imageThumbnail);
     }
     
     // Shift+Click: Seleccionar imagen de trabajo
-    else if (event.shiftKey && !event.metaKey && !event.altKey) {
+    else if (event.shiftKey && !isMainModifierKey(event) && !event.altKey) {
       handleImageSelection(event, imageCell, imageThumbnail);
     }
     
     // Cmd+Click (Mac) / Ctrl+Click (Windows): Asignar imagen de trabajo
-    else if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+    else if (isMainModifierKey(event) && !event.shiftKey && !event.altKey) {
       handleImageAssignment(event, imageCell);
     }
     
     // Click simple: Mostrar imagen en modal
-    else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && imageThumbnail) {
+    else if (!isMainModifierKey(event) && !event.shiftKey && !event.altKey && imageThumbnail) {
       handleImagePreview(event, imageThumbnail);
     }
   });
@@ -8085,7 +8107,7 @@ function setupModalFunctionality(modal) {
   }
 }
 
-// Función para manejar la asignación de imagen principal del Item Group (Cmd+Alt+Shift+Click)
+// Función para manejar la asignación de imagen principal del Item Group (Cmd/Ctrl+Alt+Shift+Click)
 function handleItemGroupImageAssignment(event, imageCell, imageThumbnail) {
   event.preventDefault();
   
@@ -8426,9 +8448,9 @@ function handleItemGroupImageClick(event) {
     return; // Dejar que el botón de basura maneje su propio click
   }
   
-  // NO interceptar Alt+Cmd+Click - dejar que lo maneje el event listener de comentarios
-  if (event.metaKey && event.altKey && !event.shiftKey) {
-    console.log('🎯 Alt+Cmd+Click en Item Group - delegando al handler de comentarios');
+  // NO interceptar Alt+Cmd/Ctrl+Click - dejar que lo maneje el event listener de comentarios
+  if (isMainModifierKey(event) && event.altKey && !event.shiftKey) {
+    console.log('🎯 Alt+Cmd/Ctrl+Click en Item Group - delegando al handler de comentarios');
     return; // No interceptar, dejar que pase al handler de comentarios
   }
   

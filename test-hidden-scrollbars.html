@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Scrollbars Ocultas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .info-box {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-left: 4px solid #2196f3;
+            margin: 20px 0;
+        }
+        
+        /* Estilos de prueba que imitan el comportamiento del grid */
+        .test-scroll-horizontal {
+            width: 300px;
+            height: 50px;
+            border: 2px solid #ddd;
+            background-color: #f9f9f9;
+            overflow-x: auto;
+            overflow-y: hidden;
+            margin: 10px 0;
+            white-space: nowrap;
+            padding: 10px;
+            
+            /* Ocultar scrollbars manteniendo funcionalidad */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+        }
+        
+        .test-scroll-horizontal::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Edge moderno */
+        }
+        
+        .test-scroll-vertical {
+            width: 300px;
+            height: 150px;
+            border: 2px solid #ddd;
+            background-color: #f9f9f9;
+            overflow-y: auto;
+            overflow-x: hidden;
+            margin: 10px 0;
+            padding: 10px;
+            
+            /* Ocultar scrollbars manteniendo funcionalidad */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+        }
+        
+        .test-scroll-vertical::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Edge moderno */
+        }
+        
+        .content-wide {
+            width: 800px;
+            height: 30px;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #fecca7);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .content-tall {
+            height: 400px;
+            background: linear-gradient(180deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #fecca7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .comparison {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .normal-scroll {
+            width: 300px;
+            height: 150px;
+            border: 2px solid #ddd;
+            background-color: #f9f9f9;
+            overflow: auto;
+            padding: 10px;
+        }
+        
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Test - Barras de Scroll Ocultas</h1>
+        
+        <div class="info-box">
+            <h3>Información:</h3>
+            <p>Este test verifica que las barras de scroll estén ocultas pero que la funcionalidad de scroll siga funcionando.</p>
+            <p><strong>En PC:</strong> Las barras de scroll normalmente son visibles y ocupan espacio.</p>
+            <p><strong>En Mac:</strong> Las barras de scroll solo aparecen al hacer scroll y son overlay.</p>
+            <p><strong>Con nuestros cambios:</strong> Las barras están ocultas en ambas plataformas pero el scroll funciona.</p>
+        </div>
+        
+        <div class="test-section">
+            <h3>1. Scroll Horizontal (simulando headers del grid)</h3>
+            <p>Scroll horizontal sin barra visible - usa las flechas del teclado o scroll del mouse:</p>
+            <div class="test-scroll-horizontal">
+                <div class="content-wide">
+                    Contenido ancho que requiere scroll horizontal - REST | COVER | GALLERY headers
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. Scroll Vertical (simulando contenido principal)</h3>
+            <p>Scroll vertical sin barra visible - usa la rueda del mouse o scroll touch:</p>
+            <div class="test-scroll-vertical">
+                <div class="content-tall">
+                    <div>
+                        <p>Contenido alto que requiere scroll vertical</p>
+                        <p>Línea 1</p>
+                        <p>Línea 2</p>
+                        <p>Línea 3</p>
+                        <p>Línea 4</p>
+                        <p>Línea 5</p>
+                        <p>Línea 6</p>
+                        <p>Línea 7</p>
+                        <p>Línea 8</p>
+                        <p>Línea 9</p>
+                        <p>Línea 10</p>
+                        <p>Final del contenido</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. Comparación: Con y Sin Barras de Scroll</h3>
+            <div class="comparison">
+                <div>
+                    <h4>CON scrollbars (normal)</h4>
+                    <div class="normal-scroll">
+                        <div class="content-tall">
+                            <div>
+                                <p>Contenido con scrollbars visibles</p>
+                                <p>Línea 1</p>
+                                <p>Línea 2</p>
+                                <p>Línea 3</p>
+                                <p>Línea 4</p>
+                                <p>Línea 5</p>
+                                <p>Final</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4>SIN scrollbars (nuestro estilo)</h4>
+                    <div class="test-scroll-vertical">
+                        <div class="content-tall">
+                            <div>
+                                <p>Contenido sin scrollbars visibles</p>
+                                <p>Línea 1</p>
+                                <p>Línea 2</p>
+                                <p>Línea 3</p>
+                                <p>Línea 4</p>
+                                <p>Línea 5</p>
+                                <p>Final</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h3>Cómo probar:</h3>
+            <ul>
+                <li><strong>Scroll horizontal:</strong> Usa las flechas izquierda/derecha del teclado o shift + rueda del mouse</li>
+                <li><strong>Scroll vertical:</strong> Usa la rueda del mouse o las flechas arriba/abajo</li>
+                <li><strong>Touch:</strong> En dispositivos táctiles, usa gestos de scroll normales</li>
+            </ul>
+            <p><strong>Resultado esperado:</strong> El contenido se debe mover/desplazar sin que aparezcan barras de scroll visibles.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -3822,6 +3822,15 @@ button[id="btn-cargar-categoria"]:disabled {
   height: 30px !important;
   overflow-x: auto !important;  /* Scroll horizontal independiente */
   overflow-y: visible !important;
+  
+  /* Ocultar barras de scroll manteniendo funcionalidad */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* Ocultar scrollbar en WebKit (Chrome, Safari) */
+.section-wrapper > .section-headers.scrollable-headers::-webkit-scrollbar {
+  display: none;
 }
 
 /* Headers individuales dentro del contenedor scrollable */
@@ -4146,6 +4155,15 @@ button[id="btn-cargar-categoria"]:disabled {
   overflow-x: hidden;
   position: relative; /* CLAVE para sticky */
   margin-top: 0; /* Sin margen superior */
+  
+  /* Ocultar barras de scroll manteniendo funcionalidad */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* Ocultar scrollbar en WebKit (Chrome, Safari) para layout principal */
+.unified-grid-layout::-webkit-scrollbar {
+  display: none;
 }
 
 /* ===== ESTRUCTURA UNIFICADA DE HEADERS STICKY ===== */
@@ -4281,6 +4299,15 @@ button[id="btn-cargar-categoria"]:disabled {
 /* MANTENER SOLO SCROLL HORIZONTAL DONDE SE NECESITA */
 .horizontal-scrollable {
   overflow-x: auto !important;    /* MANTENER scroll horizontal */
+  
+  /* Ocultar barras de scroll manteniendo funcionalidad */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* Ocultar scrollbar en WebKit (Chrome, Safari) para scroll horizontal */
+.horizontal-scrollable::-webkit-scrollbar {
+  display: none;
 }
 
 /* Wrapper para cada sección */
@@ -7418,6 +7445,56 @@ table.image-inventory-table td:nth-child(17) { width: 120px !important; min-widt
 /* REGLAS PARA inventory-cell-clean - LAS COLUMNAS 9-16 USAN ESTA CLASE */
 .image-inventory-table .inventory-cell-clean:nth-child(9) { width: 70px !important; min-width: 70px !important; max-width: 70px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(10) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
+
+/* ===== OCULTAR BARRAS DE SCROLL GLOBALMENTE ===== */
+/* Regla general para ocultar barras de scroll manteniendo funcionalidad de scroll */
+
+/* Elementos específicos del grid de imágenes y tablas sin barras de scroll */
+.sections-container,
+.section-wrapper,
+.section-scroll-container,
+.image-grid-container,
+.unified-table-body,
+.inventory-table-wrapper,
+.image-inventory-container,
+.cov-wrapper,
+.gallery-wrapper,
+.rest-wrapper,
+.section-headers,
+.header-section {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+/* WebKit (Chrome, Safari, Edge moderno) - Ocultar scrollbars */
+.sections-container::-webkit-scrollbar,
+.section-wrapper::-webkit-scrollbar,
+.section-scroll-container::-webkit-scrollbar,
+.image-grid-container::-webkit-scrollbar,
+.unified-table-body::-webkit-scrollbar,
+.inventory-table-wrapper::-webkit-scrollbar,
+.image-inventory-container::-webkit-scrollbar,
+.cov-wrapper::-webkit-scrollbar,
+.gallery-wrapper::-webkit-scrollbar,
+.rest-wrapper::-webkit-scrollbar,
+.section-headers::-webkit-scrollbar,
+.header-section::-webkit-scrollbar {
+  display: none;
+}
+
+/* Regla específica para elementos que necesitan scroll horizontal en el grid */
+.horizontal-scrollable,
+.scrollable-headers,
+.section-headers.scrollable-headers {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+.horizontal-scrollable::-webkit-scrollbar,
+.scrollable-headers::-webkit-scrollbar,
+.section-headers.scrollable-headers::-webkit-scrollbar {
+  display: none;
+}
 .image-inventory-table .inventory-cell-clean:nth-child(11) { width: 90px !important; min-width: 90px !important; max-width: 90px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(12) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(13) { width: 80px !important; min-width: 80px !important; max-width: 80px !important; }
