@@ -8876,9 +8876,13 @@ function updateCurrentWorkingDataWithGridStateImmediate() {
           // Actualizar en currentWorkingData usando los nombres correctos
           const columnName = `${sections[section].prefix}${String(index + 1).padStart(2, '0')}`;
           
-          if (itemCodeRow[columnName] !== undefined) {
-            itemCodeRow[columnName] = imageName;
+          // Inicializar el campo si no existe
+          if (itemCodeRow[columnName] === undefined) {
+            itemCodeRow[columnName] = '';
           }
+          
+          // Actualizar el valor
+          itemCodeRow[columnName] = imageName;
         });
       }
     });
