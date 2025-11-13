@@ -28,20 +28,34 @@ const VALID_USERS = {
 // ========== END LOGIN SYSTEM ==========
 
 // ========== KEYBOARD SHORTCUTS ==========
-// Disponibles tanto en Mac como PC:
-// Alt + Cmd/Ctrl + Click: Abrir modal de comentarios
-// Alt + Cmd/Ctrl + Shift + Click: Asignar imagen como principal del Item Group
-// Alt + Click: Eliminar/quitar imagen
-// Shift + Click: Seleccionar imagen de trabajo
-// Cmd/Ctrl + Click: Asignar imagen de trabajo
-// ESC: Cerrar modales abiertos
-console.log('📋 Keyboard Shortcuts disponibles:');
-console.log('• Alt + Cmd/Ctrl + Click: Abrir comentarios');
-console.log('• Alt + Cmd/Ctrl + Shift + Click: Asignar imagen principal');
-console.log('• Alt + Click: Eliminar imagen');
-console.log('• Shift + Click: Seleccionar imagen');
-console.log('• Cmd/Ctrl + Click: Asignar imagen de trabajo');
-console.log('• ESC: Cerrar modales');
+// 🎯 SISTEMA HÍBRIDO: Shortcuts originales + alternativas más confiables
+// 
+// 📋 COMENTARIOS:
+// • Alt + Cmd/Ctrl + Click: Abrir modal de comentarios (original)
+// • Alt + Double-click: Abrir comentarios (✨ alternativa confiable)
+//
+// 📋 ASIGNAR AL ITEM GROUP:
+// • Alt + Cmd/Ctrl + Shift + Click: Asignar imagen principal (original)
+// • Ctrl/Cmd + Shift + Click: Asignar al Item Group (✨ alternativa confiable)
+//
+// 📋 OTRAS ACCIONES:
+// • Alt + Click: Eliminar/quitar imagen
+// • Shift + Click: Seleccionar imagen de trabajo
+// • Cmd/Ctrl + Click: Asignar imagen de trabajo
+// • ESC: Cerrar modales abiertos
+//
+console.log('📋 Keyboard Shortcuts disponibles (Sistema Híbrido):');
+console.log('💬 COMENTARIOS:');
+console.log('  • Alt + Cmd/Ctrl + Click: Comentarios (original)');
+console.log('  • Alt + Double-click: Comentarios (alternativa confiable)');
+console.log('🎯 ASIGNAR ITEM GROUP:');
+console.log('  • Alt + Cmd/Ctrl + Shift + Click: Item Group (original)');
+console.log('  • Ctrl/Cmd + Shift + Click: Item Group (alternativa confiable)');
+console.log('⚡ OTRAS ACCIONES:');
+console.log('  • Alt + Click: Eliminar imagen');
+console.log('  • Shift + Click: Seleccionar imagen');
+console.log('  • Cmd/Ctrl + Click: Asignar imagen de trabajo');
+console.log('  • ESC: Cerrar modales');
 // ========== END KEYBOARD SHORTCUTS ==========
 
 // Elementos del DOM (sección limpia)
@@ -4666,18 +4680,6 @@ function setupImageSystemEventListeners() {
   const container = document.getElementById('imageGridContainer');
   if (!container) return;
 
-  // Event listener para el modo visual de asignación
-  document.addEventListener('keydown', function(event) {
-    if (isMainModifierKey(event) && event.altKey && event.shiftKey) {
-      container.classList.add('itemgroup-assignment-mode');
-    }
-  });
-
-  document.addEventListener('keyup', function(event) {
-    // Remover modo visual cuando se suelta cualquier tecla
-    container.classList.remove('itemgroup-assignment-mode');
-  });
-
   // Event listener para Alt + Cmd/Ctrl + Click para abrir comentarios (compatible Mac y PC)
   document.addEventListener('click', function(event) {
     // Verificar si se presionaron Alt + Command/Ctrl pero NO Shift
@@ -4761,6 +4763,35 @@ function setupImageSystemEventListeners() {
     }
   });
 
+  // ✨ NUEVO: Right-click contextual para comentarios
+  document.addEventListener('contextmenu', function(event) {
+    // Determinar qué tipo de elemento se clickeó
+    const imageCell = event.target.closest('.image-cell');
+    const itemCodeCell = event.target.closest('.item-code-cell');
+    const itemGroupImage = event.target.closest('.item-group-image');
+    const itemGroupContainer = event.target.closest('.item-group-container');
+    const itemGroupHeader = event.target.closest('.item-group-header');
+    const imageThumbnail = event.target.closest('.image-thumbnail');
+    const emptyImageCell = event.target.closest('.empty-image-cell');
+    
+    // Solo mostrar menú contextual en elementos válidos
+    if (imageCell || itemCodeCell || itemGroupImage || itemGroupContainer || itemGroupHeader || imageThumbnail || emptyImageCell) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      console.log('🎯 Right-click detectado - Mostrando menú contextual');
+      showContextMenu(event, {
+        imageCell,
+        itemCodeCell,
+        itemGroupImage,
+        itemGroupContainer,
+        itemGroupHeader,
+        imageThumbnail,
+        emptyImageCell
+      });
+    }
+  });
+
   container.addEventListener('click', function(event) {
     const imageCell = event.target.closest('.image-cell');
     const imageThumbnail = event.target.closest('.image-thumbnail');
@@ -4779,9 +4810,10 @@ function setupImageSystemEventListeners() {
       return;
     }
     
-    // Cmd/Ctrl+Alt+Shift+Click: Asignar como imagen principal del Item Group
-    if (isMainModifierKey(event) && event.altKey && event.shiftKey) {
-      handleItemGroupImageAssignment(event, imageCell, imageThumbnail);
+    // Ctrl+Shift+Click: Asignar como imagen principal del Item Group
+    if (isMainModifierKey(event) && event.shiftKey && !event.altKey) {
+      console.log('🎯 Ctrl/Cmd+Shift+Click detectado - Asignar al Item Group');
+      handleItemGroupImageAssignment(event, imageCell, imageThumbnail, 'Ctrl+Shift+Click');
     }
     
     // Alt+Click: Eliminar/quitar imagen de la celda
@@ -8226,9 +8258,14 @@ function setupModalFunctionality(modal) {
   }
 }
 
-// Función para manejar la asignación de imagen principal del Item Group (Cmd/Ctrl+Alt+Shift+Click)
-function handleItemGroupImageAssignment(event, imageCell, imageThumbnail) {
+// Función para manejar la asignación de imagen principal del Item Group
+function handleItemGroupImageAssignment(event, imageCell, imageThumbnail, shortcutUsed = 'unknown') {
   event.preventDefault();
+  
+  // Log para mostrar qué shortcut se usó
+  if (shortcutUsed !== 'unknown') {
+    console.log(`🎯 Asignación de Item Group activada usando: ${shortcutUsed}`);
+  }
   
   if (!imageCell || !imageThumbnail || imageThumbnail.src.includes('data:image/svg+xml')) {
     console.log('No hay imagen válida para asignar al Item Group');
@@ -17397,3 +17434,151 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+// ========== CONTEXT MENU FUNCTIONS ==========
+function showContextMenu(event, elements) {
+  // Quitar menú contextual previo si existe
+  hideContextMenu();
+  
+  const contextMenu = document.createElement('div');
+  contextMenu.id = 'contextMenu';
+  contextMenu.className = 'context-menu';
+  
+  // Crear opciones del menú
+  const menuOptions = [];
+  
+  // 💬 COMENTARIOS - Siempre disponible (priorizar Item Group)
+  if (elements.itemGroupImage || elements.itemGroupContainer || elements.itemGroupHeader) {
+    menuOptions.push({
+      icon: 'fa-solid fa-comment',
+      text: 'Comentarios',
+      action: () => {
+        if (currentItemGroup) {
+          const commentText = currentItemGroup['WA_VIS_Comment'] || '';
+          const itemGroupId = currentItemGroup['ID'] || currentItemGroup['Item Group ID'] || currentItemGroup['Id'] || '';
+          const itemGroupName = currentItemGroup['Name'] || 'Item Group';
+          const contextInfo = `${itemGroupName} </br> (${itemGroupId})`;
+          openCommentModal('Comentarios de Item Group', contextInfo, commentText, 'group', null);
+        }
+        hideContextMenu();
+      }
+    });
+  } else if (elements.imageCell || elements.imageThumbnail) {
+    // Comentarios de imagen
+    menuOptions.push({
+      icon: 'fa-solid fa-comment',
+      text: 'Comentarios...',
+      action: () => {
+        const imageName = elements.imageThumbnail?.getAttribute('data-filename') || elements.imageThumbnail?.alt;
+        if (imageName) {
+          // Usar la misma lógica que Alt+Ctrl+Click para funcionar con imágenes con o sin comentarios
+          const commentText = getImageComments(imageName);
+          openCommentModal('Comentarios de Imagen', imageName, commentText || '', 'image', imageName);
+        }
+        hideContextMenu();
+      }
+    });
+    
+    // Para imágenes, agregar todas las opciones de manipulación en el orden solicitado
+    menuOptions.push(
+      {
+        icon: 'fa-solid fa-up-right-from-square fa-flip-horizontal',
+        text: 'Asignar al Item Group',
+        action: () => {
+          handleItemGroupImageAssignment(event, elements.imageCell, elements.imageThumbnail, 'Right-click menu');
+          hideContextMenu();
+        }
+      },
+      {
+        icon: 'fa-solid fa-up-right-from-square',
+        text: 'Seleccionar imagen',
+        action: () => {
+          handleImageSelection(event, elements.imageCell, elements.imageThumbnail);
+          hideContextMenu();
+        }
+      },
+      {
+        icon: 'fa-solid fa-circle-plus',
+        text: 'Asignar imagen',
+        action: () => {
+          handleImageAssignment(event, elements.imageCell);
+          hideContextMenu();
+        }
+      },
+      {
+        icon: 'fa-solid fa-trash',
+        text: 'Quitar del Item Code',
+        action: () => {
+          // Usar la misma lógica que Alt+Click - eliminar de la celda específica
+          handleImageRemoval(event, elements.imageCell, elements.imageThumbnail);
+          hideContextMenu();
+        }
+      },
+      {
+        icon: 'fa-solid fa-trash',
+        text: 'Quitar del Item Group',
+        action: () => {
+          // Usar la misma lógica que el botón de hover - eliminación masiva de todos los items
+          handleBulkImageRemoval(event, elements.imageCell);
+          hideContextMenu();
+        }
+      }
+    );
+  } else if (elements.itemCodeCell || elements.emptyImageCell) {
+    // Comentarios de Item Code
+    menuOptions.push({
+      icon: 'fa-solid fa-comment',
+      text: 'Comentarios',
+      action: () => {
+        const itemCodeName = elements.itemCodeCell?.querySelector('.item-code-text')?.textContent?.trim() || 
+                            elements.emptyImageCell?.getAttribute('data-item-code');
+        
+        if (itemCodeName) {
+          // Usar la misma lógica que Alt+Ctrl+Click para funcionar siempre
+          const item = currentItemCodes.find(item => item.Name === itemCodeName);
+          const commentText = item ? (item['WA_VIS_Comment'] || '') : '';
+          const fullContext = generateItemCodeContext(itemCodeName);
+          openCommentModal('Comentarios de Item Code', fullContext, commentText, 'item', null);
+        }
+        hideContextMenu();
+      }
+    });
+  }
+  
+  // Crear HTML del menú con iconos de Font Awesome
+  contextMenu.innerHTML = `
+    ${menuOptions.map((option, index) => `
+      <div class="context-menu-item" data-index="${index}">
+        <i class="${option.icon}"></i>
+        <span>${option.text}</span>
+      </div>
+    `).join('')}
+  `;
+  
+  // Posicionar el menú en la posición del mouse
+  contextMenu.style.left = event.pageX + 'px';
+  contextMenu.style.top = event.pageY + 'px';
+  
+  // Agregar al DOM
+  document.body.appendChild(contextMenu);
+  
+  // Agregar event listeners a las opciones
+  menuOptions.forEach((option, index) => {
+    const menuItem = contextMenu.querySelector(`[data-index="${index}"]`);
+    if (menuItem) {
+      menuItem.addEventListener('click', option.action);
+    }
+  });
+  
+  // Cerrar menú al hacer click fuera
+  setTimeout(() => {
+    document.addEventListener('click', hideContextMenu, { once: true });
+  }, 10);
+}
+
+function hideContextMenu() {
+  const existingMenu = document.getElementById('contextMenu');
+  if (existingMenu) {
+    existingMenu.remove();
+  }
+}
