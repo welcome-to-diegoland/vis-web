@@ -3056,11 +3056,11 @@ function transformAttributeValueData(attributeValueData) {
         'WA_Gallery_11': '', 'WA_Gallery_12': '', 'WA_Gallery_13': '', 'WA_Gallery_14': '', 'WA_Gallery_15': '',
         'WA_Gallery_16': '', 'WA_Gallery_17': '', 'WA_Gallery_18': '', 'WA_Gallery_19': '', 'WA_Gallery_20': '',
         'WA_Gallery_21': '', 'WA_Gallery_22': '', 'WA_Gallery_23': '', 'WA_Gallery_24': '', 'WA_Gallery_25': '',
-        'WA_Rest_Image_01': '', 'WA_Rest_Image_02': '', 'WA_Rest_Image_03': '', 'WA_Rest_Image_04': '', 'WA_Rest_Image_05': '',
-        'WA_Rest_Image_06': '', 'WA_Rest_Image_07': '', 'WA_Rest_Image_08': '', 'WA_Rest_Image_09': '', 'WA_Rest_Image_10': '',
-        'WA_Rest_Image_11': '', 'WA_Rest_Image_12': '', 'WA_Rest_Image_13': '', 'WA_Rest_Image_14': '', 'WA_Rest_Image_15': '',
-        'WA_Rest_Image_16': '', 'WA_Rest_Image_17': '', 'WA_Rest_Image_18': '', 'WA_Rest_Image_19': '', 'WA_Rest_Image_20': '',
-        'WA_Rest_Image_21': '', 'WA_Rest_Image_22': '', 'WA_Rest_Image_23': '', 'WA_Rest_Image_24': '', 'WA_Rest_Image_25': '',
+        'WA_Rest_01': '', 'WA_Rest_02': '', 'WA_Rest_03': '', 'WA_Rest_04': '', 'WA_Rest_05': '',
+        'WA_Rest_06': '', 'WA_Rest_07': '', 'WA_Rest_08': '', 'WA_Rest_09': '', 'WA_Rest_10': '',
+        'WA_Rest_11': '', 'WA_Rest_12': '', 'WA_Rest_13': '', 'WA_Rest_14': '', 'WA_Rest_15': '',
+        'WA_Rest_16': '', 'WA_Rest_17': '', 'WA_Rest_18': '', 'WA_Rest_19': '', 'WA_Rest_20': '',
+        'WA_Rest_21': '', 'WA_Rest_22': '', 'WA_Rest_23': '', 'WA_Rest_24': '', 'WA_Rest_25': '',
         'WA_VIS_Cover': '',
         'WA_VIS_Gallery': '',
         'WA_VIS_Rest': ''
@@ -3112,20 +3112,26 @@ function transformAttributeValueData(attributeValueData) {
         }
       }
       
-      // Procesar WA_VIS_Rest -> WA_Rest_Image_01, WA_Rest_Image_02, etc.
+      // Procesar WA_VIS_Rest -> WA_Rest_01, WA_Rest_02, etc.
       if (attribute === 'WA_VIS_Rest' && value.trim()) {
         const restImages = value.split(',').map(img => img.trim()).filter(img => img);
+        console.log(`🔍 DEBUG - Procesando WA_VIS_Rest para ID ${id}: ${restImages.length} imágenes`);
         
         // SOLO actualizar rest si es Item Group O si no hay rest existente
-        const shouldUpdateRest = objectType === 'Item Group' || !transformedItems[id]['WA_Rest_Image_01'] || !transformedItems[id]['WA_Rest_Image_01'].trim();
+        const shouldUpdateRest = objectType === 'Item Group' || !transformedItems[id]['WA_Rest_01'] || !transformedItems[id]['WA_Rest_01'].trim();
         
         if (shouldUpdateRest) {
           restImages.forEach((image, index) => {
             if (index < 25) { // Máximo 25 imágenes rest
-              const fieldName = `WA_Rest_Image_${String(index + 1).padStart(2, '0')}`;
+              const fieldName = `WA_Rest_${String(index + 1).padStart(2, '0')}`;
               transformedItems[id][fieldName] = image;
+              if (index < 3) { // Solo mostrar las primeras 3 en logs
+                console.log(`🔍 DEBUG - Asignando ${fieldName}: "${image}"`);
+              }
             }
           });
+        } else {
+          console.log(`🔍 DEBUG - No actualizando REST para ID ${id} (shouldUpdateRest: false)`);
         }
       }
     }
@@ -4034,7 +4040,7 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
   const columnGroups = {
     cover: imageColumns.filter(col => col.includes('Cover')),
     gallery: imageColumns.filter(col => col.includes('Gallery')),
-    rest: imageColumns.filter(col => col.includes('Rst') || col.includes('Rest'))
+    rest: imageColumns.filter(col => col.includes('Rest'))
   };
 
   // Crear una estructura de datos unificada donde cada fila tiene TODOS sus datos
