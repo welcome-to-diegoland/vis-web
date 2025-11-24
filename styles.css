@@ -3723,7 +3723,7 @@ button[id="btn-cargar-categoria"]:disabled {
 /* Indicador de múltiples imágenes */
 .multiple-images-indicator {
   position: absolute;
-  bottom: 2px;
+  top: 2px;
   left: 2px;
   background: #007bff;
   color: white;
