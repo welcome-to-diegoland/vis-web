@@ -4293,7 +4293,7 @@ function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, 
         <button class="btn-remove" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>
       </div>
       ${hasComments ? `<div class="comment-bubble image-comment" data-image="${imageName}"${statusAttribute} onclick="handleImageCommentClick(event, '${imageName}')" title="Ver comentarios"><i class="fa-solid fa-comment"></i></div>` : ''}
-      ${hasStarComment ? `<div class="star-comment-indicator" title="Imagen de comentario"><i class="fa-solid fa-star"></i></div>` : ''}
+      ${hasStarComment ? `<div class="star-comment-indicator" title="Imagen nueva"><span class="new-indicator-text">N</span></div>` : ''}
       ${multipleImagesIndicator}
       <div class="image-name">${imageName}</div>
     </div>
@@ -5482,7 +5482,7 @@ function hasImageComments(imageName) {
   return false;
 }
 
-// Función para verificar si una imagen tiene img_comment = 1
+// Función para verificar si una imagen tiene new_img = 1
 function hasImageStarComment(imageName) {
   if (!imageName) return false;
   
@@ -5493,7 +5493,7 @@ function hasImageStarComment(imageName) {
     });
     
     if (imageObject && imageObject['data_concatenated']) {
-      // Parsear el data_concatenated para buscar img_comment¬1
+      // Parsear el data_concatenated para buscar new_img¬1
       const dataConcatenated = imageObject['data_concatenated'];
       
       // Los atributos están separados por § y cada par atributo-valor por ¬
@@ -5501,7 +5501,7 @@ function hasImageStarComment(imageName) {
       
       for (const attribute of attributes) {
         const [key, value] = attribute.split('¬');
-        if (key === 'img_comment' && value === '1') {
+        if (key === 'new_img' && value === '1') {
           return true;
         }
       }
