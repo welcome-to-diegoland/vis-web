@@ -11,7 +11,7 @@ const VALID_USERS = {
   'ximena': { password: '1234', group: 'Analista' },
   'carlos': { password: '1234', group: 'Analista' },
   'kalem': { password: '1234', group: 'Analista' },
-  'diego': { password: 'mrmedel', group: 'Admin' },
+  'diego': { password: 'dddd', group: 'Admin' },
   'rafael': { password: '1234', group: 'Admin' },
   'daniela': { password: '1234', group: 'Admin' },
   'esteban': { password: '1234', group: 'Admin' },
@@ -4371,13 +4371,34 @@ function updateRowMultipleIndicator(row, rowIndex, sectionName) {
   // Buscar si ya existe un indicador
   let existingIndicator = firstCell.querySelector('.multiple-images-indicator');
   
-  if (imageCount > 1) {
+  // Lógica diferente para REST vs COV
+  let shouldShowIndicator = false;
+  let indicatorText = '';
+  let threshold = 1; // Por defecto para COV (mostrar cuando hay más de 1)
+  
+  if (sectionName === 'rest') {
+    // Para REST: mostrar solo cuando hay más de 3 (las visibles en viewport)
+    threshold = 3;
+    if (imageCount > 3) {
+      shouldShowIndicator = true;
+      indicatorText = `${imageCount - 3}`; // Solo el número de adicionales
+    }
+  } else {
+    // Para COV: mostrar cuando hay más de 1, sin signo +
+    threshold = 1;
+    if (imageCount > 1) {
+      shouldShowIndicator = true;
+      indicatorText = `${imageCount - 1}`; // Solo el número, sin signo +
+    }
+  }
+  
+  if (shouldShowIndicator) {
     // Mostrar o actualizar indicador
     if (existingIndicator) {
       // Actualizar contador
       const textElement = existingIndicator.querySelector('.indicator-text');
       if (textElement) {
-        textElement.textContent = `+${imageCount - 1}`;
+        textElement.textContent = indicatorText;
       }
       existingIndicator.title = `${imageCount} imágenes en ${sectionName.toUpperCase()}`;
     } else {
@@ -4387,12 +4408,12 @@ function updateRowMultipleIndicator(row, rowIndex, sectionName) {
         const indicator = document.createElement('div');
         indicator.className = 'multiple-images-indicator';
         indicator.title = `${imageCount} imágenes en ${sectionName.toUpperCase()}`;
-        indicator.innerHTML = `<span class="indicator-text">+${imageCount - 1}</span>`;
+        indicator.innerHTML = `<span class="indicator-text">${indicatorText}</span>`;
         container.appendChild(indicator);
       }
     }
   } else {
-    // Quitar indicador si solo hay una imagen o ninguna
+    // Quitar indicador si no cumple el threshold
     if (existingIndicator) {
       existingIndicator.remove();
     }
