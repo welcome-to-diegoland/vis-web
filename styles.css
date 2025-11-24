@@ -4460,8 +4460,8 @@ button[id="btn-cargar-categoria"]:disabled {
 
 /* Sección REST - Fondo suave coordinado con header verde lima */
 .rest-wrapper {
-  width: calc(var(--image-size, 80px) + 100px);
-  min-width: calc(var(--image-size, 80px) + 100px);
+  width: calc(var(--image-size, 80px) * 3 + 60px);
+  min-width: calc(var(--image-size, 80px) * 3 + 60px);
   flex-shrink: 0;
   background-color: rgba(176, 201, 18, 0.12) !important; /* Verde lima muy suave del header B0C912 */
   /* border-left: 2px solid #B0C912 !important; */ /* Línea delimitadora verde lima exacta */
