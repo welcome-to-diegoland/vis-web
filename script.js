@@ -15197,6 +15197,9 @@ function createEmptyRecords(itemData, currentDate, formattedUserName) {
 }
 
 function collectVisibleData() {
+  // Sincronizar datos del grid con currentWorkingData antes de recopilar
+  updateCurrentWorkingDataWithGridStateImmediate();
+  
   const records = [];
   const currentDate = getLocalDateTime();
   const currentUser = getCurrentUser();
