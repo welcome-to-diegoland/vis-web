@@ -12079,6 +12079,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-column="tipo-clean" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-column="status-clean" data-item-id="${rowData.itemId || ""}" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell">${rowData.rowNumber}</td>
         </tr>
       `;
     } else {
@@ -12101,6 +12102,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-column="tipo-clean" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-column="status-clean" data-item-id="${rowData.itemId || ""}" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell">${rowData.rowNumber}</td>
         </tr>
       `;
     }
@@ -12147,6 +12149,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
               <th class="inventory-header-cell">Comentario</br>Diseñador</th>
               <th class="inventory-header-cell">Tipo</th>
               <th class="inventory-header-cell">Status</th>
+              <th class="inventory-header-cell">#</th>
             </tr>
           </thead>
           <tbody>
@@ -13088,6 +13091,7 @@ function regenerateInventoryTable(filteredData) {
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-item-name="${rowData.itemName}" data-item-id="${rowData.itemId}" data-column="tipo-clean" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-column="status-clean" data-item-id="${rowData.itemId || ""}" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell">${rowData.rowNumber}</td>
         </tr>
       `;
     } else {
@@ -13110,6 +13114,7 @@ function regenerateInventoryTable(filteredData) {
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-comment-type="diseñador-comment-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoComentarioDisenador || '')}</td>
           <td class="inventory-cell-clean clickable-comment-clean" data-image-name="${rowData.imageName}" data-column="tipo-clean" data-comment-type="tipo-clean" title="Click para ver historial completo">${escapeHtml(rowData.ultimoTipo || '')}</td>
           <td class="inventory-cell-clean clickable-status-clean" data-column="status-clean" data-item-id="${rowData.itemId || ""}" data-item-group-id="${escapeHtml(rowData.itemGroupId || getItemGroupIdFromData(rowData) || "")}" title="Click para navegar al Item Group">${createStatusTag(rowData.ultimoStatus)}</td>
+          <td class="inventory-cell">${rowData.rowNumber}</td>
         </tr>
       `;
     }

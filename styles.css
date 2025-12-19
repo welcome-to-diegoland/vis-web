@@ -6087,6 +6087,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .inventory-header-cell:nth-child(15) { width: 150px; min-width: 150px; max-width: 150px; }
 .inventory-header-cell:nth-child(16) { width: 110px; min-width: 110px; max-width: 110px; }
 .inventory-header-cell:nth-child(17) { width: 120px; min-width: 120px; max-width: 120px; }
+.inventory-header-cell:nth-child(18) { width: 35px; min-width: 35px; max-width: 35px; }
 
 .inventory-row {
   border-bottom: 1px solid #e9ecef;
@@ -6221,6 +6222,17 @@ button[id="btn-cargar-categoria"]:disabled {
   background-color: rgba(248, 249, 250, 0.8); /* Gris blanco */
   min-width: 120px; /* Más ancho para que quepa "completado" */
   width: 120px;
+}
+
+/* Nueva columna # duplicada al final */
+.inventory-cell:nth-child(18) { /* # duplicada */
+  width: 35px;
+  min-width: 35px;
+  max-width: 35px;
+  font-weight: 600;
+  color: #6c757d;
+  font-size: 12px;
+  text-align: center;
 }
 
 /* Estilos específicos por columna - TEXTOS EN NEGRO Y BOLD */
@@ -7263,6 +7275,15 @@ button[id="btn-cargar-categoria"]:disabled {
   font-style: normal !important;
 }
 
+/* Nueva columna # duplicada - Columna 18 */
+.inventory-cell-clean:nth-child(18) {
+  width: 35px;
+  min-width: 35px;
+  max-width: 35px;
+  text-align: center;
+  background-color: rgba(13, 110, 253, 0.1); /* Azul claro como la primera */
+}
+
 
 
 /* ===== ESTILOS PARA TABLAS DE RESUMEN ===== */
@@ -7489,6 +7510,7 @@ button[id="btn-cargar-categoria"]:disabled {
 .image-inventory-table .inventory-cell:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 .image-inventory-table .inventory-cell:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
 .image-inventory-table .inventory-cell:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+.image-inventory-table .inventory-cell:nth-child(18) { width: 45px !important; min-width: 45px !important; max-width: 45px !important; }
 
 /* También aplicar a las celdas td directamente */
 table.image-inventory-table td:nth-child(1) { width: 45px !important; min-width: 45px !important; max-width: 45px !important; }
@@ -7508,6 +7530,7 @@ table.image-inventory-table td:nth-child(14) { width: 90px !important; min-width
 table.image-inventory-table td:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 table.image-inventory-table td:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
 table.image-inventory-table td:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+table.image-inventory-table td:nth-child(18) { width: 45px !important; min-width: 45px !important; max-width: 45px !important; }
 
 /* ===== COLORES DE FONDO PARA COLUMNAS DE ANALISTA Y DISEÑADOR ===== */
 
@@ -7573,6 +7596,7 @@ table.image-inventory-table td:nth-child(17) { width: 120px !important; min-widt
 .image-inventory-table .inventory-cell-clean:nth-child(15) { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(16) { width: 110px !important; min-width: 110px !important; max-width: 110px !important; }
 .image-inventory-table .inventory-cell-clean:nth-child(17) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+.image-inventory-table .inventory-cell-clean:nth-child(18) { width: 45px !important; min-width: 45px !important; max-width: 45px !important; }
 
 /* ========== LOADING MESSAGE STYLES ========== */
 .loading-message {
