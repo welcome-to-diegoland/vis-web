@@ -1389,7 +1389,6 @@ function initializeLoginSystem() {
     if (savedUnifiedState) {
       const parsed = JSON.parse(savedUnifiedState);
       unifiedViewState = { ...unifiedViewState, ...parsed };
-      console.log('💾 Estado unificado restaurado desde localStorage:', unifiedViewState.tables.comments.scroll);
     }
   } catch (error) {
     console.error('❌ Error restaurando estado unificado:', error);
@@ -11392,19 +11391,26 @@ function clearAllBoxes() {
     // NUEVO SISTEMA: Verificar si tenemos estado que preservar O filtros activos
     const hasActiveFilters = unifiedViewState.tables.analysts.activeElements.length > 0 ||
                             unifiedViewState.tables.designers.activeElements.length > 0 ||
-                            unifiedViewState.tables.comments.activeFilters > 0;
+                            Object.keys(unifiedViewState.tables.comments.filters || {}).length > 0;
     
-    const hasStateToPreserve = unifiedViewState.preserveState || hasActiveFilters;
+    // También verificar inventoryViewState como fallback
+    const hasInventoryFilters = inventoryViewState && inventoryViewState.activeFilters &&
+                               Object.keys(inventoryViewState.activeFilters).length > 0;
+    
+    const hasStateToPreserve = unifiedViewState.preserveState || hasActiveFilters || hasInventoryFilters;
     const hasCommentData = (masterCommentData && masterCommentData.length > 0) || 
                           (commentedItemsData && commentedItemsData.length > 0);
     
     console.log('🔍 Estado de preservación:', {
       preserveState: unifiedViewState.preserveState,
       hasActiveFilters: hasActiveFilters,
+      hasInventoryFilters: hasInventoryFilters,
       hasStateToPreserve: hasStateToPreserve,
       hasCommentData: hasCommentData,
       masterCommentDataLength: masterCommentData ? masterCommentData.length : 0,
-      commentedItemsDataLength: commentedItemsData ? commentedItemsData.length : 0
+      commentedItemsDataLength: commentedItemsData ? commentedItemsData.length : 0,
+      unifiedFilters: unifiedViewState.tables.comments.filters,
+      inventoryFilters: inventoryViewState ? inventoryViewState.activeFilters : null
     });
     
     if (hasStateToPreserve && hasCommentData) {
@@ -14708,7 +14714,6 @@ function restoreStatsTableFilters() {
     const inventoryViewState = JSON.parse(savedState);
     
     if (inventoryViewState.activeFilters && Object.keys(inventoryViewState.activeFilters).length > 0) {
-      console.log('🔧 RESTAURANDO filtros de tablas de stats:', inventoryViewState.activeFilters);
       
       // Restaurar filtro de analista
       if (inventoryViewState.activeFilters.analista) {
@@ -15603,13 +15608,11 @@ function createStatusTag(status) {
 // Funciones para guardar y restaurar estado de scroll y filtros
 function saveInventoryViewState() {
   try {
-    console.log('💾 Guardando estado del inventario...');
     
     const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
     if (inventoryWrapper) {
       inventoryViewState.scrollPosition = inventoryWrapper.scrollTop;
       inventoryViewState.scrollPositionX = inventoryWrapper.scrollLeft;
-      console.log('📍 Scroll guardado:', inventoryViewState.scrollPosition, inventoryViewState.scrollPositionX);
     }
     
     // Guardar filtros de dropdown
@@ -15661,10 +15664,35 @@ function saveInventoryViewState() {
     
     // NO guardar filtros activos - siempre usar filtro automático predeterminado
     console.log('� NO guardando filtros activos - se usará filtro automático predeterminado');
-    const activeFilters = {}; // Siempre vacío
+    const activeFilters = {};
+    
+    // Extraer filtros desde elementos activos del DOM
+    selectedElements.forEach(element => {
+      const user = element.getAttribute('data-user');
+      const status = element.getAttribute('data-status');
+      const type = element.getAttribute('data-type');
+      
+      if (user && type === 'analyst') {
+        activeFilters.analista = user;
+        if (status) {
+          activeFilters.analistaStatus = status;
+        }
+      } else if (user && type === 'designer') {
+        activeFilters.diseñador = user;
+        if (status) {
+          activeFilters.diseñadorStatus = status;
+        }
+      }
+    });
+    
+    // Sincronizar con unifiedViewState si está disponible
+    if (unifiedViewState && unifiedViewState.tables && unifiedViewState.tables.comments) {
+      const unifiedFilters = unifiedViewState.tables.comments.filters || {};
+      Object.assign(activeFilters, unifiedFilters);
+    }
     
     inventoryViewState.activeFilters = activeFilters;
-    console.log('📊 Filtros de tablas guardados:', activeFilters);
+    console.log('📊 Filtros de tablas guardados (preservados):', activeFilters);
     
     localStorage.setItem('inventoryViewState', JSON.stringify(inventoryViewState));
     console.log('✅ Estado guardado exitosamente');
@@ -16655,10 +16683,47 @@ function regenerateCommentsTableWithFilters() {
       return false;
     }
     
-    // NO usar filtros guardados - regenerar tabla completa para filtro automático
+    // USAR filtros guardados para restaurar estado
     let filteredData = [...masterCommentData];
-    console.log('� NO aplicando filtros guardados - se usará filtro automático predeterminado');
-    console.log('🔧 Datos sin filtrar:', filteredData.length);
+    
+    // Verificar si hay filtros guardados que aplicar
+    const hasUnifiedFilters = unifiedViewState && unifiedViewState.tables && unifiedViewState.tables.comments && 
+                             unifiedViewState.tables.comments.filters && 
+                             Object.keys(unifiedViewState.tables.comments.filters).length > 0;
+    
+    const hasInventoryFilters = inventoryViewState && inventoryViewState.activeFilters &&
+                               Object.keys(inventoryViewState.activeFilters).length > 0;
+    
+    if (hasUnifiedFilters || hasInventoryFilters) {
+      // Usar filtros de unifiedViewState como prioridad, luego inventoryViewState
+      const filtersToApply = hasUnifiedFilters ? unifiedViewState.tables.comments.filters : inventoryViewState.activeFilters;
+      
+      // Aplicar filtros
+      if (filtersToApply.analista) {
+        filteredData = filteredData.filter(item => item.analista === filtersToApply.analista);
+      }
+      
+      if (filtersToApply.diseñador) {
+        filteredData = filteredData.filter(item => item.diseñador === filtersToApply.diseñador);
+      }
+      
+      if (filtersToApply.analistaStatus) {
+        filteredData = filteredData.filter(item => {
+          if (!item.ultimoStatus) return false;
+          const status = item.ultimoStatus.toLowerCase();
+          
+          if (filtersToApply.analistaStatus === 'activos') {
+            return (status.includes('revision') || status.includes('revisión')) ||
+                   (status.includes('diseño') || status.includes('diseno'));
+          } else if (filtersToApply.analistaStatus === 'diseño') {
+            return status.includes('diseño') || status.includes('diseno');
+          } else if (filtersToApply.analistaStatus === 'revisión') {
+            return status.includes('revision') || status.includes('revisión');
+          }
+          return false;
+        });
+      }
+    }
     
     // 2. REGENERAR HTML DE LA TABLA
     const box4Content = document.getElementById('box4-content');
@@ -16666,9 +16731,23 @@ function regenerateCommentsTableWithFilters() {
       const tableHTML = generateCommentsTableHTML(filteredData);
       box4Content.innerHTML = tableHTML;
       
-      // 3. RECONFIGURAR EVENT LISTENERS
+      // 3. RECONFIGURAR EVENT LISTENERS Y RESTAURAR SCROLL
       setTimeout(() => {
         setupInventoryClickListeners();
+        
+        // 4. RESTAURAR SCROLL después de regenerar la tabla
+        if (unifiedViewState && unifiedViewState.tables && unifiedViewState.tables.comments && unifiedViewState.tables.comments.scroll) {
+          const inventoryWrapper = document.querySelector('.inventory-table-wrapper');
+          if (inventoryWrapper) {
+            const scroll = unifiedViewState.tables.comments.scroll;
+            if (scroll.top > 0) {
+              inventoryWrapper.scrollTop = scroll.top;
+            }
+            if (scroll.left > 0) {
+              inventoryWrapper.scrollLeft = scroll.left;
+            }
+          }
+        }
       }, 50);
       
       console.log(`✅ Tabla de comentarios regenerada: ${filteredData.length} elementos`);
@@ -16737,6 +16816,11 @@ function regenerateStatsTablesWithFilters() {
         designerContainer.querySelector('.designer-stats-table').innerHTML = designerHTML;
       }
       
+      // CRÍTICO: Restaurar elementos activos después de regenerar las tablas
+      setTimeout(() => {
+        restoreActiveElementsInStatsTable();
+      }, 50);
+      
       console.log('✅ Tablas de resumen regeneradas');
       return true;
     }
@@ -16746,6 +16830,59 @@ function regenerateStatsTablesWithFilters() {
   } catch (error) {
     console.error('❌ Error regenerando tablas de resumen:', error);
     return false;
+  }
+}
+
+/**
+ * Restaura elementos activos en las tablas de estadísticas después de regenerarlas
+ */
+function restoreActiveElementsInStatsTable() {
+  try {
+    // Verificar si hay filtros guardados para determinar qué elementos marcar
+    const hasUnifiedFilters = unifiedViewState && unifiedViewState.tables && unifiedViewState.tables.comments && 
+                             unifiedViewState.tables.comments.filters && 
+                             Object.keys(unifiedViewState.tables.comments.filters).length > 0;
+    
+    const hasInventoryFilters = inventoryViewState && inventoryViewState.activeFilters &&
+                               Object.keys(inventoryViewState.activeFilters).length > 0;
+    
+    if (hasUnifiedFilters || hasInventoryFilters) {
+      const filtersToApply = hasUnifiedFilters ? unifiedViewState.tables.comments.filters : inventoryViewState.activeFilters;
+      
+      // Marcar analista activo
+      if (filtersToApply.analista) {
+        const analistaElements = document.querySelectorAll(`[data-user="${filtersToApply.analista}"][data-type="analyst"]`);
+        analistaElements.forEach(el => {
+          el.classList.add('active');
+        });
+        
+        // Marcar status específico si existe
+        if (filtersToApply.analistaStatus) {
+          const statusElements = document.querySelectorAll(`[data-user="${filtersToApply.analista}"][data-status="${filtersToApply.analistaStatus}"][data-type="analyst"]`);
+          statusElements.forEach(el => {
+            el.classList.add('active');
+          });
+        }
+      }
+      
+      // Marcar diseñador activo
+      if (filtersToApply.diseñador) {
+        const designerElements = document.querySelectorAll(`[data-user="${filtersToApply.diseñador}"][data-type="designer"]`);
+        designerElements.forEach(el => {
+          el.classList.add('active');
+        });
+        
+        // Marcar status específico si existe
+        if (filtersToApply.diseñadorStatus) {
+          const statusElements = document.querySelectorAll(`[data-user="${filtersToApply.diseñador}"][data-status="${filtersToApply.diseñadorStatus}"][data-type="designer"]`);
+          statusElements.forEach(el => {
+            el.classList.add('active');
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error restaurando elementos activos:', error);
   }
 }
 
@@ -16911,6 +17048,13 @@ function restoreUnifiedViewState() {
       } catch (error) {
         console.error('❌ Error leyendo filtros de localStorage:', error);
       }
+    }
+    
+    // SINCRONIZAR: Restaurar inventoryViewState.activeFilters para compatibilidad
+    if (Object.keys(filtersToRestore).length > 0) {
+      if (!inventoryViewState) inventoryViewState = {};
+      inventoryViewState.activeFilters = { ...filtersToRestore };
+      console.log('🔄 Sincronizando filtros desde unifiedViewState a inventoryViewState:', filtersToRestore);
     }
     
     if (Object.keys(filtersToRestore).length > 0) {
