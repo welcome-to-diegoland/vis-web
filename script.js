@@ -5706,20 +5706,17 @@ function openCommentModal(title, context, commentText, type = 'item', imageName 
               <div class="form-group">
                 <select class="form-select comment-type-select" id="commentTypeSelect">
                   <option value="">Tipo...</option>
-                  <option value="Guardar IMGs de galería en página web">Guardar IMGs galería web</option>
-                  <option value="Borrar, imagen no coincide con item code">Borrar imagen incorrecta</option>
-                  <option value="Crear cover image">Crear cover image</option>
-                  <option value="Agregar IMG adicional">Agregar IMG adicional</option>
-                  <option value="Tomar foto">Tomar foto</option>
-                  <option value="Renombrar y mover">Renombrar y mover</option>
-                  <option value="Editar color a que corresponda con el producto">Editar color producto</option>
-                  <option value="Mejora de Imagen">Mejora de Imagen</option>
-                  <option value="Imagen en blanco">Imagen en blanco</option>
-                  <option value="Corte de imagen">Corte de imagen</option>
-                  <option value="Voltear Imagen">Voltear Imagen</option>
-                  <option value="Montar producto en aplicación">Montar en aplicación</option>
+                  <option value="Agregar Imagen Adicional">Agregar Imagen Adicional</option>
                   <option value="Bodegón">Bodegón</option>
+                  <option value="Diagrama">Diagrama</option>
+                  <option value="Duplicar con Otro Número">Duplicar con Otro Número</option>
+                  <option value="Editar Color de Producto">Editar Color de Producto</option>
+                  <option value="Editar Imagen">Editar Imagen</option>
+                  <option value="Imagen en Blanco / Revisar Corte">Imagen en Blanco / Revisar Corte</option>
+                  <option value="Montar Producto en Aplicación">Montar Producto en Aplicación</option>
                   <option value="Retícula">Retícula</option>
+                  <option value="Retícula Marca">Retícula Marca</option>
+                  <option value="Voltear Imagen">Voltear Imagen</option>
                 </select>
               </div>
             </div>
