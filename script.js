@@ -22,6 +22,7 @@ const VALID_USERS = {
   'grecia': { password: '4321', group: 'Diseño' },
   'thanya': { password: '4321', group: 'Diseño' },
   'gabriela': { password: '4321', group: 'Diseño' },
+  'karen': { password: '4321', group: 'Diseño' },
   'cinthya': { password: '4321', group: 'Diseño' }
 };
 
@@ -678,6 +679,11 @@ const USERS = {
     name: 'Carla',
     group: 'Diseño',
     displayName: 'Carla (Diseño)'
+  },
+  karen: {
+    name: 'Karen',
+    group: 'Diseño',
+    displayName: 'Karen (Diseño)'
   },
   gabriela: {
     name: 'Gabriela',
@@ -6727,9 +6733,9 @@ function parseCommentForDebugging(commentText) {
 
     // Separar analistas y diseñadores basado en los usuarios conocidos
     // Lista de analistas conocidos (puedes expandir esta lista)
-    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego'];
+    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Sandra', 'Ximena'];
     // Lista de diseñadores conocidos (puedes expandir esta lista)  
-    const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela'];
+    const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela', 'Karen'];
     
     let analistas = [];
     let diseñadores = [];
