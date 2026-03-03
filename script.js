@@ -13257,7 +13257,8 @@ function updateAssignmentSummary() {
 
 function renderDesignersList() {
   const designersContainer = document.getElementById('designersList');
-  const designers = Object.keys(USERS).filter(user => USERS[user].group === 'Diseño');
+  // Excluir a Gabriela de las opciones de asignación
+  const designers = Object.keys(USERS).filter(user => USERS[user].group === 'Diseño' && user !== 'gabriela');
   
   if (!designersContainer) {
     console.error('No se encontró el contenedor designersList');
