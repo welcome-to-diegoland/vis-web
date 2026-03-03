@@ -5651,6 +5651,14 @@ function getStatusColor(status) {
   return colors[status] || '#AFAFAF';
 }
 
+// Función para limpiar saltos de línea del texto de comentarios
+// Reemplaza Enter (\n, \r\n) por punto y espacio (". ")
+function sanitizeCommentText(text) {
+  if (!text) return '';
+  // Reemplazar \r\n (Windows), \r (Mac antiguo) y \n (Unix/Mac)
+  return text.replace(/\r\n|\r|\n/g, '. ').trim();
+}
+
 // Función para crear y mostrar la ventana modal de comentarios
 function openCommentModal(title, context, commentText, type = 'item', imageName = null) {
   // IMPORTANTE: Guardar estado actual antes de abrir modal
@@ -5822,7 +5830,9 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     
     // Obtener valores del formulario
     const selectedType = commentTypeSelect.value.trim();
-    const commentText = commentTextInput.value.trim();
+    let commentText = commentTextInput.value.trim();
+    // Sanitizar el comentario: reemplazar Enter por ". "
+    commentText = sanitizeCommentText(commentText);
     
     // Determinar el status automáticamente basado en el grupo del usuario
     const automaticStatus = getAutomaticStatus();
@@ -11857,7 +11867,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
       // Lista de analistas conocidos (basada en VALID_USERS)
       const analistasConocidos = ['Sandra', 'Victor', 'Ximena', 'Carlos', 'Kalem', 'Diego'];
       // Lista de diseñadores conocidos (basada en VALID_USERS)  
-      const diseñadoresConocidos = ['Veronica', 'Verónica', 'Rossana', 'Carla', 'Gabriela', 'Thanya', 'Grecia', 'Cinthya'];
+      const diseñadoresConocidos = ['Veronica', 'Verónica', 'Rossana', 'Carla', 'Gabriela', 'Thanya', 'Grecia', 'Cinthya', 'Karen'];
       
       let analistas = [];
       let diseñadores = [];
