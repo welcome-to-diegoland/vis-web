@@ -23,7 +23,9 @@ const VALID_USERS = {
   'thanya': { password: '4321', group: 'Diseño' },
   'gabriela': { password: '4321', group: 'Diseño' },
   'karen': { password: '4321', group: 'Diseño' },
-  'cinthya': { password: '4321', group: 'Diseño' }
+  'cinthya': { password: '4321', group: 'Diseño' },
+  'mitzy': { password: '4321', group: 'Diseño' },
+  'mariajose': { password: '4321', group: 'Diseño' }
 };
 
 // ========== END LOGIN SYSTEM ==========
@@ -704,6 +706,16 @@ const USERS = {
     name: 'Cinthya',
     group: 'Diseño',
     displayName: 'Cinthya (Diseño)'
+  },
+  mitzy: {
+    name: 'Mitzy',
+    group: 'Diseño',
+    displayName: 'Mitzy (Diseño)'
+  },
+  mariajose: {
+    name: 'María Jose',
+    group: 'Diseño',
+    displayName: 'María Jose (Diseño)'
   },
   rafael: {
     name: 'Rafael',
@@ -6745,7 +6757,7 @@ function parseCommentForDebugging(commentText) {
     // Lista de analistas conocidos (puedes expandir esta lista)
     const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Sandra', 'Ximena'];
     // Lista de diseñadores conocidos (puedes expandir esta lista)  
-    const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela', 'Karen'];
+    const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela', 'Karen','Mitzy','María Jose'];
     
     let analistas = [];
     let diseñadores = [];
@@ -11867,7 +11879,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
       // Lista de analistas conocidos (basada en VALID_USERS)
       const analistasConocidos = ['Sandra', 'Victor', 'Ximena', 'Carlos', 'Kalem', 'Diego'];
       // Lista de diseñadores conocidos (basada en VALID_USERS)  
-      const diseñadoresConocidos = ['Veronica', 'Verónica', 'Rossana', 'Carla', 'Gabriela', 'Thanya', 'Grecia', 'Cinthya', 'Karen'];
+      const diseñadoresConocidos = ['Veronica', 'Verónica', 'Rossana', 'Carla', 'Gabriela', 'Thanya', 'Grecia', 'Cinthya', 'Karen','Karen','Mitzy','María Jose'];
       
       let analistas = [];
       let diseñadores = [];
