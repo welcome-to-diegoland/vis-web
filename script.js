@@ -24,7 +24,7 @@ const VALID_USERS = {
   'gabriela': { password: '4321', group: 'Diseño' },
   'karen': { password: '4321', group: 'Diseño' },
   'cinthya': { password: '4321', group: 'Diseño' },
-  'mitzy': { password: '4321', group: 'Diseño' },
+  'mitzi': { password: '4321', group: 'Diseño' },
   'mariajose': { password: '4321', group: 'Diseño' }
 };
 
@@ -707,10 +707,10 @@ const USERS = {
     group: 'Diseño',
     displayName: 'Cinthya (Diseño)'
   },
-  mitzy: {
-    name: 'Mitzy',
+  mitzi: {
+    name: 'Mitzi',
     group: 'Diseño',
-    displayName: 'Mitzy (Diseño)'
+    displayName: 'Mitzi (Diseño)'
   },
   mariajose: {
     name: 'María Jose',
@@ -6757,7 +6757,7 @@ function parseCommentForDebugging(commentText) {
     // Lista de analistas conocidos (puedes expandir esta lista)
     const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Sandra', 'Ximena'];
     // Lista de diseñadores conocidos (puedes expandir esta lista)  
-    const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela', 'Karen','Mitzy','María Jose'];
+    const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela', 'Karen','Mitzi','María Jose'];
     
     let analistas = [];
     let diseñadores = [];
@@ -11879,7 +11879,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
       // Lista de analistas conocidos (basada en VALID_USERS)
       const analistasConocidos = ['Sandra', 'Victor', 'Ximena', 'Carlos', 'Kalem', 'Diego'];
       // Lista de diseñadores conocidos (basada en VALID_USERS)  
-      const diseñadoresConocidos = ['Veronica', 'Verónica', 'Rossana', 'Carla', 'Gabriela', 'Thanya', 'Grecia', 'Cinthya', 'Karen','Karen','Mitzy','María Jose'];
+      const diseñadoresConocidos = ['Veronica', 'Verónica', 'Rossana', 'Carla', 'Gabriela', 'Thanya', 'Grecia', 'Cinthya', 'Karen','Karen','Mitzi','María Jose'];
       
       let analistas = [];
       let diseñadores = [];
