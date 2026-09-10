@@ -4,6 +4,27 @@ let dataLoaded = false;
 let userAuthenticated = false;
 let currentUser = null;
 
+const APP_VERSION = '3.8';
+const APP_VERSION_DATE = '10/09/26';
+const PRODUCT_IMAGE_BASE = 'https://www.travers.com.mx/media/catalog/product/agility/img/';
+const IMAGE_CACHE_WINDOW_MS = 2 * 60 * 1000;
+
+function applyAppTitle() {
+  document.title = `reviw (${APP_VERSION})  [${APP_VERSION_DATE}]`;
+}
+applyAppTitle();
+
+function getImageCacheBuster() {
+  return Math.floor(Date.now() / IMAGE_CACHE_WINDOW_MS);
+}
+
+function getProductImageUrl(imageName) {
+  if (!imageName) return '';
+  const name = String(imageName).trim().split('?')[0].split('/').pop();
+  if (!name) return '';
+  return `${PRODUCT_IMAGE_BASE}${name}?v=${getImageCacheBuster()}`;
+}
+
 // Lista de usuarios hardcoded con grupos
 const VALID_USERS = {
   'sandra': { password: '1234', group: 'Analista' },
@@ -16,6 +37,7 @@ const VALID_USERS = {
   'daniela': { password: '1234', group: 'Admin' },
   'esteban': { password: '1234', group: 'Admin' },
   'arturo': { password: '1234', group: 'Analista' },
+  'jesus': { password: '1234', group: 'Analista' },
   'veronica': { password: '4321', group: 'Diseño' },
   'rossana': { password: '4321', group: 'Diseño' },
   'carla': { password: '4321', group: 'Diseño' },
@@ -736,6 +758,11 @@ const USERS = {
     name: 'Arturo',
     group: 'Analistas',
     displayName: 'Arturo (Analistas)'
+  },
+  jesus: {
+    name: 'Jesus',
+    group: 'Analistas',
+    displayName: 'Jesus (Analistas)'
   }
 };
 
@@ -1385,13 +1412,26 @@ let imageGridData = {}; // Cache de datos del grid actual para operaciones rápi
 // Variable global para el Item Group actual
 let currentItemGroup = null; // Para mantener referencia al Item Group cargado
 
+// Variables para control de reintentos (deben existir ANTES de iniciar el login)
+let dataLoadingAttempts = 0;
+const MAX_LOADING_ATTEMPTS = 3;
+let isCurrentlyLoading = false;
+let itemGroupDataCache = new Map();
+let allItemGroupsLoaded = false;
+let loadingCache = false;
+
 // Event Listeners (sección limpia)
-document.addEventListener('DOMContentLoaded', function() {
-  // SISTEMA DE LOGIN: Inicializar primero
+function startLoginWhenReady() {
   initializeLoginSystem();
-  
-  // Los diagnósticos y inicializaciones se ejecutarán solo después del login exitoso
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startLoginWhenReady);
+} else {
+  // Magento carga el script cuando el DOM ya está listo. Diferir al siguiente
+  // tick para que termine de parsearse todo el archivo (si no, hay TDZ).
+  setTimeout(startLoginWhenReady, 0);
+}
 
 // ========== FUNCIONES DEL SISTEMA DE LOGIN ==========
 
@@ -1467,11 +1507,6 @@ function setupLoginForm() {
     });
   }
 }
-
-// Variables para control de reintentos
-let dataLoadingAttempts = 0;
-const MAX_LOADING_ATTEMPTS = 3;
-let isCurrentlyLoading = false;
 
 async function startDataLoading() {
   // Prevenir múltiples cargas simultáneas
@@ -4086,7 +4121,7 @@ function createImageGrid(itemCodes, imageColumns, itemGroup = null) {
           <div class="item-group-info">
             <div class="item-group-image">
               ${itemGroup && itemGroup['WA_Gallery_01'] ? 
-                `<img src="https://www.travers.com.mx/media/catalog/product/agility/img/${itemGroup['WA_Gallery_01']}" 
+                `<img src="${getProductImageUrl(itemGroup['WA_Gallery_01'])}" 
                      alt="Gallery 1" class="group-thumbnail"
                      onerror="this.style.display='none';">
                  <div class="item-group-delete-btn" title="Quitar imagen del Item Group"><i class="fa-solid fa-trash"></i></div>` : 
@@ -4299,7 +4334,7 @@ function generateImageCell(imageName, itemCode, sectionName = '', colIndex = 0, 
   
   return `
     <div class="image-thumbnail-container">
-      <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
+      <img src="${getProductImageUrl(imageName)}" 
            alt="${imageName}" class="image-thumbnail" 
            data-filename="${imageName}"
            onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ci8+CjxwYXRoIGQ9Ik0xMiAxNkwyOCAyNE0yOCAxNkwxMiAyNCIgc3Ryb2tlPSIjOUM5Qzk5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K'; this.title='Imagen no encontrada: ${imageName}';">
@@ -4672,7 +4707,7 @@ function updateWorkingImagePlaceholder() {
 
   if (workingImage) {
     placeholder.innerHTML = `
-      <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${workingImage.imageName}" 
+      <img src="${getProductImageUrl(workingImage.imageName)}" 
            alt="${workingImage.imageName}" 
            class="working-image-preview"
            onerror="this.style.display='none';">
@@ -5879,7 +5914,7 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     }
     
     // Agregar el comentario a los datos
-    addNewCommentToData(contextForData, newComment, type, imageName);
+    const savedCommentHistory = addNewCommentToData(contextForData, newComment, type, imageName);
     
     // Actualizar la vista de comentarios
     updateCommentsDisplay(modal);
@@ -5951,7 +5986,7 @@ function setupNewCommentForm(modal, context, type = 'item', imageName = null, co
     updateTablesAfterComment();
     
     // AUTO-GUARDAR COMENTARIO INMEDIATAMENTE
-    autoSaveComment(newComment, type, imageName, context);
+    autoSaveComment(newComment, type, imageName, context, savedCommentHistory);
     
     // Cerrar modal automáticamente después de agregar el comentario exitosamente
     setTimeout(() => {
@@ -6001,10 +6036,10 @@ function setupStatusControl(modal, context, type = 'item', imageName = null, com
     }
     
     // Agregar el comentario a los datos
-    addNewCommentToData(contextForData, newComment, type, imageName);
+    const savedCommentHistory = addNewCommentToData(contextForData, newComment, type, imageName);
     
     // AUTO-GUARDAR COMENTARIO DE CAMBIO DE STATUS INMEDIATAMENTE
-    autoSaveComment(newComment, type, imageName, context);
+    autoSaveComment(newComment, type, imageName, context, savedCommentHistory);
     
     // Actualizar la vista de comentarios
     updateCommentsDisplay(modal);
@@ -6094,6 +6129,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
   
   // Crear el string del nuevo comentario en formato Excel
   const newCommentString = `${newComment.usuario}¦${newComment.fechaHora}¦${newComment.tipoComentario}¦${newComment.textoComentario}¦${newComment.status}`;
+  let completeCommentsToReturn = newCommentString;
   console.log('📋 String de comentario formateado:', newCommentString);
   console.log('📝 DEBUG - textoComentario en string:', `"${newComment.textoComentario}"`);
   console.log('📝 DEBUG - newComment completo:', JSON.stringify(newComment, null, 2));
@@ -6139,6 +6175,22 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       const inAssetComments = currentAssetComments.find(asset => asset.Name === imageName);
       if (inAssetComments) {
         inAssetComments['WA_VIS_Comment'] = newCompleteComments;
+      }
+
+      if (window.allItemGroupsData && window.allItemGroupsData.length > 0) {
+        const inAllItemGroups = window.allItemGroupsData.find(item =>
+          item['Object Type'] === 'Image' && item.Name === imageName
+        );
+        if (inAllItemGroups) {
+          inAllItemGroups['WA_VIS_Comment'] = newCompleteComments;
+        }
+      }
+
+      if (!inCurrentWorking && currentWorkingData) {
+        currentWorkingData.push(assetData);
+      }
+      if (!inAllLibrary && allLibraryData) {
+        allLibraryData.push(assetData);
       }
       
     } else {
@@ -6320,7 +6372,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       console.log('🎯 Trackear datos del comentario imagen:', window.lastCommentedData);
     }
     
-    return;
+    return assetData['WA_VIS_Comment'] || newCommentString;
   }
   
   // Encontrar el elemento correspondiente en los datos
@@ -6380,6 +6432,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       
       // Actualizar el Item Group encontrado
       targetItemGroup['WA_VIS_Comment'] = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      completeCommentsToReturn = targetItemGroup['WA_VIS_Comment'];
       
       // Parsear comentarios DESPUÉS para comparar
       const commentsAfter = parseCommentForDebugging(targetItemGroup['WA_VIS_Comment']);
@@ -6438,7 +6491,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       
     } else {
       console.error('❌ No se pudo encontrar el Item Group para guardar el comentario:', context);
-      return;
+      return newCommentString;
     }
   } else {
     // Es un comentario de Item Code
@@ -6571,6 +6624,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       
       // Crear el nuevo comentario completo
       const newCompleteComments = existingComments ? existingComments + '¶' + newCommentString : newCommentString;
+      completeCommentsToReturn = newCompleteComments;
       
       // Actualizar en TODAS las fuentes de datos
       itemCodeData['WA_VIS_Comment'] = newCompleteComments;
@@ -6612,7 +6666,7 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       
     } else {
       console.error('❌ No se pudo encontrar el Item Code para guardar el comentario:', context);
-      return;
+      return newCommentString;
     }
   }
   
@@ -6643,6 +6697,8 @@ function addNewCommentToData(context, newComment, type = 'item', imageName = nul
       console.log('🔍 updateCommentBubbles no está disponible - actualizando item:', context);
     }
   }
+
+  return completeCommentsToReturn;
 }
 
 // NUEVO: Función para actualizar el caché con nuevos comentarios
@@ -6755,7 +6811,7 @@ function parseCommentForDebugging(commentText) {
 
     // Separar analistas y diseñadores basado en los usuarios conocidos
     // Lista de analistas conocidos (puedes expandir esta lista)
-    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Sandra', 'Ximena'];
+    const analistasConocidos = ['Victor', 'Carlos', 'Kalem', 'Diego', 'Sandra', 'Ximena', 'Arturo', 'Jesus'];
     // Lista de diseñadores conocidos (puedes expandir esta lista)  
     const diseñadoresConocidos = ['Veronica', 'Verónica', 'Cinthya', 'Thanya', 'Grecia', 'Rossana', 'Carla', 'Gabriela', 'Karen','Mitzi','María Jose'];
     
@@ -8399,7 +8455,7 @@ function updateItemGroupHeaderImage(imageName) {
   // Crear nueva imagen o actualizar existente
   if (imageName) {
     groupImageContainer.innerHTML = `
-      <img src="https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}" 
+      <img src="${getProductImageUrl(imageName)}" 
            alt="Gallery 1" class="group-thumbnail"
            onerror="this.style.display='none';">
       <div class="item-group-delete-btn" title="Quitar imagen del Item Group"><i class="fa-solid fa-trash"></i></div>
@@ -8675,9 +8731,7 @@ function handleItemGroupImageClick(event) {
   const imageSrc = event.target.src;
   const imageName = event.target.alt || 'Item Group Image';
   
-  // Extraer el nombre real de la imagen desde la URL
-  const urlParts = imageSrc.split('/');
-  const actualImageName = urlParts[urlParts.length - 1];
+  const actualImageName = extractImageName(imageSrc);
   
   console.log(`🖼️ Mostrando vista previa de imagen del Item Group: ${actualImageName}`);
   
@@ -9636,11 +9690,6 @@ function loadFromLocalStorage() {
 }
 
 // ===== SISTEMA DE CACHÉ PARA ITEM GROUPS =====
-let itemGroupDataCache = new Map(); // Cache en memoria para Item Groups
-let allItemGroupsLoaded = false; // Flag para saber si ya cargamos todo
-
-// Función para cargar TODOS los Item Groups una sola vez y cachearlos
-let loadingCache = false; // Flag para evitar cargas múltiples
 async function loadAllItemGroupsToCache() {
   if (allItemGroupsLoaded) {
     console.log('✅ Todos los Item Groups ya están en caché');
@@ -11262,7 +11311,7 @@ function renderGalleryGrid(images) {
   // Crear el HTML del grid
   const gridHTML = images.map(item => {
     const imageName = item.Imagen || item.imagen || item.IMAGEN || item['Imagen'] || '';
-    const imageUrl = `https://www.travers.com.mx/media/catalog/product/agility/img/${imageName}`;
+    const imageUrl = getProductImageUrl(imageName);
     
     console.log('🖼️ Procesando imagen:', imageName);
     
@@ -11271,7 +11320,7 @@ function renderGalleryGrid(images) {
         <div class="gallery-image-container">
           <img src="${imageUrl}" 
                alt="${imageName}"
-               onerror="this.src='https://www.travers.com.mx/media/catalog/product/agility/img/prod_img_blank.jpg';"
+               onerror="this.src='${getProductImageUrl('prod_img_blank.jpg')}';"
                class="gallery-image">
         </div>
         <div class="gallery-image-name">${imageName}</div>
@@ -11877,7 +11926,7 @@ function generateImageInventoryTable(dataOverride = null, showAllData = false, s
 
       // Separar analistas y diseñadores basado en los usuarios conocidos
       // Lista de analistas conocidos (basada en VALID_USERS)
-      const analistasConocidos = ['Sandra', 'Victor', 'Ximena', 'Carlos', 'Kalem', 'Diego'];
+      const analistasConocidos = ['Sandra', 'Victor', 'Ximena', 'Carlos', 'Kalem', 'Diego', 'Arturo', 'Jesus'];
       // Lista de diseñadores conocidos (basada en VALID_USERS)  
       const diseñadoresConocidos = ['Veronica', 'Verónica', 'Rossana', 'Carla', 'Gabriela', 'Thanya', 'Grecia', 'Cinthya', 'Karen','Karen','Mitzi','María Jose'];
       
@@ -14936,7 +14985,13 @@ async function saveToGoogleSheets() {
 }
 
 // Función para auto-guardar un comentario individual inmediatamente después de crearlo
-function autoSaveComment(newComment, type, imageName = null, context = null) {
+function buildCommentStringFromObject(newComment) {
+  if (!newComment) return '';
+  if (typeof newComment === 'string') return newComment;
+  return `${newComment.usuario || ''}¦${newComment.fechaHora || ''}¦${newComment.tipoComentario || ''}¦${newComment.textoComentario || ''}¦${newComment.status || ''}`;
+}
+
+function autoSaveComment(newComment, type, imageName = null, context = null, knownCommentHistory = null) {
   console.log('🚀 === INICIO autoSaveComment ===');
   console.log('📝 DEBUG - newComment recibido:', newComment);
   console.log('📝 DEBUG - type:', type);
@@ -14948,10 +15003,12 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
   const currentUserInfo = getCurrentUserInfo();
   const formattedUserName = currentUserInfo?.name || currentUser;
   
-  // Obtener comentarios actualizados (que ya incluyen el nuevo comentario)
-  let completeCommentHistory = '';
+  // Preferir el historial que ya se armó al agregar el comentario
+  let completeCommentHistory = knownCommentHistory || '';
   
-  if (type === 'image' && imageName) {
+  if (completeCommentHistory) {
+    console.log('✅ DEBUG - Usando historial de comentarios ya generado:', completeCommentHistory);
+  } else if (type === 'image' && imageName) {
     // Para imágenes, obtener comentarios actualizados directamente de los datos ya modificados
     console.log('📝 DEBUG - Buscando comentarios actualizados para imagen:', imageName);
     
@@ -14973,7 +15030,13 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
         completeCommentHistory = imageInAllLibrary['WA_VIS_Comment'];
         console.log('✅ DEBUG - Comentarios encontrados en allLibraryData:', completeCommentHistory);
       } else {
-        console.log('❌ DEBUG - No se encontraron comentarios para imagen:', imageName);
+        const imageAsset = findImageAssetByName(imageName);
+        if (imageAsset && imageAsset['WA_VIS_Comment']) {
+          completeCommentHistory = imageAsset['WA_VIS_Comment'];
+          console.log('✅ DEBUG - Comentarios encontrados via findImageAssetByName:', completeCommentHistory);
+        } else {
+          console.log('❌ DEBUG - No se encontraron comentarios para imagen:', imageName);
+        }
       }
     }
   } else {
@@ -15038,6 +15101,11 @@ function autoSaveComment(newComment, type, imageName = null, context = null) {
     }
     
     console.log('📜 Historial completo de comentarios (ya actualizado):', completeCommentHistory);
+  }
+
+  if (!completeCommentHistory) {
+    completeCommentHistory = buildCommentStringFromObject(newComment);
+    console.log('🛟 DEBUG - Fallback: armando Value desde el comentario nuevo:', completeCommentHistory);
   }
   
   // Crear registro con el historial completo
@@ -15594,14 +15662,13 @@ function collectComments(itemData, itemId, objectType, currentDate, currentUser,
 }
 
 function extractImageName(imageSrc) {
-  // Extraer solo el nombre del archivo de la URL
+  if (!imageSrc) return '';
   try {
-    const url = new URL(imageSrc);
-    const pathname = url.pathname;
-    return pathname.split('/').pop() || imageSrc;
+    const url = new URL(imageSrc, window.location.href);
+    return decodeURIComponent(url.pathname.split('/').pop() || '');
   } catch (error) {
-    // Si no es una URL válida, usar el src completo
-    return imageSrc.split('/').pop() || imageSrc;
+    const withoutQuery = String(imageSrc).split('?')[0];
+    return withoutQuery.split('/').pop() || imageSrc;
   }
 }
 
